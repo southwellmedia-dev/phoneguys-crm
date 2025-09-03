@@ -1,0 +1,357 @@
+'use client';
+
+import React, { useState, useMemo } from 'react';
+import { 
+  LineChart,
+  Line,
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  Dot
+} from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Clock, 
+  User, 
+  Calendar, 
+  Trash2, 
+  Timer,
+  FileText,
+  TrendingUp
+} from 'lucide-react';
+import { TimeEntry } from '@/lib/types/database.types';
+import { formatDuration } from '@/lib/utils';
+import { toast } from 'sonner';
+
+interface TimeEntriesSectionProps {
+  entries: Array<TimeEntry & { user?: { full_name: string; email?: string; role?: string } }>;
+  totalMinutes: number;
+  canDelete?: boolean;
+  onDelete?: (entryId: string) => Promise<void>;
+}
+
+export function TimeEntriesSection({ entries, totalMinutes, canDelete = false, onDelete }: TimeEntriesSectionProps) {
+  const [deleteEntry, setDeleteEntry] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Prepare chart data from entries
+  const chartData = useMemo(() => {
+    if (!entries || entries.length === 0) return [];
+
+    // Sort entries by start time
+    const sortedEntries = [...entries].sort((a, b) => 
+      new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    );
+
+    // Create data points for the chart
+    let cumulativeMinutes = 0;
+    return sortedEntries.map((entry, index) => {
+      const duration = entry.duration_minutes || 0;
+      cumulativeMinutes += duration;
+      
+      return {
+        index: index + 1,
+        sessionNumber: `Session ${index + 1}`,
+        date: new Date(entry.start_time).toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric' 
+        }),
+        time: new Date(entry.start_time).toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        }),
+        duration: duration,
+        cumulative: cumulativeMinutes,
+        technician: entry.user?.name || 'Unknown',
+        description: entry.description || '',
+        isActive: !entry.end_time,
+        hours: parseFloat((duration / 60).toFixed(2)),
+        cumulativeHours: parseFloat((cumulativeMinutes / 60).toFixed(2)),
+      };
+    });
+  }, [entries]);
+
+  const handleDelete = async () => {
+    if (!deleteEntry || !onDelete) return;
+
+    setDeleting(true);
+    try {
+      await onDelete(deleteEntry);
+      toast.success('Time entry deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete time entry:', error);
+      toast.error('Failed to delete time entry');
+    } finally {
+      setDeleting(false);
+      setDeleteEntry(null);
+    }
+  };
+
+  const formatTimeRange = (entry: TimeEntry) => {
+    const startTime = new Date(entry.start_time).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    
+    if (entry.end_time) {
+      const endTime = new Date(entry.end_time).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+      return `${startTime} - ${endTime}`;
+    }
+    
+    return `${startTime} - In progress`;
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    }
+    
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
+    });
+  };
+
+  // Custom tooltip for chart
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-background border rounded-lg shadow-lg p-3 space-y-1">
+          <p className="font-semibold">{data.sessionNumber}</p>
+          <p className="text-sm">{data.date} at {data.time}</p>
+          <p className="text-sm">Duration: {formatDuration(data.duration)}</p>
+          <p className="text-sm">Total: {formatDuration(data.cumulative)}</p>
+          <p className="text-sm text-muted-foreground">By {data.technician}</p>
+          {data.isActive && (
+            <Badge variant="default" className="text-xs">Active</Badge>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Group entries by date for the list view
+  const groupedEntries = useMemo(() => {
+    return entries.reduce((acc, entry) => {
+      const date = formatDate(entry.start_time);
+      if (!acc[date]) {
+        acc[date] = [];
+      }
+      acc[date].push(entry);
+      return acc;
+    }, {} as Record<string, typeof entries>);
+  }, [entries]);
+
+  if (entries.length === 0) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+          <Timer className="h-12 w-12 text-muted-foreground/50 mb-3" />
+          <p className="text-muted-foreground">No time entries yet</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Start the timer to begin tracking work time
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-6">
+        {/* Time Tracking Chart - only show if there are 2+ entries */}
+        {chartData.length >= 2 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Time Tracking Progress
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="sessionNumber" 
+                    className="text-xs"
+                    tick={{ fill: 'currentColor' }}
+                  />
+                  <YAxis 
+                    className="text-xs"
+                    tick={{ fill: 'currentColor' }}
+                    label={{ value: 'Hours', angle: -90, position: 'insideLeft', style: { fill: 'currentColor' } }}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="cumulativeHours" 
+                    stroke="#0094CA"
+                    strokeWidth={2}
+                    dot={{ r: 4, fill: '#0094CA' }}
+                    activeDot={{ r: 6 }}
+                    name="Total Hours"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="hours" 
+                    stroke="#fb2c36"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={{ r: 3, fill: '#fb2c36' }}
+                    name="Session Hours"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+              <div className="flex items-center justify-center gap-6 mt-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-0.5 bg-[#0094CA]"></div>
+                  <span>Cumulative Time</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-0.5 bg-[#fb2c36] border-dashed"></div>
+                  <span>Session Duration</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Time Entries List */}
+        <div className="space-y-4">
+          {Object.entries(groupedEntries).map(([date, dateEntries]) => (
+            <div key={date} className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Calendar className="h-3.5 w-3.5" />
+                {date}
+                <span className="text-xs">
+                  ({dateEntries.length} {dateEntries.length === 1 ? 'entry' : 'entries'})
+                </span>
+              </div>
+              
+              {dateEntries.map((entry) => (
+                <div 
+                  key={entry.id}
+                  className={`flex items-start gap-3 p-3 rounded-lg border transition-colors hover:bg-muted/50 ${
+                    !entry.end_time ? 'border-primary/50 bg-primary/5' : 'bg-card'
+                  }`}
+                >
+                  {/* Time Duration Badge */}
+                  <div className="flex items-center gap-2 min-w-[80px]">
+                    <Clock className="h-3.5 w-3.5 text-primary" />
+                    <span className="font-medium">
+                      {entry.duration_minutes ? 
+                        formatDuration(entry.duration_minutes) : 
+                        'Active'}
+                    </span>
+                  </div>
+
+                  {/* Main Content */}
+                  <div className="flex-1 space-y-1">
+                    {/* Time Range and Technician */}
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="text-muted-foreground">
+                        {formatTimeRange(entry)}
+                      </span>
+                      <span className="text-muted-foreground">•</span>
+                      <div className="flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="font-medium">
+                          {entry.user?.full_name || 'Unknown User'}
+                        </span>
+                        {entry.user?.role && (
+                          <Badge variant="outline" className="h-5 text-xs ml-1">
+                            {entry.user.role}
+                          </Badge>
+                        )}
+                      </div>
+                      {!entry.end_time && (
+                        <Badge variant="default" className="h-5 text-xs animate-pulse">
+                          Active
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Description */}
+                    {entry.description && (
+                      <p className="text-sm text-muted-foreground">
+                        {entry.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  {canDelete && entry.end_time && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:bg-destructive hover:text-white"
+                      onClick={() => setDeleteEntry(entry.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteEntry} onOpenChange={() => setDeleteEntry(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Time Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this time entry? This action cannot be undone
+              and will affect billing calculations.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting...' : 'Delete Entry'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}

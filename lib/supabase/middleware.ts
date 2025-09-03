@@ -47,13 +47,55 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
+  // Check if this is a recovery flow callback
+  const code = request.nextUrl.searchParams.get('code');
+  if (code && request.nextUrl.pathname === '/') {
+    // Redirect to our callback handler
+    const callbackUrl = new URL('/auth/callback', request.url);
+    callbackUrl.searchParams.set('code', code);
+    return NextResponse.redirect(callbackUrl);
+  }
+
+  // Skip authentication for public API endpoints
+  const isPublicAPI = request.nextUrl.pathname.startsWith("/api/repairs");
+  const isAPIRoute = request.nextUrl.pathname.startsWith("/api/");
+  
+  // For API routes without auth, return 401 instead of redirecting
+  if (isAPIRoute && !user && !isPublicAPI) {
+    return new NextResponse(
+      JSON.stringify({ error: 'Authentication required' }),
+      { 
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
+  
+  // Check if user is accessing auth pages while already authenticated
+  const isAuthPage = request.nextUrl.pathname.startsWith("/auth");
+  
+  // Redirect authenticated users from auth pages to dashboard
+  if (user && isAuthPage && request.nextUrl.pathname !== "/auth/callback") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    return NextResponse.redirect(url);
+  }
+  
+  // For non-API routes, redirect to login if not authenticated
+  // Dashboard routes require authentication
+  const isDashboardRoute = request.nextUrl.pathname === "/" || 
+                          request.nextUrl.pathname.startsWith("/orders") ||
+                          request.nextUrl.pathname.startsWith("/customers") ||
+                          request.nextUrl.pathname.startsWith("/reports") ||
+                          request.nextUrl.pathname.startsWith("/settings");
+                          
   if (
-    request.nextUrl.pathname !== "/" &&
+    isDashboardRoute &&
     !user &&
-    !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth")
+    !request.nextUrl.pathname.startsWith("/auth") &&
+    !isAPIRoute
   ) {
-    // no user, potentially respond by redirecting the user to the login page
+    // no user, redirect to login page
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);

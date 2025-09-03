@@ -53,10 +53,29 @@ export function ForgotPasswordForm({
             <CardDescription>Password reset instructions sent</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              If you registered using your email and password, you will receive
-              a password reset email.
-            </p>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                If you registered using your email and password, you will receive
+                a password reset email.
+              </p>
+              {/* Show Inbucket link in development */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-4 border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm font-medium mb-2">📧 Local Development</p>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Emails are captured locally. Check your email at:
+                  </p>
+                  <a 
+                    href="http://127.0.0.1:54324" 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    http://127.0.0.1:54324 (Inbucket)
+                  </a>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       ) : (

@@ -16,10 +16,15 @@ const createUserSchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     // Require authentication and user view permission
     const authResult = await requirePermission(request, Permission.USER_VIEW);
     if (authResult instanceof NextResponse) return authResult;
+    
+    const authTime = Date.now();
+    console.log(`[Users API] Auth check took: ${authTime - startTime}ms`);
 
     // Parse query parameters
     const { searchParams } = new URL(request.url);
@@ -38,8 +43,11 @@ export async function GET(request: NextRequest) {
       filters.is_active = isActive === 'true';
     }
 
+    const queryStart = Date.now();
     // Get users
     const users = await userRepo.findAll(filters);
+    const queryTime = Date.now();
+    console.log(`[Users API] Database query took: ${queryTime - queryStart}ms`);
 
     // Remove sensitive information
     const sanitizedUsers = users.map(user => ({
@@ -52,8 +60,14 @@ export async function GET(request: NextRequest) {
       last_login_at: user.last_login_at
     }));
 
+    const totalTime = Date.now() - startTime;
+    console.log(`[Users API] Total request time: ${totalTime}ms`);
+    console.log(`[Users API] Returning ${sanitizedUsers.length} users`);
+
     return successResponse(sanitizedUsers);
   } catch (error) {
+    const errorTime = Date.now() - startTime;
+    console.error(`[Users API] Error after ${errorTime}ms:`, error);
     return handleApiError(error);
   }
 }

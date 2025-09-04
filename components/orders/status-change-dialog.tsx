@@ -27,7 +27,7 @@ interface StatusChangeDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm?: (newStatus: TicketStatus, reason?: string) => void;
-  currentStatus: TicketStatus;
+  currentStatus: TicketStatus | string | undefined | null;
   ticketId: string;
   ticketNumber?: string;
   customerName?: string;
@@ -99,7 +99,9 @@ export function StatusChangeDialog({
   }, [isOpen]);
 
   // Get available status options
-  const availableStatuses = statusTransitions[currentStatus] || [];
+  const availableStatuses = (currentStatus && currentStatus in statusTransitions) 
+    ? statusTransitions[currentStatus as TicketStatus] 
+    : [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,7 +149,23 @@ export function StatusChangeDialog({
     }
   };
 
-  const getCurrentStatusConfig = () => statusConfig[currentStatus];
+  const getCurrentStatusConfig = () => {
+    // Default config for invalid/undefined status
+    const defaultConfig = {
+      label: 'Unknown',
+      icon: AlertCircle,
+      color: 'bg-gray-500',
+      description: 'Unknown status'
+    };
+    
+    if (!currentStatus || !(currentStatus in statusConfig)) {
+      console.warn(`Invalid currentStatus: "${currentStatus}"`);
+      return defaultConfig;
+    }
+    
+    return statusConfig[currentStatus];
+  };
+  
   const getSelectedStatusConfig = () => selectedStatus ? statusConfig[selectedStatus as TicketStatus] : null;
 
   const requiresReason = selectedStatus === 'on_hold' || selectedStatus === 'cancelled';

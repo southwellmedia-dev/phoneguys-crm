@@ -89,7 +89,7 @@ export type RepairTicketFormData = z.infer<typeof repairTicketFormSchema>;
 export const userInviteSchema = z.object({
   email: z.string().email("Invalid email address"),
   role: z.enum(["admin", "manager", "technician"], {
-    errorMap: () => ({ message: "Please select a valid role" })
+    message: "Please select a valid role"
   }),
   send_email: z.boolean().default(true),
 });

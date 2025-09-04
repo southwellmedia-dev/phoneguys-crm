@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { DeviceRepository } from '@/lib/repositories/device.repository';
 import { UserRepository } from '@/lib/repositories/user.repository';
+import { checkAdminAuthOptimized } from '@/lib/auth/admin-auth';
 import { z } from 'zod';
 
 const CreateDeviceSchema = z.object({
@@ -33,16 +34,29 @@ async function checkAdminAuth() {
 }
 
 export async function GET() {
-  const authError = await checkAdminAuth();
+  const startTime = Date.now();
+  
+  const authError = await checkAdminAuthOptimized();
   if (authError) return authError;
+  
+  const authTime = Date.now();
+  console.log(`[Devices API] Auth check took: ${authTime - startTime}ms`);
 
   try {
+    const queryStart = Date.now();
     const deviceRepo = new DeviceRepository();
     const devices = await deviceRepo.getActiveDevices();
+    const queryTime = Date.now() - queryStart;
+    console.log(`[Devices API] Database query took: ${queryTime}ms`);
+    
+    const totalTime = Date.now() - startTime;
+    console.log(`[Devices API] Total request time: ${totalTime}ms`);
+    console.log(`[Devices API] Returning ${devices.length} devices`);
     
     return NextResponse.json({ success: true, data: devices });
   } catch (error) {
-    console.error('Error fetching devices:', error);
+    const errorTime = Date.now() - startTime;
+    console.error(`[Devices API] Error after ${errorTime}ms:`, error);
     return NextResponse.json(
       { error: 'Failed to fetch devices' },
       { status: 500 }
@@ -51,7 +65,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = await checkAdminAuth();
+  const authError = await checkAdminAuthOptimized();
   if (authError) return authError;
 
   try {

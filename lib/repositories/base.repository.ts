@@ -23,10 +23,21 @@ export abstract class BaseRepository<T> implements IRepository<T> {
   }
 
   protected async getClient(): Promise<SupabaseClient> {
+    const start = Date.now();
+    let client;
+    
     if (this.useServiceRole) {
-      return createServiceClient();
+      client = createServiceClient();
+    } else {
+      client = await createClient();
     }
-    return createClient();
+    
+    const elapsed = Date.now() - start;
+    if (elapsed > 100) {
+      console.warn(`⚠️ Slow Supabase client creation: ${elapsed}ms (${this.tableName}, serviceRole: ${this.useServiceRole})`);
+    }
+    
+    return client;
   }
 
   async findAll(filters?: any): Promise<T[]> {

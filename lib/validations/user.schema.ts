@@ -12,7 +12,7 @@ export const inviteUserSchema = z.object({
     .min(1, 'Full name is required')
     .max(255, 'Full name must be less than 255 characters'),
   role: z.enum(['admin', 'manager', 'technician'] as const, {
-    errorMap: () => ({ message: 'Please select a valid role' })
+    message: 'Please select a valid role'
   }),
 });
 
@@ -25,7 +25,7 @@ export const updateUserSchema = z.object({
     .max(255, 'Full name must be less than 255 characters')
     .optional(),
   role: z.enum(['admin', 'manager', 'technician'] as const, {
-    errorMap: () => ({ message: 'Please select a valid role' })
+    message: 'Please select a valid role'
   }).optional(),
   is_active: z.boolean().optional(),
 });

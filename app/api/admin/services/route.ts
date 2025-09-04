@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { ServiceService } from '@/lib/services/service.service';
 import { UserRepository } from '@/lib/repositories/user.repository';
+import { checkAdminAuthOptimized } from '@/lib/auth/admin-auth';
 import { z } from 'zod';
 
 const CreateServiceSchema = z.object({
@@ -42,7 +43,7 @@ async function checkAdminAuth() {
  * Create a new service
  */
 export async function POST(request: NextRequest) {
-  const authError = await checkAdminAuth();
+  const authError = await checkAdminAuthOptimized();
   if (authError) return authError;
 
   try {
@@ -78,8 +79,12 @@ export async function POST(request: NextRequest) {
  * Get all services (with optional filtering)
  */
 export async function GET(request: NextRequest) {
-  const authError = await checkAdminAuth();
+  const startTime = Date.now();
+  
+  const authError = await checkAdminAuthOptimized();
   if (authError) return authError;
+  
+  const authTime = Date.now();
 
   try {
     const { searchParams } = new URL(request.url);
@@ -88,6 +93,7 @@ export async function GET(request: NextRequest) {
     const active = searchParams.get('active');
 
     const serviceService = new ServiceService();
+    const queryStart = Date.now();
     
     let services;
     if (search) {
@@ -97,6 +103,9 @@ export async function GET(request: NextRequest) {
     } else {
       services = await serviceService.getAllActiveServices();
     }
+    
+    const queryTime = Date.now() - queryStart;
+    const authTimeMs = authTime - startTime;
 
     // Filter by active status if specified
     if (active !== null) {
@@ -104,13 +113,23 @@ export async function GET(request: NextRequest) {
       services = services.filter(s => s.is_active === isActive);
     }
     
+    const totalTime = Date.now() - startTime;
+    
+    // Always log performance for debugging
+    console.log(`🚀 SERVICES API PERFORMANCE:`);
+    console.log(`   Auth: ${authTimeMs}ms`);
+    console.log(`   Query: ${queryTime}ms`);  
+    console.log(`   Total: ${totalTime}ms`);
+    console.log(`   Services: ${services.length}`);
+    
     return NextResponse.json({
       success: true,
       data: services
     });
     
   } catch (error) {
-    console.error('Error fetching services:', error);
+    const errorTime = Date.now();
+    console.error(`[Services API] Error after ${errorTime - startTime}ms:`, error);
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch services'

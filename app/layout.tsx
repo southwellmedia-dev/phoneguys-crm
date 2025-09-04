@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { TimerProvider } from "@/lib/contexts/timer-context";
+import { QueryProvider } from "@/lib/providers/query-provider";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
@@ -36,10 +37,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <TimerProvider>
-            {children}
-            <Toaster />
-          </TimerProvider>
+          <QueryProvider>
+            <TimerProvider>
+              {children}
+              <Toaster />
+            </TimerProvider>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useMediaGallery, useUploadMedia, useDeleteMedia } from '@/lib/hooks/use-admin';
+import { useQueryClient } from '@tanstack/react-query';
 import { PageContainer } from '@/components/layout/page-container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { SkeletonMediaGallery } from '@/components/ui/skeleton-media-gallery';
 
 interface StorageImage {
   name: string;
@@ -50,7 +53,13 @@ export function MediaGallery({
   onSelectImage, 
   selectionMode = false 
 }: MediaGalleryProps) {
-  const [images, setImages] = useState<StorageImage[]>(initialImages);
+  const queryClient = useQueryClient();
+  const { data: images = initialImages, isLoading, refetch } = useMediaGallery(initialImages);
+  const uploadMedia = useUploadMedia();
+  const deleteMedia = useDeleteMedia();
+  
+  // Ensure images is always an array
+  const safeImages = Array.isArray(images) ? images : [];
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
@@ -58,7 +67,7 @@ export function MediaGallery({
   const [isUploading, setIsUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<StorageImage | null>(null);
 
-  const filteredImages = images.filter(img => 
+  const filteredImages = safeImages.filter(img => 
     img.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -84,68 +93,33 @@ export function MediaGallery({
   const handleUpload = async (file: File) => {
     setIsUploading(true);
     
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('name', file.name.replace(/\.[^/.]+$/, '')); // Remove extension
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('name', file.name.replace(/\.[^/.]+$/, '')); // Remove extension
 
-      const response = await fetch('/api/admin/media/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Upload failed');
-      }
-
-      const result = await response.json();
-      
-      // Add new image to the list
-      setImages(prev => [{
-        name: result.data.name,
-        url: result.data.url,
-        size: file.size,
-        created_at: new Date().toISOString(),
-      }, ...prev]);
-      
-      toast.success(`Uploaded ${file.name}`);
-      
-      // Remove from uploading list
-      setUploadingFiles(prev => prev.filter(f => f !== file));
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error(`Failed to upload ${file.name}`);
-    } finally {
-      setIsUploading(false);
-    }
+    uploadMedia.mutate(formData, {
+      onSuccess: () => {
+        setIsUploading(false);
+        setUploadingFiles(prev => prev.filter(f => f.name !== file.name));
+      },
+      onError: () => {
+        setIsUploading(false);
+      },
+    });
   };
 
   const handleDelete = async (imageName: string) => {
     if (!confirm('Are you sure you want to delete this image?')) return;
-
-    try {
-      const response = await fetch('/api/admin/media/delete', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: imageName }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Delete failed');
-      }
-
-      setImages(prev => prev.filter(img => img.name !== imageName));
-      setSelectedImages(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(imageName);
-        return newSet;
-      });
-      
-      toast.success('Image deleted');
-    } catch (error) {
-      console.error('Delete error:', error);
-      toast.error('Failed to delete image');
-    }
+    
+    deleteMedia.mutate(imageName, {
+      onSuccess: () => {
+        setSelectedImages(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(imageName);
+          return newSet;
+        });
+      },
+    });
   };
 
   const handleCopyUrl = (url: string) => {
@@ -178,6 +152,12 @@ export function MediaGallery({
   };
 
   const headerActions = [
+    {
+      label: 'Refresh',
+      icon: <Upload className="h-4 w-4" />,
+      variant: 'outline' as const,
+      onClick: () => refetch(),
+    },
     ...(selectedImages.size > 0 ? [
       {
         label: `Delete ${selectedImages.size} selected`,
@@ -193,6 +173,18 @@ export function MediaGallery({
       onClick: () => setViewMode(prev => prev === 'grid' ? 'list' : 'grid'),
     }
   ];
+
+  if (isLoading) {
+    return (
+      <PageContainer
+        title="Media Gallery"
+        description="Manage device images and media files"
+        actions={headerActions}
+      >
+        <SkeletonMediaGallery viewMode={viewMode} />
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer

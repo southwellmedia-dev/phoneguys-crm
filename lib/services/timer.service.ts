@@ -576,9 +576,9 @@ export class TimerService {
   }
 
   /**
-   * Clean up orphaned timers (timers that have been running too long)
+   * Clean up long-running timers (timers that have been running too long)
    */
-  async cleanupOrphanedTimers(maxHours = 24): Promise<number> {
+  async cleanupLongRunningTimers(maxHours = 24): Promise<number> {
     const now = new Date();
     const maxMs = maxHours * 60 * 60 * 1000;
     let cleaned = 0;

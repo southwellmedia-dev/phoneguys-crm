@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAppointment, useUpdateAppointment } from "@/lib/hooks/use-appointments";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +40,8 @@ import {
   markAppointmentArrived, 
   cancelAppointment 
 } from "./actions";
+import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
+import { SkeletonAppointmentDetail } from "@/components/ui/skeleton-appointment-detail";
 
 interface AppointmentDetailClientProps {
   appointment: any;
@@ -53,11 +57,17 @@ const statusConfig = {
   converted: { label: 'Converted to Ticket', className: 'bg-cyan-100 text-cyan-800', icon: ArrowRight },
 };
 
-export function AppointmentDetailClient({ appointment, appointmentId }: AppointmentDetailClientProps) {
+export function AppointmentDetailClient({ appointment: initialAppointment, appointmentId }: AppointmentDetailClientProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: appointment = initialAppointment, isLoading, isFetching } = useAppointment(appointmentId);
+  const updateAppointment = useUpdateAppointment();
   const [isConverting, setIsConverting] = useState(false);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  
+  // Determine if we should show skeleton
+  const showSkeleton = useShowSkeleton(isLoading, isFetching, !!appointment);
 
   const status = statusConfig[appointment.status as keyof typeof statusConfig];
   const StatusIcon = status.icon;
@@ -87,7 +97,8 @@ export function AppointmentDetailClient({ appointment, appointmentId }: Appointm
       const result = await confirmAppointment(appointmentId);
       if (result.success) {
         toast.success("Appointment confirmed");
-        router.refresh();
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
       } else {
         toast.error(result.error || "Failed to confirm appointment");
       }
@@ -101,7 +112,8 @@ export function AppointmentDetailClient({ appointment, appointmentId }: Appointm
       const result = await markAppointmentArrived(appointmentId);
       if (result.success) {
         toast.success("Customer marked as arrived");
-        router.refresh();
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
       } else {
         toast.error(result.error || "Failed to update status");
       }
@@ -115,7 +127,8 @@ export function AppointmentDetailClient({ appointment, appointmentId }: Appointm
       const result = await cancelAppointment(appointmentId, "Cancelled by staff");
       if (result.success) {
         toast.success("Appointment cancelled");
-        router.refresh();
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
       } else {
         toast.error(result.error || "Failed to cancel appointment");
       }
@@ -177,6 +190,11 @@ export function AppointmentDetailClient({ appointment, appointmentId }: Appointm
       variant: "default" as const,
       onClick: () => router.push(`/orders/${appointment.converted_to_ticket_id}`),
     });
+  }
+
+  // Show skeleton during navigation or loading
+  if (showSkeleton) {
+    return <SkeletonAppointmentDetail />;
   }
 
   return (

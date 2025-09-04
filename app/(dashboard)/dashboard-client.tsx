@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { PageContainer } from "@/components/layout/page-container";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { RecentOrders } from "@/components/dashboard/recent-orders";
@@ -20,6 +21,10 @@ import {
   FileText,
 } from "lucide-react";
 import Link from "next/link";
+import { useDashboard } from "@/lib/hooks/use-dashboard";
+import { useQueryClient } from "@tanstack/react-query";
+import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
+import { SkeletonDashboard } from "@/components/ui/skeleton-dashboard";
 
 interface DashboardClientProps {
   metrics: {
@@ -35,15 +40,64 @@ interface DashboardClientProps {
   };
 }
 
-export function DashboardClient({ metrics }: DashboardClientProps) {
+export function DashboardClient({ metrics: initialMetrics }: DashboardClientProps) {
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Transform initial metrics to match the dashboard data structure
+  const initialData = {
+    stats: {
+      totalRevenue: initialMetrics.todayRevenue,
+      totalOrders: initialMetrics.totalOrders,
+      pendingOrders: initialMetrics.todayOrders,
+      averageRepairTime: initialMetrics.avgRepairTimeHours,
+      revenueChange: 0,
+      ordersChange: 0,
+      pendingChange: 0,
+      repairTimeChange: 0,
+    },
+    recentTickets: initialMetrics.recentOrders || [],
+    todaysAppointments: [],
+  };
+  
+  const { data: dashboardData = initialData, isLoading, isFetching, refetch } = useDashboard(initialData);
+  
+  // Determine if we should show skeleton
+  const showSkeleton = useShowSkeleton(isLoading, isFetching, !!dashboardData);
+  
+  // Use dashboard data if available, otherwise use initial metrics
+  const metrics = {
+    todayOrders: dashboardData.stats?.pendingOrders || initialMetrics.todayOrders,
+    inProgressOrders: initialMetrics.inProgressOrders,
+    completedToday: initialMetrics.completedToday,
+    onHoldOrders: initialMetrics.onHoldOrders,
+    totalOrders: dashboardData.stats?.totalOrders || initialMetrics.totalOrders,
+    totalCustomers: initialMetrics.totalCustomers,
+    avgRepairTimeHours: dashboardData.stats?.averageRepairTime || initialMetrics.avgRepairTimeHours,
+    todayRevenue: dashboardData.stats?.totalRevenue || initialMetrics.todayRevenue,
+    recentOrders: dashboardData.recentTickets || initialMetrics.recentOrders,
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    await refetch();
+    setIsRefreshing(false);
+  };
+  
   const headerActions = [
     {
-      label: "Refresh",
-      icon: <RefreshCw className="h-4 w-4" />,
+      label: isRefreshing ? "Refreshing..." : "Refresh",
+      icon: <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />,
       variant: "outline" as const,
-      onClick: () => window.location.reload(),
+      onClick: handleRefresh,
+      disabled: isRefreshing,
     },
   ];
+
+  if (showSkeleton) {
+    return <SkeletonDashboard />;
+  }
 
   return (
     <PageContainer
@@ -51,7 +105,7 @@ export function DashboardClient({ metrics }: DashboardClientProps) {
       description="Welcome to The Phone Guys CRM System"
       actions={headerActions}
     >
-      <div className="space-y-6">
+        <div className="space-y-6">
         {/* Metrics Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Device } from "@/lib/types/database.types";
+import { useDevices, useDeleteDevice } from "@/lib/hooks/use-admin";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageContainer } from "@/components/layout/page-container";
@@ -44,6 +46,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { DeviceDialog } from "@/components/admin/device-dialog";
 import { DeviceImageUploadDialog } from "@/components/admin/device-image-upload-dialog";
+import { SkeletonTable } from "@/components/ui/skeleton-table";
+import { SkeletonGrid } from "@/components/ui/skeleton-grid";
+import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
 
 interface DevicesClientProps {
   initialDevices: Device[];
@@ -64,43 +69,33 @@ export function DevicesClient({
   removeDeviceImage,
   uploadToGallery
 }: DevicesClientProps) {
-  const [devices, setDevices] = useState<Device[]>(initialDevices);
+  const queryClient = useQueryClient();
+  const { data: devices = initialDevices, isLoading, isFetching, refetch } = useDevices(initialDevices);
+  const deleteDevice = useDeleteDevice();
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  
+  // Determine if we should show skeleton
+  const showSkeleton = useShowSkeleton(isLoading, isFetching, !!devices);
+  
+  // Ensure devices is always an array
+  const safeDevices = Array.isArray(devices) ? devices : [];
 
-  const filteredDevices = devices.filter(device => 
+  const filteredDevices = safeDevices.filter(device => 
     device.model_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     device.model_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     device.manufacturer?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleDeviceUpdate = () => {
-    // Refresh the page to show updated data
-    window.location.reload();
+    // Query invalidation is handled by mutations
   };
 
   const handleDelete = async (deviceId: string) => {
     if (!confirm('Are you sure you want to permanently delete this device? This action cannot be undone.')) {
       return;
     }
-
-    try {
-      const response = await fetch(`/api/admin/devices/${deviceId}`, {
-        method: 'DELETE',
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete device');
-      }
-
-      toast.success("Device deleted successfully");
-      setDevices(devices.filter(d => d.id !== deviceId));
-    } catch (error) {
-      console.error('Error deleting device:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to delete device');
-    }
+    deleteDevice.mutate(deviceId);
   };
 
   const getDeviceTypeColor = (type?: string | null) => {
@@ -126,6 +121,12 @@ export function DevicesClient({
 
   const headerActions = [
     {
+      label: "Refresh",
+      icon: <Upload className="h-4 w-4" />,
+      variant: "outline" as const,
+      onClick: () => refetch(),
+    },
+    {
       label: "Import",
       icon: <Upload className="h-4 w-4" />,
       variant: "outline" as const,
@@ -149,6 +150,22 @@ export function DevicesClient({
     },
   ];
 
+  if (showSkeleton) {
+    return (
+      <PageContainer
+        title="Device Management"
+        description="Manage your device database and specifications"
+        actions={headerActions}
+      >
+        {viewMode === "table" ? (
+          <SkeletonTable rows={8} columns={7} showStats={true} />
+        ) : (
+          <SkeletonGrid items={12} showStats={true} />
+        )}
+      </PageContainer>
+    );
+  }
+
   return (
     <PageContainer
       title="Device Management"
@@ -165,7 +182,7 @@ export function DevicesClient({
             <Smartphone className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{devices.length}</div>
+            <div className="text-2xl font-bold">{safeDevices.length}</div>
             <p className="text-xs text-muted-foreground">
               Active in database
             </p>
@@ -178,7 +195,7 @@ export function DevicesClient({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {devices.filter(d => d.thumbnail_url).length}
+              {safeDevices.filter(d => d.thumbnail_url).length}
             </div>
             <p className="text-xs text-muted-foreground">
               Have thumbnails

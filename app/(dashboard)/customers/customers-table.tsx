@@ -5,6 +5,10 @@ import Link from 'next/link';
 import { Customer } from '@/lib/types/database.types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useShowSkeleton } from '@/lib/hooks/use-navigation-loading';
+import { SkeletonCustomers } from '@/components/ui/skeleton-customers';
+import { useCustomers, useDeleteCustomer } from '@/lib/hooks/use-customers';
+import { RefreshCw } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -40,7 +44,6 @@ import {
   UserCheck,
   Star,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 interface CustomersTableProps {
@@ -48,11 +51,17 @@ interface CustomersTableProps {
 }
 
 export function CustomersTable({ initialCustomers }: CustomersTableProps) {
-  const [customers, setCustomers] = useState(initialCustomers);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<keyof Customer>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const router = useRouter();
+  
+  // Use React Query with initial data
+  const { data: customers = initialCustomers, isLoading, isFetching, refetch } = useCustomers(undefined, initialCustomers);
+  const deleteCustomer = useDeleteCustomer();
+  
+  // Determine if we should show skeleton
+  const showSkeleton = useShowSkeleton(isLoading, isFetching, !!customers);
 
   // Filter and sort customers
   const filteredCustomers = useMemo(() => {
@@ -93,22 +102,8 @@ export function CustomersTable({ initialCustomers }: CustomersTableProps) {
     if (!confirm('Are you sure you want to delete this customer? This will also delete all associated repair tickets.')) {
       return;
     }
-
-    try {
-      const response = await fetch(`/api/customers/${customerId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete customer');
-      }
-
-      setCustomers(customers.filter(c => c.id !== customerId));
-      toast.success('Customer deleted successfully');
-    } catch (error) {
-      console.error('Error deleting customer:', error);
-      toast.error('Failed to delete customer');
-    }
+    
+    deleteCustomer.mutate(customerId);
   };
 
   const formatDate = (date: string) => {
@@ -148,6 +143,11 @@ export function CustomersTable({ initialCustomers }: CustomersTableProps) {
     return customerDate.getMonth() === now.getMonth() && 
            customerDate.getFullYear() === now.getFullYear();
   }).length;
+
+  // Show skeleton during navigation
+  if (showSkeleton) {
+    return <SkeletonCustomers />;
+  }
 
   return (
     <div className="space-y-6">
@@ -243,8 +243,19 @@ export function CustomersTable({ initialCustomers }: CustomersTableProps) {
               </div>
             </div>
 
-            {/* Search Bar */}
-            <div className="relative w-64">
+            {/* Search Bar and Actions */}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search customers..."
@@ -252,6 +263,7 @@ export function CustomersTable({ initialCustomers }: CustomersTableProps) {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9"
               />
+              </div>
             </div>
           </div>
         </CardHeader>

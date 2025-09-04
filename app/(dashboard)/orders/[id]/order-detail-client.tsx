@@ -48,6 +48,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTicket, useUpdateTicketStatus } from "@/lib/hooks/use-tickets";
+import { useQueryClient } from "@tanstack/react-query";
+import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
+import { SkeletonOrderDetail } from "@/components/ui/skeleton-order-detail";
 import { cn } from "@/lib/utils";
 
 interface OrderDetailClientProps {
@@ -67,7 +71,7 @@ interface OrderDetailClientProps {
 }
 
 export function OrderDetailClient({
-  order,
+  order: initialOrder,
   orderId,
   totalTimeMinutes,
   isAdmin = false,
@@ -77,6 +81,12 @@ export function OrderDetailClient({
   addDeviceToProfile,
 }: OrderDetailClientProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: order = initialOrder, isLoading, isFetching } = useTicket(orderId, initialOrder);
+  const updateStatusMutation = useUpdateTicketStatus();
+  
+  // Determine if we should show skeleton
+  const showSkeleton = useShowSkeleton(isLoading, isFetching, !!order);
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
   const [showAddDeviceDialog, setShowAddDeviceDialog] = useState(false);
@@ -86,8 +96,8 @@ export function OrderDetailClient({
   };
 
   const handleStatusChange = (newStatus: any, reason?: string) => {
-    // Refresh the page to show updated status
-    router.refresh();
+    // Update status using optimistic updates
+    updateStatusMutation.mutate({ id: orderId, status: newStatus });
   };
 
   const handleReopen = async () => {
@@ -106,7 +116,8 @@ export function OrderDetailClient({
       }
 
       toast.success("Order reopened successfully");
-      router.refresh();
+      queryClient.invalidateQueries({ queryKey: ['ticket', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
     } catch (error) {
       toast.error("Failed to reopen order");
       console.error("Error reopening order:", error);
@@ -191,6 +202,11 @@ export function OrderDetailClient({
           : ("default" as const),
     },
   ];
+
+  // Show skeleton during navigation or loading
+  if (showSkeleton) {
+    return <SkeletonOrderDetail />;
+  }
 
   return (
     <PageContainer
@@ -869,7 +885,7 @@ export function OrderDetailClient({
                     toast.success("Time entry deleted successfully", {
                       className: "bg-green-500 text-white border-green-600",
                     });
-                    router.refresh();
+                    queryClient.invalidateQueries({ queryKey: ['ticket', orderId] });
                   } catch (error) {
                     console.error("Failed to delete time entry:", error);
                     toast.error("Failed to delete time entry", {
@@ -1254,7 +1270,8 @@ export function OrderDetailClient({
         currentImei={order.imei}
         addDeviceToProfile={addDeviceToProfile}
         onSuccess={() => {
-          router.refresh();
+          queryClient.invalidateQueries({ queryKey: ['ticket', orderId] });
+          queryClient.invalidateQueries({ queryKey: ['customer-devices'] });
         }}
       />
     </PageContainer>

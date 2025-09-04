@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { PageContainer } from "@/components/layout/page-container";
 import { DataTable } from "@/components/tables/data-table";
 import { columns, Order } from "@/components/orders/orders-columns";
@@ -18,21 +17,26 @@ import {
   TrendingUp,
   ArrowRight
 } from "lucide-react";
+import { useTickets } from "@/lib/hooks/use-tickets";
+import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
+import { SkeletonOrders } from "@/components/ui/skeleton-orders";
 
 interface OrdersClientProps {
   orders: Order[];
 }
 
 export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
-  const router = useRouter();
-  const [orders, setOrders] = useState(initialOrders);
+  const queryClient = useQueryClient();
+  const { data: orders = initialOrders, isLoading, isFetching, refetch } = useTickets(undefined, initialOrders);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Determine if we should show skeleton
+  const showSkeleton = useShowSkeleton(isLoading, isFetching, !!orders);
 
-  // Update orders when props change
-  useEffect(() => {
-    setOrders(initialOrders);
-  }, [initialOrders]);
+  // Use React Query data if available, otherwise fall back to initial data
+  const safeOrders = Array.isArray(orders) ? orders : [];
 
   // Set up Supabase real-time subscription
   useEffect(() => {
@@ -49,8 +53,8 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
           table: 'repair_tickets'
         },
         (payload) => {
-          // Refresh the data when any change occurs
-          router.refresh();
+          // Invalidate queries instead of router refresh
+          queryClient.invalidateQueries({ queryKey: ['tickets'] });
         }
       )
       .on(
@@ -61,8 +65,8 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
           table: 'time_entries'
         },
         (payload) => {
-          // Refresh when time entries change
-          router.refresh();
+          // Invalidate queries when time entries change
+          queryClient.invalidateQueries({ queryKey: ['tickets'] });
         }
       )
       .subscribe();
@@ -71,11 +75,11 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [router]);
+  }, [queryClient]);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    router.refresh();
+    await refetch();
     // Reset the refreshing state after a short delay
     setTimeout(() => setIsRefreshing(false), 1000);
   };
@@ -101,6 +105,11 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
     },
   ];
 
+  // Show skeleton during navigation or loading
+  if (showSkeleton) {
+    return <SkeletonOrders />;
+  }
+
   return (
     <PageContainer
       title="Tickets"
@@ -121,7 +130,7 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="text-3xl font-bold tracking-tight">{orders.length}</div>
+              <div className="text-3xl font-bold tracking-tight">{safeOrders.length}</div>
               <p className="text-sm text-muted-foreground">All repair tickets</p>
             </CardContent>
           </Card>
@@ -138,7 +147,7 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="text-3xl font-bold tracking-tight text-blue-600">
-                {orders.filter((o) => o.status === "NEW").length}
+                {safeOrders.filter((o) => o.status === "NEW").length}
               </div>
               <p className="text-sm text-muted-foreground">Awaiting assignment</p>
             </CardContent>
@@ -156,7 +165,7 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="text-3xl font-bold tracking-tight text-cyan-600">
-                {orders.filter((o) => o.status === "IN_PROGRESS").length}
+                {safeOrders.filter((o) => o.status === "IN_PROGRESS").length}
               </div>
               <p className="text-sm text-muted-foreground">Currently being repaired</p>
             </CardContent>
@@ -174,7 +183,7 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="text-3xl font-bold tracking-tight text-green-600">
-                {orders.filter((o) => o.status === "COMPLETED").length}
+                {safeOrders.filter((o) => o.status === "COMPLETED").length}
               </div>
               <p className="text-sm text-muted-foreground">Ready for pickup</p>
             </CardContent>
@@ -200,7 +209,7 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
                   <TrendingUp className="h-3 w-3" />
-                  {orders.length} total tickets
+                  {safeOrders.length} total tickets
                 </p>
               </div>
             </div>
@@ -209,7 +218,7 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
           <CardContent className="pt-0">
             <DataTable 
               columns={columns} 
-              data={orders} 
+              data={safeOrders} 
               searchKey="ticket_number"
               initialSorting={[{ id: "updated_at", desc: true }]}
             />

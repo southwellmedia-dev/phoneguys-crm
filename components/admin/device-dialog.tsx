@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCreateDevice, useUpdateDevice } from "@/lib/hooks/use-admin";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -115,7 +116,7 @@ export function DeviceDialog({
       if (onSuccess) {
         onSuccess();
       } else {
-        router.refresh();
+        // Query invalidation handled by useCreateDevice/useUpdateDevice mutations
       }
 
     } catch (error) {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useInviteUser } from "@/lib/hooks/use-admin";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -43,6 +44,7 @@ export function UserInviteDialog({ onSuccess }: UserInviteDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const inviteUser = useInviteUser();
 
   const form = useForm<InviteUserInput>({
     resolver: zodResolver(inviteUserSchema),
@@ -82,7 +84,7 @@ export function UserInviteDialog({ onSuccess }: UserInviteDialogProps) {
       if (onSuccess) {
         onSuccess();
       } else {
-        router.refresh();
+        // Query invalidation handled by useInviteUser mutation
       }
 
     } catch (error) {

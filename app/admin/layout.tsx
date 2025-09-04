@@ -22,16 +22,16 @@ export default async function AdminLayout({
 
   // Check if user is admin
   const userRepo = new UserRepository();
-  const userData = await userRepo.findByEmail(user.email || '');
-  
-  if (userData?.role !== 'admin') {
+  const userData = await userRepo.findByEmail(user.email || "");
+
+  if (userData?.role !== "admin") {
     // Not authorized - redirect to dashboard
     redirect("/");
   }
 
   const userWithRole = {
     ...user,
-    role: userData?.role || 'technician'
+    role: userData?.role || "technician",
   };
 
   return (
@@ -45,9 +45,11 @@ export default async function AdminLayout({
           {/* Top Header with dynamic content */}
           <HeaderWrapper />
 
-          {/* Main Content - Scrollable */}
-          <main className="flex-1 bg-background overflow-y-auto">
-            {children}
+          {/* Main Content - Scrollable with light blue background in light mode */}
+          <main className="flex-1 bg-primary/[0.03] dark:bg-muted/30 overflow-y-auto">
+            <div className="bg-gradient-to-br from-primary/[0.05] via-transparent to-primary/[0.02] dark:from-muted/20 dark:via-transparent dark:to-muted/20 min-h-full">
+              {children}
+            </div>
           </main>
         </div>
       </div>

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAppointment, useUpdateAppointment } from "@/lib/hooks/use-appointments";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -85,13 +87,16 @@ const statusConfig = {
 };
 
 export function AppointmentDetailEnhanced({ 
-  appointment, 
+  appointment: initialAppointment, 
   appointmentId, 
   availableServices,
   availableDevices,
   customerDevices = []
 }: AppointmentDetailEnhancedProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: appointment = initialAppointment } = useAppointment(appointmentId, initialAppointment);
+  const updateAppointment = useUpdateAppointment();
   const [isConverting, setIsConverting] = useState(false);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -148,7 +153,8 @@ export function AppointmentDetailEnhanced({
       if (result.success) {
         toast.success("Appointment details updated successfully");
         setIsEditing(false);
-        router.refresh();
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
       } else {
         toast.error(result.error || "Failed to update details");
       }
@@ -583,7 +589,8 @@ export function AppointmentDetailEnhanced({
                       const result = await confirmAppointment(appointmentId);
                       if (result.success) {
                         toast.success("Appointment confirmed");
-                        router.refresh();
+                        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
                       }
                     }}
                   >
@@ -600,7 +607,8 @@ export function AppointmentDetailEnhanced({
                       const result = await markAppointmentArrived(appointmentId);
                       if (result.success) {
                         toast.success("Customer marked as arrived");
-                        router.refresh();
+                        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
                       }
                     }}
                   >
@@ -681,7 +689,8 @@ export function AppointmentDetailEnhanced({
                 const result = await cancelAppointment(appointmentId, "Cancelled by staff");
                 if (result.success) {
                   toast.success("Appointment cancelled");
-                  router.refresh();
+                  queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
                 }
                 setShowCancelDialog(false);
               }}

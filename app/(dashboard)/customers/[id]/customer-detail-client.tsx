@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useCustomer, useUpdateCustomer, useCustomerDevices } from '@/lib/hooks/use-customers';
+import { useQueryClient } from '@tanstack/react-query';
 import { EditDeviceDialog } from '@/components/customers/edit-device-dialog';
 import { PageContainer } from '@/components/layout/page-container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +29,8 @@ import {
 import { Customer, RepairTicket } from '@/lib/types/database.types';
 import { toast } from 'sonner';
 import { formatDuration } from '@/lib/utils';
+import { useShowSkeleton } from '@/lib/hooks/use-navigation-loading';
+import { SkeletonCustomerDetail } from '@/components/ui/skeleton-customer-detail';
 
 interface CustomerDetailClientProps {
   customer: Customer;
@@ -36,11 +40,16 @@ interface CustomerDetailClientProps {
   updateDevice: (deviceId: string, data: any) => Promise<{ success: boolean; data?: any; error?: string }>;
 }
 
-export function CustomerDetailClient({ customer, repairs, customerDevices, customerId, updateDevice }: CustomerDetailClientProps) {
+export function CustomerDetailClient({ customer: initialCustomer, repairs, customerDevices, customerId, updateDevice }: CustomerDetailClientProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: customer = initialCustomer, isLoading, isFetching } = useCustomer(customerId, initialCustomer);
   const [deleting, setDeleting] = useState(false);
   const [editingDevice, setEditingDevice] = useState<any>(null);
   const [devices, setDevices] = useState(customerDevices);
+  
+  // Determine if we should show skeleton
+  const showSkeleton = useShowSkeleton(isLoading, isFetching, !!customer);
 
   const updateDeviceInList = (updatedDevice: any) => {
     setDevices(prevDevices => 
@@ -130,6 +139,11 @@ export function CustomerDetailClient({ customer, repairs, customerDevices, custo
       </Button>
     </div>
   );
+
+  // Show skeleton during navigation or loading
+  if (showSkeleton) {
+    return <SkeletonCustomerDetail />;
+  }
 
   return (
     <PageContainer
@@ -427,7 +441,8 @@ export function CustomerDetailClient({ customer, repairs, customerDevices, custo
               updateDeviceInList(updatedDevice);
             }
             setEditingDevice(null);
-            router.refresh(); // Refresh to get the latest server data
+            queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
+            queryClient.invalidateQueries({ queryKey: ['customer-devices', customerId] });
           }}
         />
       )}

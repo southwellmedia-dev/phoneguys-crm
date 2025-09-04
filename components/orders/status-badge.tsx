@@ -30,12 +30,38 @@ const statusConfig: Record<
 };
 
 interface StatusBadgeProps {
-  status: RepairStatus;
+  status: RepairStatus | string | undefined | null;
   className?: string;
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const config = statusConfig[status];
+  // Handle null/undefined status
+  if (!status) {
+    console.warn('Status is null or undefined. Using default.');
+    return (
+      <Badge
+        variant="outline"
+        className={cn("bg-gray-500 text-white border-transparent", className)}
+      >
+        Unknown
+      </Badge>
+    );
+  }
+
+  const config = statusConfig[status as RepairStatus];
+
+  // Handle invalid status values gracefully
+  if (!config) {
+    console.warn(`Invalid status value: "${status}". Using default.`);
+    return (
+      <Badge
+        variant="outline"
+        className={cn("bg-gray-500 text-white border-transparent", className)}
+      >
+        {status || 'Unknown'}
+      </Badge>
+    );
+  }
 
   return (
     <Badge

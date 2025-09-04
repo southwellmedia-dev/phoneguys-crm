@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { User, UserRole } from "@/lib/types/database.types";
+import { useUsers, useDeleteUser } from "@/lib/hooks/use-admin";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageContainer } from "@/components/layout/page-container";
@@ -43,16 +45,26 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { UserInviteDialog } from "@/components/admin/user-invite-dialog";
+import { SkeletonTable } from "@/components/ui/skeleton-table";
+import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
 
 interface UsersClientProps {
   initialUsers: User[];
 }
 
 export function UsersClient({ initialUsers }: UsersClientProps) {
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  const queryClient = useQueryClient();
+  const { data: users = initialUsers, isLoading, isFetching, refetch } = useUsers(initialUsers);
+  const deleteUser = useDeleteUser();
+  
+  // Determine if we should show skeleton
+  const showSkeleton = useShowSkeleton(isLoading, isFetching, !!users);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Ensure users is always an array
+  const safeUsers = Array.isArray(users) ? users : [];
 
-  const filteredUsers = users.filter(user => 
+  const filteredUsers = safeUsers.filter(user => 
     user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.role?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -62,24 +74,7 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
     if (!confirm('Are you sure you want to permanently delete this user? This action cannot be undone.')) {
       return;
     }
-
-    try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'DELETE',
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete user');
-      }
-
-      toast.success("User deleted successfully");
-      setUsers(users.filter(u => u.id !== userId));
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to delete user');
-    }
+    deleteUser.mutate(userId);
   };
 
   const getRoleColor = (role?: UserRole) => {
@@ -101,11 +96,16 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
   };
 
   const handleUserInvited = () => {
-    // Refresh the page to show the new user
-    window.location.reload();
+    // Query invalidation is handled by useInviteUser mutation
   };
 
   const headerActions = [
+    {
+      label: "Refresh",
+      icon: <Upload className="h-4 w-4" />,
+      variant: "outline" as const,
+      onClick: () => refetch(),
+    },
     {
       label: "Export",
       icon: <Download className="h-4 w-4" />,
@@ -116,6 +116,18 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
       component: <UserInviteDialog onSuccess={handleUserInvited} />,
     },
   ];
+
+  if (showSkeleton) {
+    return (
+      <PageContainer
+        title="User Management"
+        description="Manage system users, roles, and permissions"
+        actions={headerActions}
+      >
+        <SkeletonTable rows={8} columns={6} showStats={true} />
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer
@@ -132,7 +144,7 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
               <UsersIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{users.length}</div>
+              <div className="text-2xl font-bold">{safeUsers.length}</div>
               <p className="text-xs text-muted-foreground">
                 Active accounts
               </p>
@@ -145,7 +157,7 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {users.filter(u => u.role === 'admin').length}
+                {safeUsers.filter(u => u.role === 'admin').length}
               </div>
               <p className="text-xs text-muted-foreground">
                 System administrators
@@ -159,7 +171,7 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {users.filter(u => u.role === 'technician').length}
+                {safeUsers.filter(u => u.role === 'technician').length}
               </div>
               <p className="text-xs text-muted-foreground">
                 Repair technicians
@@ -173,7 +185,7 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {users.filter(u => u.role === 'manager').length}
+                {safeUsers.filter(u => u.role === 'manager').length}
               </div>
               <p className="text-xs text-muted-foreground">
                 Management staff

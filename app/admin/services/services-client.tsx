@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Service, ServiceCategory, SkillLevel } from "@/lib/types/database.types";
+import { useServices, useDeleteService } from "@/lib/hooks/use-admin";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageContainer } from "@/components/layout/page-container";
@@ -43,48 +45,40 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { ServiceDialog } from "@/components/admin/service-dialog";
+import { SkeletonTable } from "@/components/ui/skeleton-table";
+import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
 
 interface ServicesClientProps {
   initialServices: Service[];
 }
 
 export function ServicesClient({ initialServices }: ServicesClientProps) {
-  const [services, setServices] = useState<Service[]>(initialServices);
+  const queryClient = useQueryClient();
+  const { data: services = initialServices, isLoading, isFetching, refetch } = useServices(initialServices);
+  const deleteService = useDeleteService();
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Determine if we should show skeleton
+  const showSkeleton = useShowSkeleton(isLoading, isFetching, !!services);
+  
+  // Ensure services is always an array
+  const safeServices = Array.isArray(services) ? services : [];
 
-  const filteredServices = services.filter(service => 
+  const filteredServices = safeServices.filter(service => 
     service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     service.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     service.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleServiceUpdate = () => {
-    // Refresh the page to show updated data
-    window.location.reload();
+    // Query invalidation is handled by mutations
   };
 
   const handleDelete = async (serviceId: string) => {
     if (!confirm('Are you sure you want to delete this service? If it has been used in repairs, it will be deactivated instead. This action cannot be undone.')) {
       return;
     }
-
-    try {
-      const response = await fetch(`/api/admin/services/${serviceId}`, {
-        method: 'DELETE',
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete service');
-      }
-
-      toast.success("Service deleted successfully");
-      setServices(services.filter(s => s.id !== serviceId));
-    } catch (error) {
-      console.error('Error deleting service:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to delete service');
-    }
+    deleteService.mutate(serviceId);
   };
 
   const getCategoryColor = (category?: ServiceCategory) => {
@@ -127,6 +121,12 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
 
   const headerActions = [
     {
+      label: "Refresh",
+      icon: <Upload className="h-4 w-4" />,
+      variant: "outline" as const,
+      onClick: () => refetch(),
+    },
+    {
       label: "Import",
       icon: <Upload className="h-4 w-4" />,
       variant: "outline" as const,
@@ -143,6 +143,18 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
     },
   ];
 
+  if (showSkeleton) {
+    return (
+      <PageContainer
+        title="Services Management"
+        description="Manage repair services, pricing, and categories"
+        actions={headerActions}
+      >
+        <SkeletonTable rows={8} columns={6} showStats={true} />
+      </PageContainer>
+    );
+  }
+
   return (
     <PageContainer
       title="Services Management"
@@ -158,7 +170,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
               <Wrench className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{services.length}</div>
+              <div className="text-2xl font-bold">{safeServices.length}</div>
               <p className="text-xs text-muted-foreground">
                 Available services
               </p>
@@ -172,7 +184,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
             <CardContent>
               <div className="text-2xl font-bold">
                 {formatCurrency(
-                  services.reduce((sum, s) => sum + (s.base_price || 0), 0) / services.length
+                  safeServices.length > 0 ? safeServices.reduce((sum, s) => sum + (s.base_price || 0), 0) / safeServices.length : 0
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -187,7 +199,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {services.filter(s => s.requires_parts).length}
+                {safeServices.filter(s => s.requires_parts).length}
               </div>
               <p className="text-xs text-muted-foreground">
                 Services need parts
@@ -202,7 +214,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
             <CardContent>
               <div className="text-2xl font-bold">
                 {formatDuration(
-                  services.reduce((sum, s) => sum + (s.estimated_duration_minutes || 0), 0) / services.length
+                  safeServices.length > 0 ? safeServices.reduce((sum, s) => sum + (s.estimated_duration_minutes || 0), 0) / safeServices.length : 0
                 )}
               </div>
               <p className="text-xs text-muted-foreground">

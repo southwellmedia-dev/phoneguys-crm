@@ -28,7 +28,7 @@ export class ServiceService {
   private serviceRepo: ServiceRepository;
 
   constructor() {
-    this.serviceRepo = new ServiceRepository(true); // Use service role for admin operations
+    this.serviceRepo = new ServiceRepository(false); // Don't use service role - regular auth is sufficient
   }
 
   async createService(data: CreateServiceInput): Promise<Service> {

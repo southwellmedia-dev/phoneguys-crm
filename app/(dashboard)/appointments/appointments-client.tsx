@@ -2,6 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useAppointments, useUpdateAppointment } from "@/lib/hooks/use-appointments";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageContainer } from "@/components/layout/page-container";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,8 @@ import {
 import { format, isToday, isTomorrow, isPast, isFuture } from "date-fns";
 import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
+import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
+import { SkeletonAppointments } from "@/components/ui/skeleton-appointments";
 
 interface Appointment {
   id: string;
@@ -66,8 +70,13 @@ const statusConfig = {
 
 export function AppointmentsClient({ appointments: initialAppointments }: { appointments: Appointment[] }) {
   const router = useRouter();
-  const [appointments] = useState(initialAppointments);
+  const queryClient = useQueryClient();
+  const { data: appointments = initialAppointments, isLoading, isFetching, refetch } = useAppointments(undefined, initialAppointments);
+  const updateAppointment = useUpdateAppointment();
   const [selectedTab, setSelectedTab] = useState("today");
+  
+  // Determine if we should show skeleton
+  const showSkeleton = useShowSkeleton(isLoading, isFetching, !!appointments);
 
   // Filter appointments based on selected tab
   const filteredAppointments = useMemo(() => {
@@ -256,12 +265,11 @@ export function AppointmentsClient({ appointments: initialAppointments }: { appo
 
   const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
     toast.success(`Updating appointment status to ${newStatus}...`);
-    // Call server action here
-    router.refresh();
+    updateAppointment.mutate({ id: appointmentId, status: newStatus as any });
   };
 
-  const handleRefresh = () => {
-    router.refresh();
+  const handleRefresh = async () => {
+    await refetch();
   };
 
   const headerActions = [
@@ -291,6 +299,11 @@ export function AppointmentsClient({ appointments: initialAppointments }: { appo
   const pendingCount = appointments.filter(apt => 
     apt.status === 'scheduled'
   ).length;
+
+  // Show skeleton during navigation or loading
+  if (showSkeleton) {
+    return <SkeletonAppointments />;
+  }
 
   return (
     <PageContainer

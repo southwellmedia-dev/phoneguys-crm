@@ -13,9 +13,14 @@ import {
   Timer,
   Pause,
   Play,
+  Shield,
+  Wrench,
+  Smartphone,
+  Image,
 } from "lucide-react";
 import { useTimer } from "@/lib/contexts/timer-context";
 import { StopTimerDialog } from "@/components/orders/stop-timer-dialog";
+import { UserRole } from "@/lib/types/database.types";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -25,10 +30,18 @@ const navigation = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
+const adminNavigation = [
+  { name: "Users", href: "/admin/users", icon: Users },
+  { name: "Devices", href: "/admin/devices", icon: Smartphone },
+  { name: "Services", href: "/admin/services", icon: Wrench },
+  { name: "Media Gallery", href: "/admin/media", icon: Image },
+];
+
 interface SidebarProps {
   user: {
     email?: string;
     id: string;
+    role?: UserRole;
   };
 }
 
@@ -107,6 +120,47 @@ export function Sidebar({ user }: SidebarProps) {
               </Link>
             );
           })}
+
+          {/* Admin Section - Only visible for admin users */}
+          {user.role === 'admin' && (
+            <>
+              <div className="pt-4 mt-4 border-t border-border">
+                <div className="px-4 pb-3 flex items-center space-x-2">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Admin
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {adminNavigation.map((item) => {
+                  const isActive = pathname === item.href || 
+                    (item.href !== "/" && pathname.startsWith(item.href));
+                  
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors group",
+                        isActive
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-accent hover:text-accent-foreground"
+                      )}
+                    >
+                      <item.icon className={cn(
+                        "h-5 w-5",
+                        isActive 
+                          ? "text-primary-foreground" 
+                          : "text-muted-foreground group-hover:text-accent-foreground"
+                      )} />
+                      <span>{item.name}</span>
+                    </Link>
+                  );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
         </nav>
 
         {/* Timer Section - Fixed at bottom */}
@@ -178,7 +232,7 @@ export function Sidebar({ user }: SidebarProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{user.email || "User"}</p>
-                <p className="text-xs text-muted-foreground">Staff</p>
+                <p className="text-xs text-muted-foreground capitalize">{user.role || 'Staff'}</p>
               </div>
             </div>
           </div>

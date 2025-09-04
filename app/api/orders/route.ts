@@ -93,10 +93,15 @@ export async function POST(request: NextRequest) {
     // Create repository instance
     const ticketRepo = new RepairTicketRepository();
 
-    // Create new ticket
+    // Extract services array before creating ticket
+    const selectedServices = body.selected_services;
+    delete body.selected_services;
+
+    // Create new ticket - using device_id instead of device_model_id
     const ticket = await ticketRepo.create({
       customer_id: body.customer_id,
-      device_model_id: body.device_model_id || null,
+      customer_device_id: body.customer_device_id || null,
+      device_id: body.device_id || body.device_model_id || null, // Support both field names for compatibility
       device_brand: body.device_brand,
       device_model: body.device_model,
       serial_number: body.serial_number,
@@ -120,6 +125,23 @@ export async function POST(request: NextRequest) {
         content: body.internal_notes,
         is_important: false
       });
+    }
+
+    // Handle services if provided
+    if (selectedServices && selectedServices.length > 0) {
+      const { createServiceClient } = await import('@/lib/supabase/service');
+      const supabase = createServiceClient();
+      
+      const ticketServices = selectedServices.map((serviceId: string) => ({
+        ticket_id: ticket.id,
+        service_id: serviceId,
+        quantity: 1,
+        performed_by: authResult.userId
+      }));
+      
+      await supabase
+        .from('ticket_services')
+        .insert(ticketServices);
     }
 
     return successResponse(ticket, 'Repair ticket created successfully', 201);

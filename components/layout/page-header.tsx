@@ -14,13 +14,14 @@ import {
 import Link from "next/link";
 
 export interface HeaderAction {
-  label: string;
+  label?: string;
   href?: string;
   onClick?: () => void;
   icon?: ReactNode;
   variant?: "default" | "outline" | "ghost" | "secondary" | "destructive";
   className?: string;
   disabled?: boolean;
+  component?: ReactNode; // Support for custom components
 }
 
 interface PageHeaderProps {
@@ -55,7 +56,11 @@ export function PageHeader({
           {/* Desktop: Show all action buttons */}
           <div className="hidden md:flex items-center space-x-2">
             {actions.map((action, index) => (
-              action.href ? (
+              action.component ? (
+                <div key={index}>
+                  {action.component}
+                </div>
+              ) : action.href ? (
                 <Button
                   key={index}
                   variant={action.variant || "default"}
@@ -95,24 +100,37 @@ export function PageHeader({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                {actions.map((action, index) => (
-                  action.href ? (
-                    <DropdownMenuItem key={index} asChild>
-                      <Link href={action.href} className="flex items-center">
+                {actions
+                  .filter(action => !action.component) // Only show regular actions in dropdown
+                  .map((action, index) => (
+                    action.href ? (
+                      <DropdownMenuItem key={index} asChild>
+                        <Link href={action.href} className="flex items-center">
+                          {action.icon}
+                          <span className={action.icon ? "ml-2" : ""}>{action.label}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem key={index} onClick={action.onClick}>
                         {action.icon}
                         <span className={action.icon ? "ml-2" : ""}>{action.label}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem key={index} onClick={action.onClick}>
-                      {action.icon}
-                      <span className={action.icon ? "ml-2" : ""}>{action.label}</span>
-                    </DropdownMenuItem>
-                  )
-                ))}
+                      </DropdownMenuItem>
+                    )
+                  ))}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+          
+          {/* Mobile: Show custom components separately */}
+          <div className="md:hidden flex items-center space-x-2">
+            {actions
+              .filter(action => action.component)
+              .map((action, index) => (
+                <div key={index}>
+                  {action.component}
+                </div>
+              ))}
+          </div>
 
           {/* Divider */}
           {actions.length > 0 && <div className="w-px h-8 bg-border" />}

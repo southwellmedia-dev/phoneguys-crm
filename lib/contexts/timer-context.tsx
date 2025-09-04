@@ -271,13 +271,30 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
     setError(null);
   }, []);
 
-  // Initialize timer from localStorage on mount
+  // Initialize timer from localStorage on mount and validate it
   useEffect(() => {
     const storedTimer = loadTimerFromStorage();
     if (storedTimer) {
-      setActiveTimer(storedTimer);
+      // Validate that the timer still exists in the database
+      getTimerStatus(storedTimer.ticketId)
+        .then(status => {
+          if (status.data && status.data.isTimerActive) {
+            setActiveTimer(storedTimer);
+          } else {
+            // Timer no longer exists in database, clear it
+            console.log('Timer no longer exists in database, clearing local storage');
+            localStorage.removeItem(TIMER_STORAGE_KEY);
+            setActiveTimer(null);
+          }
+        })
+        .catch(error => {
+          // If we can't verify the timer (e.g., ticket doesn't exist), clear it
+          console.error('Failed to verify timer, clearing:', error);
+          localStorage.removeItem(TIMER_STORAGE_KEY);
+          setActiveTimer(null);
+        });
     }
-  }, [loadTimerFromStorage]);
+  }, [loadTimerFromStorage, getTimerStatus]);
 
   // Update timer every second
   useEffect(() => {

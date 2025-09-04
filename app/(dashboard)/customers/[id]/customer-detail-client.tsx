@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { EditDeviceDialog } from '@/components/customers/edit-device-dialog';
 import { PageContainer } from '@/components/layout/page-container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ import {
   Clock,
   Trash2,
   Plus,
+  Smartphone,
 } from 'lucide-react';
 import { Customer, RepairTicket } from '@/lib/types/database.types';
 import { toast } from 'sonner';
@@ -29,12 +31,26 @@ import { formatDuration } from '@/lib/utils';
 interface CustomerDetailClientProps {
   customer: Customer;
   repairs: RepairTicket[];
+  customerDevices: any[];
   customerId: string;
+  updateDevice: (deviceId: string, data: any) => Promise<{ success: boolean; data?: any; error?: string }>;
 }
 
-export function CustomerDetailClient({ customer, repairs, customerId }: CustomerDetailClientProps) {
+export function CustomerDetailClient({ customer, repairs, customerDevices, customerId, updateDevice }: CustomerDetailClientProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
+  const [editingDevice, setEditingDevice] = useState<any>(null);
+  const [devices, setDevices] = useState(customerDevices);
+
+  const updateDeviceInList = (updatedDevice: any) => {
+    setDevices(prevDevices => 
+      prevDevices.map(device => 
+        device.id === updatedDevice.id 
+          ? { ...device, ...updatedDevice }
+          : device
+      )
+    );
+  };
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this customer? This will also delete all associated repair tickets.')) {
@@ -245,8 +261,80 @@ export function CustomerDetailClient({ customer, repairs, customerId }: Customer
           </Card>
         </div>
 
-        {/* Repair History */}
-        <div className="lg:col-span-2">
+        {/* Right column - Devices and Repair History */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Customer Devices */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Smartphone className="h-5 w-5" />
+                Devices
+              </CardTitle>
+              <Button size="sm" variant="outline" asChild>
+                <Link href={`/customers/${customerId}/devices`}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Device
+                </Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {devices.length === 0 ? (
+                <div className="text-center py-4">
+                  <Smartphone className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">No devices registered</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {devices.map((device) => (
+                    <div
+                      key={device.id}
+                      className="flex items-center gap-3 p-2 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => setEditingDevice(device)}
+                    >
+                      {device.device?.image_url && (
+                        <img
+                          src={device.device.image_url}
+                          alt={device.device?.model_name}
+                          className="w-10 h-10 object-cover rounded"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium truncate">
+                            {device.nickname || `${device.device?.manufacturer?.name} ${device.device?.model_name}`}
+                          </p>
+                          {device.is_primary && (
+                            <Badge variant="secondary" className="text-xs">Primary</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {device.color && `${device.color}`}
+                          {device.storage_size && ` • ${device.storage_size}`}
+                          {device.condition && ` • ${device.condition}`}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {device.serial_number && `S/N: ${device.serial_number}`}
+                          {device.imei && ` • IMEI: ${device.imei}`}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingDevice(device);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Repair History */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -324,6 +412,25 @@ export function CustomerDetailClient({ customer, repairs, customerId }: Customer
           </Card>
         </div>
       </div>
+      
+      {/* Edit Device Dialog */}
+      {editingDevice && (
+        <EditDeviceDialog
+          open={!!editingDevice}
+          onOpenChange={(open) => !open && setEditingDevice(null)}
+          device={editingDevice}
+          customerId={customerId}
+          updateDevice={updateDevice}
+          onSuccess={(updatedDevice) => {
+            // Update the device in the local list
+            if (updatedDevice) {
+              updateDeviceInList(updatedDevice);
+            }
+            setEditingDevice(null);
+            router.refresh(); // Refresh to get the latest server data
+          }}
+        />
+      )}
     </PageContainer>
   );
 }

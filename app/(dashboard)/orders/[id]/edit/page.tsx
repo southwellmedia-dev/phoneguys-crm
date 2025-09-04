@@ -12,7 +12,7 @@ interface EditOrderPageProps {
 async function getOrderData(orderId: string) {
   const supabase = await createClient();
   
-  // Get order with customer info
+  // Get order with customer info and services
   const { data: order, error } = await supabase
     .from('repair_tickets')
     .select(`
@@ -23,14 +23,33 @@ async function getOrderData(orderId: string) {
         email,
         phone
       ),
-      device_models (
+      device:devices!device_id (
         id,
         model_name,
         model_number,
-        manufacturers (
+        device_type,
+        release_year,
+        specifications,
+        image_url,
+        parts_availability,
+        manufacturer:manufacturers (
           id,
           name
         )
+      ),
+      ticket_services (
+        id,
+        service_id,
+        service:services (
+          id,
+          name,
+          category,
+          base_price,
+          estimated_duration_minutes
+        ),
+        unit_price,
+        quantity,
+        technician_notes
       )
     `)
     .eq('id', orderId)
@@ -57,14 +76,17 @@ async function getCustomers() {
 async function getDevices() {
   const supabase = await createClient();
   const { data: devices } = await supabase
-    .from('device_models')
+    .from('devices')
     .select(`
       id,
       model_name,
       model_number,
       device_type,
-      common_issues,
-      manufacturers (
+      release_year,
+      specifications,
+      image_url,
+      parts_availability,
+      manufacturer:manufacturers (
         id,
         name
       )
@@ -75,13 +97,35 @@ async function getDevices() {
   return devices || [];
 }
 
+async function getServices() {
+  const supabase = await createClient();
+  const { data: services } = await supabase
+    .from('services')
+    .select(`
+      id,
+      name,
+      description,
+      category,
+      base_price,
+      estimated_duration_minutes,
+      requires_parts,
+      skill_level
+    `)
+    .eq('is_active', true)
+    .order('sort_order')
+    .order('name');
+  
+  return services || [];
+}
+
 export default async function EditOrderPage({ params }: EditOrderPageProps) {
   const resolvedParams = await params;
   
-  const [order, customers, devices] = await Promise.all([
+  const [order, customers, devices, services] = await Promise.all([
     getOrderData(resolvedParams.id),
     getCustomers(),
-    getDevices()
+    getDevices(),
+    getServices()
   ]);
   
   if (!order) {
@@ -93,6 +137,7 @@ export default async function EditOrderPage({ params }: EditOrderPageProps) {
       order={order}
       customers={customers}
       devices={devices}
+      services={services}
     />
   );
 }

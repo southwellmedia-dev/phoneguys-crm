@@ -106,6 +106,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
 
+    // Extract services array before updating ticket
+    const selectedServices = body.selected_services;
+    delete body.selected_services;
+
     // Remove fields that shouldn't be updated directly
     delete body.id;
     delete body.ticket_number;
@@ -115,6 +119,32 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Update ticket
     const updatedTicket = await ticketRepo.update(ticketId, body);
+
+    // Handle services if provided
+    if (selectedServices !== undefined) {
+      const { createServiceClient } = await import('@/lib/supabase/service');
+      const supabase = createServiceClient();
+      
+      // Delete existing ticket services
+      await supabase
+        .from('ticket_services')
+        .delete()
+        .eq('ticket_id', ticketId);
+      
+      // Insert new services if any
+      if (selectedServices && selectedServices.length > 0) {
+        const ticketServices = selectedServices.map((serviceId: string) => ({
+          ticket_id: ticketId,
+          service_id: serviceId,
+          quantity: 1,
+          performed_by: authResult.userId
+        }));
+        
+        await supabase
+          .from('ticket_services')
+          .insert(ticketServices);
+      }
+    }
 
     return successResponse(updatedTicket, 'Repair ticket updated successfully');
   } catch (error) {

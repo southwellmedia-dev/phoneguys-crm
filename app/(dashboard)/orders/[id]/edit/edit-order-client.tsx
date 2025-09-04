@@ -15,11 +15,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox, ComboboxOption } from '@/components/ui/combobox';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, DollarSign, Clock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 // Edit order validation schema
 const editOrderSchema = z.object({
-  device_model_id: z.string().uuid().optional(),
+  device_id: z.string().uuid().optional(),
   device_brand: z.string(),
   device_model: z.string(),
   serial_number: z.string().optional(),
@@ -36,10 +37,37 @@ const editOrderSchema = z.object({
 
 type EditOrderFormData = z.infer<typeof editOrderSchema>;
 
+interface Device {
+  id: string;
+  model_name: string;
+  model_number?: string;
+  device_type?: string;
+  release_year?: number;
+  specifications?: any;
+  image_url?: string;
+  parts_availability?: string;
+  manufacturer: {
+    id: string;
+    name: string;
+  };
+}
+
+interface Service {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  base_price?: number;
+  estimated_duration_minutes?: number;
+  requires_parts: boolean;
+  skill_level?: string;
+}
+
 interface EditOrderClientProps {
   order: any;
   customers: any[];
-  devices: any[];
+  devices: Device[];
+  services: Service[];
 }
 
 const issueTypes = [
@@ -55,7 +83,7 @@ const issueTypes = [
   { value: "other", label: "Other" },
 ];
 
-export default function EditOrderClient({ order, customers = [], devices = [] }: EditOrderClientProps) {
+export default function EditOrderClient({ order, customers = [], devices = [], services = [] }: EditOrderClientProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   
@@ -68,17 +96,25 @@ export default function EditOrderClient({ order, customers = [], devices = [] }:
   
   const deviceOptions: ComboboxOption[] = devices.map(device => ({
     value: device.id,
-    label: `${device.manufacturers?.name || 'Unknown'} ${device.model_name}`,
+    label: `${device.manufacturer?.name || 'Unknown'} ${device.model_name}`,
     sublabel: device.model_number || device.device_type || undefined
   }));
+  
+  // State for selected device and services
+  const [selectedDevice, setSelectedDevice] = useState<Device | undefined>(
+    order.device_id ? devices.find(d => d.id === order.device_id) : undefined
+  );
+  const [selectedServices, setSelectedServices] = useState<string[]>(
+    order.ticket_services?.map((ts: any) => ts.service_id) || []
+  );
   
   // Initialize form with existing order data
   const form = useForm<EditOrderFormData>({
     resolver: zodResolver(editOrderSchema),
     defaultValues: {
-      device_model_id: order.device_model_id || undefined,
-      device_brand: order.device_brand,
-      device_model: order.device_model,
+      device_id: order.device_id || order.device_model_id || undefined,
+      device_brand: order.device_brand || order.device?.manufacturer?.name || '',
+      device_model: order.device_model || order.device?.model_name || '',
       serial_number: order.serial_number || '',
       imei: order.imei || '',
       repair_issues: order.repair_issues || [],
@@ -101,6 +137,7 @@ export default function EditOrderClient({ order, customers = [], devices = [] }:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...values,
+          selected_services: selectedServices, // Include selected services
           estimated_completion: values.estimated_completion ? 
             new Date(values.estimated_completion).toISOString() : null
         }),
@@ -190,7 +227,7 @@ export default function EditOrderClient({ order, customers = [], devices = [] }:
             <CardContent className="space-y-4">
               <FormField
                 control={form.control}
-                name="device_model_id"
+                name="device_id"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Device Model</FormLabel>
@@ -201,8 +238,9 @@ export default function EditOrderClient({ order, customers = [], devices = [] }:
                         onValueChange={(value) => {
                           field.onChange(value);
                           const device = devices.find(d => d.id === value);
+                          setSelectedDevice(device);
                           if (device) {
-                            form.setValue('device_brand', device.manufacturers.name);
+                            form.setValue('device_brand', device.manufacturer.name);
                             form.setValue('device_model', device.model_name);
                           }
                         }}
@@ -215,6 +253,33 @@ export default function EditOrderClient({ order, customers = [], devices = [] }:
                   </FormItem>
                 )}
               />
+              
+              {/* Show selected device info */}
+              {selectedDevice && (
+                <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg">
+                  <div className="flex items-start gap-4">
+                    {selectedDevice.image_url && (
+                      <img 
+                        src={selectedDevice.image_url} 
+                        alt={selectedDevice.model_name}
+                        className="w-16 h-16 object-cover rounded"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <p className="font-medium">{selectedDevice.manufacturer.name} {selectedDevice.model_name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedDevice.release_year && `Released: ${selectedDevice.release_year}`}
+                        {selectedDevice.device_type && ` • ${selectedDevice.device_type}`}
+                      </p>
+                      {selectedDevice.parts_availability && (
+                        <p className="text-sm text-muted-foreground">
+                          Parts: {selectedDevice.parts_availability.replace('_', ' ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
@@ -355,6 +420,117 @@ export default function EditOrderClient({ order, customers = [], devices = [] }:
                   )}
                 />
               </div>
+            </CardContent>
+          </Card>
+          
+          {/* Service Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Service Selection</CardTitle>
+              <CardDescription>
+                Select the repair services needed for this device
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Select one or more services to perform on this device.
+              </p>
+              
+              {/* Group services by category */}
+              {Object.entries(
+                services.reduce((acc, service) => {
+                  const category = service.category || 'other';
+                  if (!acc[category]) acc[category] = [];
+                  acc[category].push(service);
+                  return acc;
+                }, {} as Record<string, Service[]>)
+              ).map(([category, categoryServices]) => (
+                <div key={category} className="space-y-2">
+                  <h4 className="font-medium capitalize">
+                    {category.replace(/_/g, ' ')}
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {categoryServices.map(service => (
+                      <div 
+                        key={service.id}
+                        className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                          selectedServices.includes(service.id) 
+                            ? 'bg-primary/10 border-primary' 
+                            : 'hover:bg-muted/50'
+                        }`}
+                        onClick={(e) => {
+                          // Prevent triggering if clicking on checkbox itself
+                          if ((e.target as HTMLElement).closest('button[role="checkbox"]')) {
+                            return;
+                          }
+                          setSelectedServices(prev => 
+                            prev.includes(service.id)
+                              ? prev.filter(id => id !== service.id)
+                              : [...prev, service.id]
+                          );
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <Checkbox 
+                            checked={selectedServices.includes(service.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedServices(prev => 
+                                checked
+                                  ? [...prev, service.id]
+                                  : prev.filter(id => id !== service.id)
+                              );
+                            }}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{service.name}</p>
+                            {service.description && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {service.description}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                              {service.base_price && (
+                                <span className="flex items-center gap-1">
+                                  <DollarSign className="h-3 w-3" />
+                                  ${service.base_price.toFixed(2)}
+                                </span>
+                              )}
+                              {service.estimated_duration_minutes && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {service.estimated_duration_minutes}m
+                                </span>
+                              )}
+                              {service.requires_parts && (
+                                <Badge variant="outline" className="text-xs">
+                                  Parts Required
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              
+              {/* Show total estimate */}
+              {selectedServices.length > 0 && (
+                <div className="mt-4 p-4 bg-muted rounded-lg">
+                  <p className="text-sm font-medium">
+                    Services Total: $
+                    {services
+                      .filter(s => selectedServices.includes(s.id))
+                      .reduce((sum, s) => sum + (s.base_price || 0), 0)
+                      .toFixed(2)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {selectedServices.length} service(s) selected
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
           

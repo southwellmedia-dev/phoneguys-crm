@@ -22,6 +22,36 @@ export class TimerService {
     this.timeEntryRepo = new TimeEntryRepository(useServiceRole);
     this.ticketRepo = new RepairTicketRepository(useServiceRole);
     this.userRepo = new UserRepository(useServiceRole);
+    
+    // Clean up any orphaned timers on initialization
+    this.cleanupOrphanedTimers();
+  }
+  
+  /**
+   * Clean up orphaned timers from memory
+   */
+  private async cleanupOrphanedTimers(): Promise<void> {
+    try {
+      const timersToRemove: string[] = [];
+      
+      for (const [key, timer] of TimerService.activeTimers.entries()) {
+        const ticket = await this.ticketRepo.findById(timer.ticketId);
+        if (!ticket || !ticket.timer_started_at) {
+          timersToRemove.push(key);
+        }
+      }
+      
+      for (const key of timersToRemove) {
+        TimerService.activeTimers.delete(key);
+        console.log(`Cleaned up orphaned timer: ${key}`);
+      }
+      
+      if (timersToRemove.length > 0) {
+        console.log(`Cleaned up ${timersToRemove.length} orphaned timer(s)`);
+      }
+    } catch (error) {
+      console.error('Error cleaning up orphaned timers:', error);
+    }
   }
 
   /**
@@ -44,11 +74,21 @@ export class TimerService {
 
     // Check if timer is already running for this ticket
     const timerKey = `${ticketId}-${userId}`;
+    
+    // Check if timer exists in memory but not in database (orphaned timer)
     if (TimerService.activeTimers.has(timerKey)) {
-      return {
-        success: false,
-        message: 'Timer is already running for this ticket'
-      };
+      // Verify the ticket actually has a timer in the database
+      const currentTicket = await this.ticketRepo.findById(ticketId);
+      if (!currentTicket?.timer_started_at) {
+        // Timer exists in memory but not in database, clear it
+        TimerService.activeTimers.delete(timerKey);
+        console.log(`Cleared orphaned timer for ticket ${ticketId}`);
+      } else {
+        return {
+          success: false,
+          message: 'Timer is already running for this ticket'
+        };
+      }
     }
 
     // Check if user has any other active timers
@@ -261,6 +301,15 @@ export class TimerService {
         elapsedMinutes
       };
     });
+  }
+
+  /**
+   * Clear all active timers from memory (for debugging)
+   */
+  static clearAllTimers(): void {
+    const count = TimerService.activeTimers.size;
+    TimerService.activeTimers.clear();
+    console.log(`Cleared ${count} timer(s) from memory`);
   }
 
   /**

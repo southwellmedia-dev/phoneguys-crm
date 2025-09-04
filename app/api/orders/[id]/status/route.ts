@@ -10,7 +10,7 @@ interface RouteParams {
   }>;
 }
 
-export async function POST(request: NextRequest, { params }: RouteParams) {
+async function updateStatus(request: NextRequest, params: RouteParams) {
   try {
     // Await params in Next.js 15
     const resolvedParams = await params;
@@ -53,8 +53,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const ticket = updatedTicket;
 
     if (ticket) {
-      // Send notification
-      await notificationService.notifyStatusChange(ticket, status, reason);
+      // Send notification - skip for reopening to avoid spam
+      if (status !== 'in_progress' || reason !== 'Order reopened') {
+        await notificationService.notifyStatusChange(ticket, status, reason);
+      }
     }
 
     return successResponse(
@@ -64,4 +66,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     return handleApiError(error);
   }
+}
+
+export async function POST(request: NextRequest, { params }: RouteParams) {
+  return updateStatus(request, params);
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  return updateStatus(request, params);
 }

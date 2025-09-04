@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Play, Pause, Square, Clock, AlertCircle } from "lucide-react";
+import { Play, Pause, Square, Clock, AlertCircle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTimer } from "@/lib/contexts/timer-context";
 import { StopTimerDialog } from "./stop-timer-dialog";
@@ -14,6 +14,8 @@ interface TimerControlProps {
   ticketNumber?: string;
   customerName?: string;
   className?: string;
+  isDisabled?: boolean;
+  disabledReason?: string;
 }
 
 export function TimerControl({
@@ -21,6 +23,8 @@ export function TimerControl({
   ticketNumber,
   customerName,
   className,
+  isDisabled = false,
+  disabledReason,
 }: TimerControlProps) {
   const { 
     activeTimer, 
@@ -74,6 +78,13 @@ export function TimerControl({
     setShowStopDialog(false);
   };
 
+  const handleClearTimer = () => {
+    // Clear the timer from local storage directly
+    localStorage.removeItem('phoneguys_active_timer');
+    window.location.reload(); // Reload to reset the state
+    toast.success("Timer cleared from local storage");
+  };
+
   const formatTime = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -86,14 +97,14 @@ export function TimerControl({
 
   return (
     <>
-      <Card className={cn("", className)}>
+      <Card className={cn(isDisabled && "opacity-60", className)}>
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm font-medium">Timer</span>
+              <Clock className={cn("h-5 w-5", isDisabled ? "text-muted-foreground/50" : "text-muted-foreground")} />
+              <span className={cn("text-sm font-medium", isDisabled && "text-muted-foreground")}>Timer</span>
             </div>
-            {isThisTimerActive && (
+            {!isDisabled && isThisTimerActive && (
               <span className="flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
@@ -102,11 +113,33 @@ export function TimerControl({
           </div>
 
           {/* Error Display */}
-          {error && (
+          {error && !isDisabled && (
             <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                  <span className="text-sm text-destructive">{error}</span>
+                </div>
+                {error.includes('timer') && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleClearTimer}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Disabled Message */}
+          {isDisabled && disabledReason && (
+            <div className="mb-4 p-3 bg-muted/50 border border-muted-foreground/20 rounded-lg">
               <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
-                <span className="text-sm text-destructive">{error}</span>
+                <AlertCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-sm text-muted-foreground">{disabledReason}</span>
               </div>
             </div>
           )}
@@ -114,46 +147,66 @@ export function TimerControl({
           <div className="text-center mb-6">
             <div className={cn(
               "text-4xl font-mono font-bold",
-              isThisTimerActive ? "text-primary" : "text-muted-foreground"
+              isDisabled ? "text-muted-foreground/50" : isThisTimerActive ? "text-primary" : "text-muted-foreground"
             )}>
               {isThisTimerActive 
                 ? formatTime(activeTimer.elapsedSeconds) 
                 : "00:00:00"
               }
             </div>
-            {hasActiveTimer && !isThisTimerActive && (
-              <p className="text-sm text-muted-foreground mt-2">
-                Timer active on another ticket
-              </p>
+            {!isDisabled && hasActiveTimer && !isThisTimerActive && (
+              <div className="mt-2 space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Timer active on another ticket
+                </p>
+                {activeTimer?.ticketNumber && (
+                  <p className="text-xs text-muted-foreground">
+                    Ticket: {activeTimer.ticketNumber}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
           <div className="flex gap-2">
             {!isThisTimerActive ? (
-              <Button
-                onClick={handleStart}
-                disabled={isLoading}
-                className="flex-1"
-                variant="default"
-              >
-                <Play className="mr-2 h-4 w-4" />
-                {hasActiveTimer ? "Switch Timer" : "Start Timer"}
-              </Button>
+              <>
+                <Button
+                  onClick={handleStart}
+                  disabled={isLoading || isDisabled}
+                  className="flex-1"
+                  variant={isDisabled ? "ghost" : "default"}
+                >
+                  <Play className="mr-2 h-4 w-4" />
+                  {hasActiveTimer ? "Switch Timer" : "Start Timer"}
+                </Button>
+                {hasActiveTimer && !isDisabled && (
+                  <Button
+                    onClick={handleClearTimer}
+                    disabled={isLoading}
+                    variant="outline"
+                    size="icon"
+                    title="Clear orphaned timer"
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
+              </>
             ) : (
               <>
                 <Button
                   onClick={handlePause}
-                  disabled={isLoading}
+                  disabled={isLoading || isDisabled}
                   className="flex-1"
-                  variant="outline"
+                  variant={isDisabled ? "ghost" : "outline"}
                 >
                   <Pause className="mr-2 h-4 w-4" />
                   Pause
                 </Button>
                 <Button
                   onClick={handleStop}
-                  disabled={isLoading}
-                  variant="destructive"
+                  disabled={isLoading || isDisabled}
+                  variant={isDisabled ? "ghost" : "destructive"}
                 >
                   <Square className="mr-2 h-4 w-4" />
                   Stop
@@ -162,7 +215,7 @@ export function TimerControl({
             )}
           </div>
 
-          {isThisTimerActive && activeTimer && (
+          {!isDisabled && isThisTimerActive && activeTimer && (
             <div className="mt-4 pt-4 border-t">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Total time:</span>

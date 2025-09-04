@@ -6,11 +6,8 @@ export type UserRole = 'admin' | 'technician' | 'manager';
 export interface User {
   id: string;
   email: string;
-  full_name?: string;
-  role?: UserRole;
-  is_active?: boolean;
-  metadata?: any;
-  last_login_at?: string | null;
+  full_name: string;
+  role: UserRole;
   created_at: string;
   updated_at: string;
 }
@@ -30,6 +27,13 @@ export interface Customer {
 export type TicketStatus = 'new' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 export type RepairIssue = 'screen_crack' | 'battery_issue' | 'charging_port' | 'water_damage' | 'software_issue' | 'other';
+export type DeviceType = 'smartphone' | 'tablet' | 'laptop' | 'smartwatch' | 'desktop' | 'earbuds' | 'other';
+export type PartsAvailability = 'readily_available' | 'available' | 'limited' | 'scarce' | 'discontinued';
+export type ServiceCategory = 'screen_repair' | 'battery_replacement' | 'charging_port' | 
+  'water_damage' | 'diagnostic' | 'software_issue' | 'camera_repair' | 'speaker_repair' | 
+  'button_repair' | 'motherboard_repair' | 'data_recovery' | 'other';
+export type SkillLevel = 'basic' | 'intermediate' | 'advanced' | 'expert';
+export type DeviceCondition = 'excellent' | 'good' | 'fair' | 'poor' | 'broken';
 
 export interface RepairTicket {
   id: string;
@@ -233,3 +237,113 @@ export interface CreateCustomerDto extends Partial<Customer> {
 export interface UpdateCustomerDto extends Partial<Customer> {}
 
 export interface UpdateRepairTicketDto extends Partial<RepairTicket> {}
+
+// Admin feature types
+export interface Manufacturer {
+  id: string;
+  name: string;
+  logo_url?: string | null;
+  country?: string | null;
+  is_active: boolean;
+  total_repairs_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Device {
+  id: string;
+  manufacturer_id?: string | null;
+  model_name: string;
+  model_number?: string | null;
+  device_type?: DeviceType | null;
+  release_year?: number | null;
+  thumbnail_url?: string | null;
+  image_url?: string | null;
+  description?: string | null;
+  specifications?: Record<string, any>;
+  screen_size?: string | null;
+  storage_options?: string[];
+  color_options?: string[];
+  common_issues?: string[];
+  average_repair_cost?: number | null;
+  average_repair_time_hours?: number | null;
+  parts_availability?: PartsAvailability | null;
+  is_active: boolean;
+  total_repairs_count: number;
+  created_at: string;
+  updated_at: string;
+  
+  // Relations (when joined)
+  manufacturer?: Manufacturer;
+}
+
+export interface Service {
+  id: string;
+  name: string;
+  description?: string | null;
+  category?: ServiceCategory | null;
+  base_price?: number | null;
+  estimated_duration_minutes?: number | null;
+  requires_parts: boolean;
+  skill_level?: SkillLevel | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerDevice {
+  id: string;
+  customer_id: string;
+  device_id?: string | null;
+  serial_number?: string | null;
+  imei?: string | null;
+  color?: string | null;
+  storage_size?: string | null;
+  nickname?: string | null;
+  purchase_date?: string | null;
+  warranty_expires?: string | null;
+  condition?: DeviceCondition | null;
+  previous_repairs?: any[];
+  notes?: string | null;
+  is_primary: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  
+  // Relations (when joined)
+  customer?: Customer;
+  device?: Device;
+}
+
+export interface DeviceService {
+  device_id: string;
+  service_id: string;
+  typical_price?: number | null;
+  typical_duration_minutes?: number | null;
+  notes?: string | null;
+  is_available: boolean;
+  created_at: string;
+  
+  // Relations (when joined)
+  device?: Device;
+  service?: Service;
+}
+
+export interface TicketService {
+  id: string;
+  ticket_id: string;
+  service_id: string;
+  quantity: number;
+  unit_price?: number | null;
+  total_price?: number | null;
+  technician_notes?: string | null;
+  performed_by?: string | null;
+  performed_at?: string | null;
+  created_at: string;
+  
+  // Relations (when joined)
+  ticket?: RepairTicket;
+  service?: Service;
+  technician?: User;
+}

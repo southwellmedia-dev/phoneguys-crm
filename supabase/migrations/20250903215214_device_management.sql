@@ -158,54 +158,54 @@ $$ LANGUAGE plpgsql;
 -- Run the migration
 SELECT migrate_existing_repairs_to_devices();
 
--- Insert some common manufacturers and models
-INSERT INTO public.manufacturers (name, country) VALUES
-    ('Apple', 'United States'),
-    ('Samsung', 'South Korea'),
-    ('Google', 'United States'),
-    ('OnePlus', 'China'),
-    ('Motorola', 'United States'),
-    ('LG', 'South Korea'),
-    ('Nokia', 'Finland'),
-    ('Sony', 'Japan'),
-    ('Huawei', 'China'),
-    ('Xiaomi', 'China')
-ON CONFLICT (name) DO NOTHING;
+-- Insert some common manufacturers and models (commented out - will come from seed.sql)
+-- INSERT INTO public.manufacturers (name, country) VALUES
+--     ('Apple', 'United States'),
+--     ('Samsung', 'South Korea'),
+--     ('Google', 'United States'),
+--     ('OnePlus', 'China'),
+--     ('Motorola', 'United States'),
+--     ('LG', 'South Korea'),
+--     ('Nokia', 'Finland'),
+--     ('Sony', 'Japan'),
+--     ('Huawei', 'China'),
+--     ('Xiaomi', 'China')
+-- ON CONFLICT (name) DO NOTHING;
 
--- Insert some common device models
-INSERT INTO public.device_models (manufacturer_id, model_name, device_type, release_year, common_issues)
-SELECT 
-    m.id,
-    model.name,
-    model.type,
-    model.year,
-    model.issues
-FROM public.manufacturers m
-CROSS JOIN (
-    VALUES 
-        ('Apple', 'iPhone 15 Pro Max', 'smartphone', 2023, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
-        ('Apple', 'iPhone 15 Pro', 'smartphone', 2023, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
-        ('Apple', 'iPhone 15', 'smartphone', 2023, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
-        ('Apple', 'iPhone 14 Pro Max', 'smartphone', 2022, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
-        ('Apple', 'iPhone 14 Pro', 'smartphone', 2022, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
-        ('Apple', 'iPhone 14', 'smartphone', 2022, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
-        ('Apple', 'iPhone 13', 'smartphone', 2021, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
-        ('Apple', 'iPad Pro 12.9', 'tablet', 2023, ARRAY['screen_crack', 'charging_port']::TEXT[]),
-        ('Apple', 'iPad Air', 'tablet', 2023, ARRAY['screen_crack', 'software_issue']::TEXT[]),
-        ('Samsung', 'Galaxy S24 Ultra', 'smartphone', 2024, ARRAY['screen_crack', 'camera_issue']::TEXT[]),
-        ('Samsung', 'Galaxy S24', 'smartphone', 2024, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
-        ('Samsung', 'Galaxy S23 Ultra', 'smartphone', 2023, ARRAY['screen_crack', 'camera_issue']::TEXT[]),
-        ('Samsung', 'Galaxy S23', 'smartphone', 2023, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
-        ('Samsung', 'Galaxy Z Fold 5', 'smartphone', 2023, ARRAY['screen_crack', 'hinge_issue']::TEXT[]),
-        ('Samsung', 'Galaxy Z Flip 5', 'smartphone', 2023, ARRAY['screen_crack', 'hinge_issue']::TEXT[]),
-        ('Google', 'Pixel 8 Pro', 'smartphone', 2023, ARRAY['screen_crack', 'camera_issue']::TEXT[]),
-        ('Google', 'Pixel 8', 'smartphone', 2023, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
-        ('Google', 'Pixel 7 Pro', 'smartphone', 2022, ARRAY['screen_crack', 'software_issue']::TEXT[]),
-        ('OnePlus', '12', 'smartphone', 2024, ARRAY['screen_crack', 'charging_port']::TEXT[]),
-        ('OnePlus', '11', 'smartphone', 2023, ARRAY['screen_crack', 'battery_issue']::TEXT[])
-) AS model(manufacturer_name, name, type, year, issues)
-WHERE m.name = model.manufacturer_name
-ON CONFLICT (manufacturer_id, model_name, model_number) DO NOTHING;
+-- Insert some common device models (commented out - will come from seed.sql)
+-- INSERT INTO public.device_models (manufacturer_id, model_name, device_type, release_year, common_issues)
+-- SELECT 
+--     m.id,
+--     model.name,
+--     model.type,
+--     model.year,
+--     model.issues
+-- FROM public.manufacturers m
+-- CROSS JOIN (
+--     VALUES 
+--         ('Apple', 'iPhone 15 Pro Max', 'smartphone', 2023, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
+--         ('Apple', 'iPhone 15 Pro', 'smartphone', 2023, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
+--         ('Apple', 'iPhone 15', 'smartphone', 2023, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
+--         ('Apple', 'iPhone 14 Pro Max', 'smartphone', 2022, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
+--         ('Apple', 'iPhone 14 Pro', 'smartphone', 2022, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
+--         ('Apple', 'iPhone 14', 'smartphone', 2022, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
+--         ('Apple', 'iPhone 13', 'smartphone', 2021, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
+--         ('Apple', 'iPad Pro 12.9', 'tablet', 2023, ARRAY['screen_crack', 'charging_port']::TEXT[]),
+--         ('Apple', 'iPad Air', 'tablet', 2023, ARRAY['screen_crack', 'software_issue']::TEXT[]),
+--         ('Samsung', 'Galaxy S24 Ultra', 'smartphone', 2024, ARRAY['screen_crack', 'camera_issue']::TEXT[]),
+--         ('Samsung', 'Galaxy S24', 'smartphone', 2024, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
+--         ('Samsung', 'Galaxy S23 Ultra', 'smartphone', 2023, ARRAY['screen_crack', 'camera_issue']::TEXT[]),
+--         ('Samsung', 'Galaxy S23', 'smartphone', 2023, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
+--         ('Samsung', 'Galaxy Z Fold 5', 'smartphone', 2023, ARRAY['screen_crack', 'hinge_issue']::TEXT[]),
+--         ('Samsung', 'Galaxy Z Flip 5', 'smartphone', 2023, ARRAY['screen_crack', 'hinge_issue']::TEXT[]),
+--         ('Google', 'Pixel 8 Pro', 'smartphone', 2023, ARRAY['screen_crack', 'camera_issue']::TEXT[]),
+--         ('Google', 'Pixel 8', 'smartphone', 2023, ARRAY['screen_crack', 'battery_issue']::TEXT[]),
+--         ('Google', 'Pixel 7 Pro', 'smartphone', 2022, ARRAY['screen_crack', 'software_issue']::TEXT[]),
+--         ('OnePlus', '12', 'smartphone', 2024, ARRAY['screen_crack', 'charging_port']::TEXT[]),
+--         ('OnePlus', '11', 'smartphone', 2023, ARRAY['screen_crack', 'battery_issue']::TEXT[])
+-- ) AS model(manufacturer_name, name, type, year, issues)
+-- WHERE m.name = model.manufacturer_name
+-- ON CONFLICT (manufacturer_id, model_name, model_number) DO NOTHING;
 
 -- Grant permissions
 GRANT ALL ON public.manufacturers TO authenticated;

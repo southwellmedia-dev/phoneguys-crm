@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Loader2, ChevronLeft, ChevronRight, Save, X } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Save, X, DollarSign, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { PageContainer } from "@/components/layout/page-container";
 import { toast } from "sonner";
 import { 
@@ -31,19 +33,47 @@ interface Device {
   model_name: string;
   model_number?: string;
   device_type?: string;
-  common_issues?: string[];
-  manufacturers: {
+  release_year?: number;
+  specifications?: any;
+  image_url?: string;
+  parts_availability?: string;
+  manufacturer: {
     id: string;
     name: string;
   };
 }
 
+interface Service {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  base_price?: number;
+  estimated_duration_minutes?: number;
+  requires_parts: boolean;
+  skill_level?: string;
+}
+
 interface NewOrderClientProps {
   customers: Array<{ id: string; name: string; email: string; phone: string }>;
   devices: Device[];
+  services: Service[];
 }
 
-export function NewOrderClient({ customers, devices }: NewOrderClientProps) {
+// Mapping between issue types and service categories
+const issueToServiceMapping: Record<string, string> = {
+  'screen_crack': 'screen_repair',
+  'battery_issue': 'battery_replacement',
+  'charging_port': 'charging_port',
+  'water_damage': 'water_damage',
+  'software_issue': 'software_issue',
+  'speaker_issue': 'speaker_repair',
+  'camera_issue': 'camera_repair',
+  'button_issue': 'button_repair',
+  'other': 'diagnostic'
+};
+
+export function NewOrderClient({ customers, devices, services }: NewOrderClientProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,9 +89,6 @@ export function NewOrderClient({ customers, devices }: NewOrderClientProps) {
     },
   });
 
-  // Watch form values to trigger re-render for validation
-  const watchedValues = form.watch();
-
   // Prepare customers for combobox
   const customerOptions: ComboboxOption[] = customers.map(customer => ({
     value: customer.id,
@@ -72,12 +99,14 @@ export function NewOrderClient({ customers, devices }: NewOrderClientProps) {
   // Prepare devices for combobox
   const deviceOptions: ComboboxOption[] = devices.map(device => ({
     value: device.id,
-    label: `${device.manufacturers.name} ${device.model_name}`,
+    label: `${device.manufacturer.name} ${device.model_name}`,
     sublabel: device.model_number || device.device_type || undefined
   }));
   
   // State for selected device
   const [selectedDevice, setSelectedDevice] = useState<Device | undefined>();
+  // State for selected services
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
   async function onSubmit(values: RepairTicketFormData) {
     console.log("Form submission started with values:", values);
@@ -105,21 +134,27 @@ export function NewOrderClient({ customers, devices }: NewOrderClientProps) {
         console.log("Customer created with ID:", customerId);
       }
 
+      // Calculate estimated cost from selected services if not manually entered
+      const servicesTotal = services
+        .filter(s => selectedServices.includes(s.id))
+        .reduce((sum, s) => sum + (s.base_price || 0), 0);
+        
       // Create repair ticket
       const ticketData = {
         customer_id: customerId,
-        device_model_id: values.device_model_id || null,
-        device_brand: values.device_brand || selectedDevice?.manufacturers.name,
+        device_id: values.device_model_id || null, // Now using device_id instead of device_model_id
+        device_brand: values.device_brand || selectedDevice?.manufacturer.name,
         device_model: values.device_model || selectedDevice?.model_name,
         serial_number: values.serial_number || null,
         imei: values.imei || null,
         issue_type: values.issue_type,
         issue_description: values.issue_description,
         priority: values.priority,
-        estimated_cost: values.estimated_cost || 0,
+        estimated_cost: values.estimated_cost || servicesTotal || 0,
         deposit_amount: values.deposit_amount || 0,
         internal_notes: values.internal_notes || null,
         status: "new" as const,
+        selected_services: selectedServices, // Include selected services
       };
 
       console.log("Sending ticket data:", ticketData);
@@ -176,7 +211,7 @@ export function NewOrderClient({ customers, devices }: NewOrderClientProps) {
         }
       case 2: // Device step
         return !!values.device_model_id;
-      case 3: // Repair details step
+      case 3: // Repair details & services step
         return !!(values.issue_type && values.issue_type.length > 0 && 
                  values.issue_description && values.issue_description.length >= 10);
       case 4: // Cost & Notes step - always valid
@@ -188,8 +223,8 @@ export function NewOrderClient({ customers, devices }: NewOrderClientProps) {
 
   const stepTitles = [
     "Customer Information",
-    "Device Information", 
-    "Repair Details",
+    "Device Information",
+    "Repair Details & Services",
     "Cost & Notes"
   ];
 
@@ -299,15 +334,15 @@ export function NewOrderClient({ customers, devices }: NewOrderClientProps) {
                 }}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="existing" id="existing" />
-                    <label htmlFor="existing" className="font-medium cursor-pointer">
+                    <Label htmlFor="existing" className="font-medium cursor-pointer">
                       Select Existing Customer
-                    </label>
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="new" id="new" />
-                    <label htmlFor="new" className="font-medium cursor-pointer">
+                    <Label htmlFor="new" className="font-medium cursor-pointer">
                       Create New Customer
-                    </label>
+                    </Label>
                   </div>
                 </RadioGroup>
 
@@ -408,13 +443,8 @@ export function NewOrderClient({ customers, devices }: NewOrderClientProps) {
                             setSelectedDevice(device);
                             if (device) {
                               // Auto-populate brand and model fields for backwards compatibility
-                              form.setValue('device_brand', device.manufacturers.name as any);
+                              form.setValue('device_brand', device.manufacturer.name as any);
                               form.setValue('device_model', device.model_name);
-                              // If device has common issues, we could pre-select them
-                              if (device.common_issues && device.common_issues.length > 0) {
-                                // Optionally pre-select common issues
-                                // form.setValue('issue_type', device.common_issues as any);
-                              }
                             }
                           }}
                           placeholder="Search for a device..."
@@ -433,17 +463,27 @@ export function NewOrderClient({ customers, devices }: NewOrderClientProps) {
                 {/* Show selected device info */}
                 {selectedDevice && (
                   <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg space-y-2">
-                    <p className="font-medium">{selectedDevice.manufacturers.name} {selectedDevice.model_name}</p>
-                    {selectedDevice.common_issues && selectedDevice.common_issues.length > 0 && (
-                      <div>
-                        <p className="text-sm text-muted-foreground">Common issues:</p>
-                        <ul className="text-sm list-disc list-inside">
-                          {selectedDevice.common_issues.map(issue => (
-                            <li key={issue}>{formatIssueType(issue as any)}</li>
-                          ))}
-                        </ul>
+                    <div className="flex items-start gap-4">
+                      {selectedDevice.image_url && (
+                        <img 
+                          src={selectedDevice.image_url} 
+                          alt={selectedDevice.model_name}
+                          className="w-16 h-16 object-cover rounded"
+                        />
+                      )}
+                      <div className="flex-1">
+                        <p className="font-medium">{selectedDevice.manufacturer.name} {selectedDevice.model_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedDevice.release_year && `Released: ${selectedDevice.release_year}`}
+                          {selectedDevice.device_type && ` • ${selectedDevice.device_type}`}
+                        </p>
+                        {selectedDevice.parts_availability && (
+                          <p className="text-sm text-muted-foreground">
+                            Parts: {selectedDevice.parts_availability.replace('_', ' ')}
+                          </p>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-4">
@@ -478,25 +518,26 @@ export function NewOrderClient({ customers, devices }: NewOrderClientProps) {
             </Card>
           )}
 
-          {/* Step 3: Repair Details */}
+          {/* Step 3: Repair Details & Services */}
           {step === 3 && (
             <Card>
               <CardHeader>
-                <CardTitle>Repair Details</CardTitle>
+                <CardTitle>Repair Details & Services</CardTitle>
                 <CardDescription>
-                  Describe the issues and repair requirements
+                  Describe the issues and select or confirm the repair services needed
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Repair Issues Selection */}
                 <FormField
                   control={form.control}
                   name="issue_type"
                   render={() => (
                     <FormItem>
                       <div className="mb-4">
-                        <FormLabel className="text-base">Issue Types</FormLabel>
+                        <FormLabel className="text-base">What issues is the device experiencing?</FormLabel>
                         <FormDescription>
-                          Select all issues that apply
+                          Select all that apply - this will automatically suggest relevant repair services
                         </FormDescription>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
@@ -515,11 +556,20 @@ export function NewOrderClient({ customers, devices }: NewOrderClientProps) {
                                     <Checkbox
                                       checked={field.value?.includes(type)}
                                       onCheckedChange={(checked) => {
-                                        return checked
-                                          ? field.onChange([...field.value, type])
-                                          : field.onChange(
-                                              field.value?.filter((value) => value !== type)
-                                            );
+                                        const newIssues = checked
+                                          ? [...field.value, type]
+                                          : field.value?.filter((value) => value !== type);
+                                        field.onChange(newIssues);
+                                        
+                                        // Auto-select corresponding service
+                                        if (checked && issueToServiceMapping[type]) {
+                                          const relatedService = services.find(s => 
+                                            s.category === issueToServiceMapping[type]
+                                          );
+                                          if (relatedService && !selectedServices.includes(relatedService.id)) {
+                                            setSelectedServices(prev => [...prev, relatedService.id]);
+                                          }
+                                        }
                                       }}
                                     />
                                   </FormControl>
@@ -536,47 +586,176 @@ export function NewOrderClient({ customers, devices }: NewOrderClientProps) {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="issue_description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Issue Description</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Please describe the issues in detail..."
-                          className="min-h-[120px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="priority"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Priority</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+
+                {/* Issue Description and Priority */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="issue_description"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>Detailed Description</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select priority level" />
-                          </SelectTrigger>
+                          <Textarea
+                            placeholder="Please describe the issues in detail, including when they started, any damage visible, and any troubleshooting already attempted..."
+                            className="min-h-[120px]"
+                            {...field}
+                          />
                         </FormControl>
-                        <SelectContent>
-                          {priorityLevels.map((level) => (
-                            <SelectItem key={level} value={level}>
-                              {formatPriority(level)}
-                            </SelectItem>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Priority</FormLabel>
+                        <FormControl>
+                          <select
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            {...field}
+                          >
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                          </select>
+                        </FormControl>
+                        <FormDescription>
+                          Urgency of repair
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Services Section - Auto-selected and Manual */}
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Recommended Services</h4>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Based on the issues selected, these services are recommended. You can add or remove services as needed.
+                    </p>
+                  </div>
+
+                  {/* Selected Services */}
+                  {selectedServices.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Selected Services:</p>
+                      <div className="space-y-2">
+                        {services
+                          .filter(s => selectedServices.includes(s.id))
+                          .map(service => (
+                            <div key={service.id} className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/20">
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">{service.name}</p>
+                                {service.category && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Category: {service.category.replace('_', ' ')}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                {service.base_price && (
+                                  <span className="text-sm font-medium">
+                                    ${service.base_price.toFixed(2)}
+                                  </span>
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setSelectedServices(prev => prev.filter(id => id !== service.id))}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
                           ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
+                      </div>
+                    </div>
                   )}
-                />
+
+                  {/* Add Additional Services */}
+                  <div className="border-t pt-4">
+                    <details className="group">
+                      <summary className="cursor-pointer text-sm font-medium flex items-center gap-2">
+                        <ChevronRight className="h-4 w-4 group-open:rotate-90 transition-transform" />
+                        Browse all available services
+                      </summary>
+                      <div className="mt-4 space-y-4">
+                        {Object.entries(
+                          services.reduce((acc, service) => {
+                            const category = service.category || 'other';
+                            if (!acc[category]) acc[category] = [];
+                            acc[category].push(service);
+                            return acc;
+                          }, {} as Record<string, Service[]>)
+                        ).map(([category, categoryServices]) => (
+                          <div key={category} className="space-y-2">
+                            <h5 className="text-xs font-medium uppercase text-muted-foreground">
+                              {category.replace(/_/g, ' ')}
+                            </h5>
+                            <div className="grid grid-cols-1 gap-2">
+                              {categoryServices.map(service => (
+                                <div 
+                                  key={service.id}
+                                  className={`border rounded p-2 transition-colors text-sm ${
+                                    selectedServices.includes(service.id) 
+                                      ? 'bg-primary/10 border-primary' 
+                                      : 'hover:bg-muted/50'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <label className="flex items-center gap-2 cursor-pointer flex-1">
+                                      <Checkbox 
+                                        checked={selectedServices.includes(service.id)}
+                                        onCheckedChange={(checked) => {
+                                          setSelectedServices(prev => 
+                                            checked
+                                              ? [...prev, service.id]
+                                              : prev.filter(id => id !== service.id)
+                                          );
+                                        }}
+                                      />
+                                      <span>{service.name}</span>
+                                    </label>
+                                    {service.base_price && (
+                                      <span className="text-muted-foreground">
+                                        ${service.base_price.toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+
+                  {/* Total Estimate */}
+                  {selectedServices.length > 0 && (
+                    <div className="mt-4 p-4 bg-muted rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm font-medium">Services Total:</p>
+                        <p className="text-lg font-semibold">
+                          ${services
+                            .filter(s => selectedServices.includes(s.id))
+                            .reduce((sum, s) => sum + (s.base_price || 0), 0)
+                            .toFixed(2)}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {selectedServices.length} service(s) selected
+                      </p>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}

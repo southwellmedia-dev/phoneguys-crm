@@ -177,11 +177,16 @@ export class NotificationService {
       throw new Error('Invalid recipient email address');
     }
 
-    const notification = await this.notificationRepo.create({
+    // Map body to content field (database uses 'content', not 'body')
+    const notificationData: any = {
       ...data,
+      content: data.body || data.content,
       created_at: new Date().toISOString(),
       scheduled_for: data.scheduled_for || new Date().toISOString()
-    });
+    };
+    delete notificationData.body; // Remove body field as database doesn't have it
+
+    const notification = await this.notificationRepo.create(notificationData);
 
     // In production, this would trigger an email service
     // For now, we'll just mark it as created
@@ -440,7 +445,7 @@ export class NotificationService {
     console.log('Sending email:', {
       to: notification.recipient_email,
       subject: notification.subject,
-      body: notification.body
+      body: notification.content // Use content field instead of body
     });
 
     // Simulate email sending delay

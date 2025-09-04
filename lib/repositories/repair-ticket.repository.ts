@@ -107,6 +107,8 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
     assigned_user?: any; 
     notes?: any[];
     time_entries?: any[];
+    device?: any;
+    ticket_services?: any[];
   } | null> {
     const client = await this.getClient();
     const { data, error } = await client
@@ -115,6 +117,35 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
         *,
         customers:customers!customer_id (*),
         assigned_user:users!assigned_to (*),
+        device:devices!device_id (
+          id,
+          model_name,
+          model_number,
+          device_type,
+          release_year,
+          specifications,
+          image_url,
+          parts_availability,
+          manufacturer:manufacturers (
+            id,
+            name
+          )
+        ),
+        ticket_services (
+          id,
+          service:services (
+            id,
+            name,
+            category,
+            base_price,
+            estimated_duration_minutes
+          ),
+          unit_price,
+          quantity,
+          technician_notes,
+          performed_at,
+          performed_by
+        ),
         notes:ticket_notes (
           id,
           note_type,

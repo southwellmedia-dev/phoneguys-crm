@@ -6,3 +6,4 @@ export { TicketNoteRepository } from './ticket-note.repository';
 export { TimeEntryRepository } from './time-entry.repository';
 export { NotificationRepository } from './notification.repository';
 export { UserRepository } from './user.repository';
+export { AppointmentRepository } from './appointment.repository';

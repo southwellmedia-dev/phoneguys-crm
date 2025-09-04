@@ -82,7 +82,7 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
       onClick: () => console.log("Export orders"),
     },
     {
-      label: "New Order",
+      label: "New Ticket",
       href: "/orders/new",
       icon: <Plus className="h-4 w-4" />,
       variant: "default" as const,
@@ -91,8 +91,8 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
 
   return (
     <PageContainer
-      title="Orders"
-      description="Manage repair orders and track their progress"
+      title="Tickets"
+      description="Manage repair tickets and track their progress"
       actions={headerActions}
     >
       <div className="space-y-6">

@@ -31,7 +31,14 @@ export default async function OrderDetailPage({
 
   // Check if this device matches a customer device
   let matchingCustomerDevice = null;
-  if (order.customer_id) {
+  
+  // First check if there's a direct customer_device_id link
+  if (order.customer_device_id && order.customer_device) {
+    matchingCustomerDevice = order.customer_device;
+    console.log('Found customer device from order:', matchingCustomerDevice);
+  } 
+  // Otherwise, try to find a match by serial/IMEI
+  else if (order.customer_id) {
     const customerDeviceRepo = new CustomerDeviceRepository();
     const customerDevices = await customerDeviceRepo.findByCustomer(order.customer_id);
     

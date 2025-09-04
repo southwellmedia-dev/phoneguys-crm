@@ -80,7 +80,7 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
     return data as RepairTicket[];
   }
 
-  async findAllWithCustomers(): Promise<(RepairTicket & { customers?: any })[]> {
+  async findAllWithCustomers(): Promise<(RepairTicket & { customers?: any; device?: any })[]> {
     const client = await this.getClient();
     const { data, error } = await client
       .from(this.tableName)
@@ -91,6 +91,13 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
           name,
           email,
           phone
+        ),
+        device:devices (
+          id,
+          model_name,
+          manufacturer:manufacturers (
+            name
+          )
         )
       `)
       .order('updated_at', { ascending: false });
@@ -108,6 +115,7 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
     notes?: any[];
     time_entries?: any[];
     device?: any;
+    customer_device?: any;
     ticket_services?: any[];
   } | null> {
     const client = await this.getClient();
@@ -117,7 +125,7 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
         *,
         customers:customers!customer_id (*),
         assigned_user:users!assigned_to (*),
-        device:devices!device_id (
+        device:devices (
           id,
           model_name,
           model_number,
@@ -130,6 +138,15 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
             id,
             name
           )
+        ),
+        customer_device:customer_devices (
+          id,
+          serial_number,
+          imei,
+          color,
+          storage_size,
+          condition,
+          nickname
         ),
         ticket_services (
           id,

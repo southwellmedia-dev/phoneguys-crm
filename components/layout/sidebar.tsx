@@ -22,9 +22,12 @@ import { useTimer } from "@/lib/contexts/timer-context";
 import { StopTimerDialog } from "@/components/orders/stop-timer-dialog";
 import { UserRole } from "@/lib/types/database.types";
 
+import { Calendar } from "lucide-react";
+
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
-  { name: "Orders", href: "/orders", icon: Package },
+  { name: "Appointments", href: "/appointments", icon: Calendar },
+  { name: "Tickets", href: "/orders", icon: Package },
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Reports", href: "/reports", icon: FileText },
   { name: "Settings", href: "/settings", icon: Settings },
@@ -206,7 +209,7 @@ export function Sidebar({ user }: SidebarProps) {
                 {formatTime(activeTimer.elapsedSeconds)}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                {activeTimer.ticketNumber || `Order #${activeTimer.ticketId.slice(-8)}`}
+                {activeTimer.ticketNumber || `Ticket #${activeTimer.ticketId.slice(-8)}`}
                 {activeTimer.customerName && (
                   <span className="block">{activeTimer.customerName}</span>
                 )}
@@ -215,7 +218,7 @@ export function Sidebar({ user }: SidebarProps) {
                 href={`/orders/${activeTimer.ticketId}`}
                 className="inline-block mt-3 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
               >
-                View Order →
+                View Ticket →
               </Link>
             </div>
           )}

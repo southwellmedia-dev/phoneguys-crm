@@ -178,7 +178,7 @@ export function OrderDetailClient({
       title={order.ticket_number}
       description={
         <div className="flex items-center gap-2">
-          <span>Repair Order Details</span>
+          <span>Repair Ticket Details</span>
           <StatusBadge status={order.status as RepairStatus} />
         </div>
       }
@@ -323,7 +323,7 @@ export function OrderDetailClient({
                       <div>
                         <p className="text-xs text-muted-foreground uppercase tracking-wider">Serial Number</p>
                         <p className="font-medium font-mono text-sm">
-                          {order.serial_number || (
+                          {order.serial_number || matchingCustomerDevice?.serial_number || (
                             <span className="text-muted-foreground italic">Not provided</span>
                           )}
                         </p>
@@ -331,7 +331,7 @@ export function OrderDetailClient({
                       <div>
                         <p className="text-xs text-muted-foreground uppercase tracking-wider">IMEI</p>
                         <p className="font-medium font-mono text-sm">
-                          {order.imei || (
+                          {order.imei || matchingCustomerDevice?.imei || (
                             <span className="text-muted-foreground italic">Not provided</span>
                           )}
                         </p>

@@ -16,8 +16,9 @@ async function getOrders(): Promise<Order[]> {
     customer_id: ticket.customer_id,
     customer_name: ticket.customers?.name || "Unknown Customer",
     customer_phone: ticket.customers?.phone || "",
-    device_brand: ticket.device_brand || "",
-    device_model: ticket.device_model || "",
+    // Use device relationship if available, fallback to text fields
+    device_brand: ticket.device?.manufacturer?.name || ticket.device_brand || "",
+    device_model: ticket.device?.model_name || ticket.device_model || "",
     repair_issues: ticket.repair_issues || [],
     status: ticket.status as RepairStatus,
     created_at: ticket.created_at,

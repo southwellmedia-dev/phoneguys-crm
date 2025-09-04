@@ -117,9 +117,13 @@ export abstract class BaseRepository<T> implements IRepository<T> {
 
   async create(data: Partial<T>): Promise<T> {
     const client = await this.getClient();
+    
+    // Clean up empty string UUIDs - convert to null
+    const cleanedData = this.cleanEmptyUUIDs(data);
+    
     const { data: created, error } = await client
       .from(this.tableName)
-      .insert(data)
+      .insert(cleanedData)
       .select()
       .single();
 
@@ -132,9 +136,13 @@ export abstract class BaseRepository<T> implements IRepository<T> {
 
   async createMany(data: Partial<T>[]): Promise<T[]> {
     const client = await this.getClient();
+    
+    // Clean up empty string UUIDs in all records
+    const cleanedData = data.map(item => this.cleanEmptyUUIDs(item));
+    
     const { data: created, error } = await client
       .from(this.tableName)
-      .insert(data)
+      .insert(cleanedData)
       .select();
 
     if (error) {
@@ -146,9 +154,13 @@ export abstract class BaseRepository<T> implements IRepository<T> {
 
   async update(id: string, data: Partial<T>): Promise<T> {
     const client = await this.getClient();
+    
+    // Clean up empty string UUIDs - convert to null
+    const cleanedData = this.cleanEmptyUUIDs(data);
+    
     const { data: updated, error } = await client
       .from(this.tableName)
-      .update(data)
+      .update(cleanedData)
       .eq('id', id)
       .select()
       .single();
@@ -159,10 +171,31 @@ export abstract class BaseRepository<T> implements IRepository<T> {
 
     return updated as T;
   }
+  
+  /**
+   * Clean empty UUID strings and convert them to null
+   * This prevents "invalid input syntax for type uuid" errors
+   */
+  protected cleanEmptyUUIDs(data: any): any {
+    const cleaned = { ...data };
+    const uuidFields = ['device_id', 'customer_device_id', 'customer_id', 'assigned_to', 'created_by', 'converted_to_ticket_id'];
+    
+    for (const field of uuidFields) {
+      if (field in cleaned && (cleaned[field] === '' || cleaned[field] === undefined)) {
+        cleaned[field] = null;
+      }
+    }
+    
+    return cleaned;
+  }
 
   async updateMany(filters: any, data: Partial<T>): Promise<T[]> {
     const client = await this.getClient();
-    let query = client.from(this.tableName).update(data);
+    
+    // Clean up empty string UUIDs - convert to null
+    const cleanedData = this.cleanEmptyUUIDs(data);
+    
+    let query = client.from(this.tableName).update(cleanedData);
 
     query = this.applyFilters(query, filters);
 

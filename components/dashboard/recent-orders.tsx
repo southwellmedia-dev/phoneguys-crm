@@ -14,7 +14,7 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Recent Orders</CardTitle>
+        <CardTitle>Recent Tickets</CardTitle>
         <Button variant="ghost" size="sm" asChild>
           <Link href="/orders">View all</Link>
         </Button>

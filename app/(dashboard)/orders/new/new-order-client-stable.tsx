@@ -363,7 +363,7 @@ export function NewOrderClient({ customers, devices, services }: NewOrderClientP
       onClick: () => setStep(step + 1),
       disabled: !isStepValid(),
     }] : [{
-      label: isLoading ? "Creating..." : "Create Order",
+      label: isLoading ? "Creating..." : "Create Ticket",
       icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />,
       variant: "default" as const,
       onClick: handleSubmit,
@@ -373,7 +373,7 @@ export function NewOrderClient({ customers, devices, services }: NewOrderClientP
 
   return (
     <PageContainer
-      title="Create New Order"
+      title="Create New Ticket"
       description={`Step ${step} of 4: ${stepTitles[step - 1]}`}
       actions={headerActions}
     >

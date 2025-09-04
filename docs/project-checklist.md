@@ -689,3 +689,29 @@ Development of a custom CRM/Booking platform for The Phone Guys to manage mobile
 - Supabase real-time subscriptions replacing polling
 - Optimized database queries with aggregation
 - TypeScript types properly maintained
+
+## Session 16 Updates (September 4, 2025)
+
+### Authentication & Production Fixes
+- ✅ **User Invitation Flow Fixed**: Resolved redirect issues after Vercel deployment
+- ✅ **Client-Side Redirect Handler**: Created component to handle URL fragments with auth tokens
+- ✅ **Middleware Updates**: Added exceptions for invitation acceptance page
+- ✅ **Database Query Tools**: Established Docker PostgreSQL pattern for remote debugging
+- ✅ **Data Integrity Investigation**: Identified repair tickets with missing device associations
+
+### Technical Solutions Implemented
+- `AuthRedirectHandler` component for detecting and redirecting invite tokens
+- Middleware exceptions for authenticated users accessing `/auth/accept-invitation`
+- Client-side handling of URL fragments containing authentication tokens
+- Docker-based database query pattern for production debugging
+
+### Current Production Status
+- **Authentication Flow**: ✅ Fully functional invitation and onboarding
+- **Remote Database**: ✅ Successfully migrated and operational
+- **User Management**: ✅ Invitation system working correctly
+- **Device Management**: ✅ Add to Profile feature operational (requires device_id)
+
+### Known Issues
+- Some repair tickets lack device_id associations (data integrity)
+- Device image migration script needs debugging
+- Email templates could be optimized for clearer redirect paths

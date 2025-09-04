@@ -54,9 +54,9 @@ export function DashboardClient({ metrics }: DashboardClientProps) {
         {/* Metrics Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard
-            title="New Orders"
+            title="New Tickets"
             value={metrics.todayOrders}
-            description="Orders awaiting assignment"
+            description="Tickets awaiting assignment"
             icon={Package}
             trend={{ value: 12, isPositive: true }}
           />
@@ -86,7 +86,7 @@ export function DashboardClient({ metrics }: DashboardClientProps) {
         {/* Secondary Metrics */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard
-            title="Total Orders"
+            title="Total Tickets"
             value={metrics.totalOrders}
             description="All time repairs"
             icon={Wrench}
@@ -127,7 +127,7 @@ export function DashboardClient({ metrics }: DashboardClientProps) {
                 <Link href="/orders/new">
                   <Plus className="mr-3 h-4 w-4" />
                   <div className="text-left">
-                    <div className="font-medium">Create New Order</div>
+                    <div className="font-medium">Create New Ticket</div>
                     <div className="text-sm text-muted-foreground group-hover:text-primary/70">Start a new repair ticket</div>
                   </div>
                 </Link>

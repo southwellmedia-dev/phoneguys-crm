@@ -178,7 +178,7 @@ export function OrderDetailClient({
       title={order.ticket_number}
       description={
         <div className="flex items-center gap-2">
-          <span>Repair Order Details</span>
+          <span>Repair Ticket Details</span>
           <StatusBadge status={order.status as RepairStatus} />
         </div>
       }

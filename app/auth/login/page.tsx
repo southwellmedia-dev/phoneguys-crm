@@ -1,8 +1,11 @@
 import { LoginForm } from "@/components/login-form";
+import { AuthRedirectHandler } from "@/components/auth-redirect-handler";
 import { Smartphone } from "lucide-react";
 
 export default function Page() {
   return (
+    <>
+      <AuthRedirectHandler />
     <div className="flex min-h-screen w-full">
       {/* Left side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary to-primary/90 items-center justify-center p-12">
@@ -77,5 +80,6 @@ export default function Page() {
         </div>
       </div>
     </div>
+    </>
   );
 }

@@ -5,15 +5,19 @@
 2. **Supabase image configuration** already properly set for production domains
 3. **Fixed Suspense boundary error** in accept-invitation page (wrapped useSearchParams in Suspense)
 4. **Fixed Supabase client creation** in reset-password page (moved createClient inside event handler)
+5. **Fixed Supabase environment variable names** to match Vercel configuration (changed from PUBLISHABLE_OR_ANON_KEY to ANON_KEY)
 
 ## 🎯 Ready to Deploy Steps
 
 ### 1. Commit Current Changes
 ```bash
-git add next.config.ts docs/
+git add next.config.ts docs/ app/auth/accept-invitation/page.tsx app/auth/reset-password/page.tsx lib/supabase/ lib/utils.ts
 git commit -m "feat: Configure Next.js for Vercel deployment
 
 - Temporarily ignore ESLint errors during build for quick deployment
+- Fixed Suspense boundary error in accept-invitation page
+- Fixed Supabase client initialization in reset-password page
+- Fixed Supabase environment variable names to match Vercel configuration
 - Added comprehensive deployment documentation and checklists
 - Image configuration ready for Supabase Storage
 

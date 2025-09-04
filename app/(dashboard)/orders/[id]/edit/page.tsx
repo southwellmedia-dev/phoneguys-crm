@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import EditOrderClient from './edit-order-client';
 import { CustomerRepository } from '@/lib/repositories/customer.repository';
+import { CustomerDeviceRepository } from '@/lib/repositories/customer-device.repository';
 
 interface EditOrderPageProps {
   params: Promise<{
@@ -118,6 +119,17 @@ async function getServices() {
   return services || [];
 }
 
+async function getCustomerDevices(customerId: string) {
+  try {
+    const customerDeviceRepo = new CustomerDeviceRepository();
+    const customerDevices = await customerDeviceRepo.findByCustomer(customerId);
+    return customerDevices || [];
+  } catch (error) {
+    console.error('Error fetching customer devices:', error);
+    return [];
+  }
+}
+
 export default async function EditOrderPage({ params }: EditOrderPageProps) {
   const resolvedParams = await params;
   
@@ -132,12 +144,16 @@ export default async function EditOrderPage({ params }: EditOrderPageProps) {
     notFound();
   }
   
+  // Get customer devices if there's a customer
+  const customerDevices = order.customer_id ? await getCustomerDevices(order.customer_id) : [];
+  
   return (
     <EditOrderClient 
       order={order}
       customers={customers}
       devices={devices}
       services={services}
+      customerDevices={customerDevices}
     />
   );
 }

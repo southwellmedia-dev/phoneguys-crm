@@ -34,6 +34,11 @@ import {
   User,
   Calendar,
   Package,
+  Users,
+  TrendingUp,
+  Activity,
+  UserCheck,
+  Star,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -133,32 +138,129 @@ export function CustomersTable({ initialCustomers }: CustomersTableProps) {
     );
   }
 
+  // Calculate metrics
+  const totalRepairs = customers.reduce((sum, customer) => sum + (customer.repair_count || 0), 0);
+  const activeCustomers = customers.filter(c => (c.repair_count || 0) > 0).length;
+  const avgRepairsPerCustomer = customers.length > 0 ? (totalRepairs / customers.length).toFixed(1) : '0';
+  const newThisMonth = customers.filter(c => {
+    const customerDate = new Date(c.created_at);
+    const now = new Date();
+    return customerDate.getMonth() === now.getMonth() && 
+           customerDate.getFullYear() === now.getFullYear();
+  }).length;
+
   return (
-    <div className="space-y-4">
-      {/* Search Bar */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, email, or phone..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+    <div className="space-y-6">
+      {/* Metric Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="relative overflow-hidden group hover:-translate-y-0.5">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Total Customers
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+              <Users className="h-4 w-4 text-primary" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="text-3xl font-bold tracking-tight">{customers.length}</div>
+            <p className="text-sm text-muted-foreground">Registered customers</p>
+          </CardContent>
+        </Card>
+
+        <Card className="relative overflow-hidden group hover:-translate-y-0.5">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Active Customers
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-green-500/10 group-hover:bg-green-500/20 transition-colors">
+              <UserCheck className="h-4 w-4 text-green-600" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="text-3xl font-bold tracking-tight">{activeCustomers}</div>
+            <p className="text-sm text-muted-foreground">With repair history</p>
+          </CardContent>
+        </Card>
+
+        <Card className="relative overflow-hidden group hover:-translate-y-0.5">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Total Repairs
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
+              <Package className="h-4 w-4 text-purple-600" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="text-3xl font-bold tracking-tight">{totalRepairs}</div>
+            <p className="text-sm text-muted-foreground">All time repairs</p>
+          </CardContent>
+        </Card>
+
+        <Card className="relative overflow-hidden group hover:-translate-y-0.5">
+          <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              New This Month
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-yellow-500/10 group-hover:bg-yellow-500/20 transition-colors">
+              <Star className="h-4 w-4 text-yellow-600" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="text-3xl font-bold tracking-tight">{newThisMonth}</div>
+            <p className="text-sm text-muted-foreground">Recent registrations</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Results Summary */}
-      <div className="text-sm text-muted-foreground">
-        Showing {filteredCustomers.length} of {customers.length} customers
-      </div>
+      {/* Customer List Card */}
+      <Card className="relative overflow-hidden group">
+        {/* Creative corner accent */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-2xl group-hover:from-primary/20 transition-colors duration-500" />
+        
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 backdrop-blur-sm">
+                  <Activity className="h-5 w-5 text-primary" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-green-500 rounded-full border-2 border-card" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                  Customer Directory
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" />
+                  {filteredCustomers.length} of {customers.length} customers
+                </p>
+              </div>
+            </div>
 
-      {/* Customers Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
+            {/* Search Bar */}
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search customers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="pt-0">
+          <div className="rounded-xl overflow-hidden">
+            <Table className="table-modern">
+              <TableHeader>
+                <TableRow>
                 <TableHead 
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => handleSort('name')}
@@ -291,7 +393,8 @@ export function CustomersTable({ initialCustomers }: CustomersTableProps) {
                 ))
               )}
             </TableBody>
-          </Table>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

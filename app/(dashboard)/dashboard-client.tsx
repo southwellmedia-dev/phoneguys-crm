@@ -4,6 +4,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { RecentOrders } from "@/components/dashboard/recent-orders";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Package,
   Clock,
@@ -114,80 +115,122 @@ export function DashboardClient({ metrics }: DashboardClientProps) {
         {/* Recent Orders Table */}
         <RecentOrders orders={metrics.recentOrders} />
 
-        {/* Quick Actions */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-lg border bg-card p-6">
-            <h3 className="font-semibold mb-4">Quick Actions</h3>
-            <div className="space-y-3">
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start h-auto p-4 hover:bg-primary/10 hover:text-primary transition-colors" 
-                asChild
-              >
-                <Link href="/orders/new">
-                  <Plus className="mr-3 h-4 w-4" />
-                  <div className="text-left">
-                    <div className="font-medium">Create New Ticket</div>
-                    <div className="text-sm text-muted-foreground group-hover:text-primary/70">Start a new repair ticket</div>
-                  </div>
-                </Link>
-              </Button>
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start h-auto p-4 hover:bg-primary/10 hover:text-primary transition-colors group" 
-                asChild
-              >
-                <Link href="/customers/new">
-                  <UserPlus className="mr-3 h-4 w-4" />
-                  <div className="text-left">
-                    <div className="font-medium">Add New Customer</div>
-                    <div className="text-sm text-muted-foreground group-hover:text-primary/70">Register a customer</div>
-                  </div>
-                </Link>
-              </Button>
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start h-auto p-4 hover:bg-primary/10 hover:text-primary transition-colors group" 
-                asChild
-              >
-                <Link href="/reports">
-                  <FileText className="mr-3 h-4 w-4" />
-                  <div className="text-left">
-                    <div className="font-medium">Generate Report</div>
-                    <div className="text-sm text-muted-foreground group-hover:text-primary/70">View analytics and insights</div>
-                  </div>
-                </Link>
-              </Button>
+        {/* Quick Actions - Modern Card Grid */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Link 
+            href="/orders/new"
+            className="group relative overflow-hidden rounded-xl border bg-gradient-to-br from-card to-card/80 p-6 transition-all duration-300 hover:shadow-elevation-2 hover:-translate-y-1"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-3 rounded-xl bg-gradient-primary shadow-glow-sm">
+                  <Plus className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">
+                  Quick
+                </span>
+              </div>
+              <h3 className="font-bold text-lg mb-1">Create New Ticket</h3>
+              <p className="text-sm text-muted-foreground">
+                Start a new repair ticket for walk-in customers
+              </p>
             </div>
-          </div>
+          </Link>
 
-          <div className="rounded-lg border bg-card p-6">
-            <h3 className="font-semibold mb-4">System Status</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">API Status</span>
-                <span className="text-sm font-medium text-green-600">
-                  ● Operational
+          <Link 
+            href="/customers/new"
+            className="group relative overflow-hidden rounded-xl border bg-gradient-to-br from-card to-card/80 p-6 transition-all duration-300 hover:shadow-elevation-2 hover:-translate-y-1"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-accent to-accent/80 shadow-glow-sm">
+                  <UserPlus className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-xs font-medium text-accent bg-accent/10 px-2 py-1 rounded-full">
+                  New
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Database Connection
-                </span>
-                <span className="text-sm font-medium text-green-600">
-                  ● Connected
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Email Service
-                </span>
-                <span className="text-sm font-medium text-green-600">
-                  ● Active
-                </span>
-              </div>
+              <h3 className="font-bold text-lg mb-1">Add Customer</h3>
+              <p className="text-sm text-muted-foreground">
+                Register a new customer profile
+              </p>
             </div>
-          </div>
+          </Link>
+
+          <Link 
+            href="/reports"
+            className="group relative overflow-hidden rounded-xl border bg-gradient-to-br from-card to-card/80 p-6 transition-all duration-300 hover:shadow-elevation-2 hover:-translate-y-1"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-3 rounded-xl bg-gradient-success shadow-glow-sm">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">
+                  Reports
+                </span>
+              </div>
+              <h3 className="font-bold text-lg mb-1">Analytics</h3>
+              <p className="text-sm text-muted-foreground">
+                View insights and generate reports
+              </p>
+            </div>
+          </Link>
+        </div>
+
+        {/* System Status - Modern Glass Card */}
+        <div>
+          <Card className="relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-mesh opacity-30" />
+            <CardHeader className="relative pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="relative inline-flex h-3 w-3">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                    <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
+                  </div>
+                  <CardTitle className="text-lg">System Status</CardTitle>
+                </div>
+                <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">
+                  All Systems Operational
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="relative">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-transparent">
+                  <div className="p-2 rounded-lg bg-green-500/20">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">API Status</p>
+                    <p className="text-xs text-muted-foreground">Operational</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-transparent">
+                  <div className="p-2 rounded-lg bg-green-500/20">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Database</p>
+                    <p className="text-xs text-muted-foreground">Connected</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-transparent">
+                  <div className="p-2 rounded-lg bg-green-500/20">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Email Service</p>
+                    <p className="text-xs text-muted-foreground">Active</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </PageContainer>

@@ -16,6 +16,7 @@ import { Combobox, ComboboxOption } from '@/components/ui/combobox';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { ArrowLeft, Save, Loader2, DollarSign, Clock } from 'lucide-react';
+import { DeviceSelector } from '@/components/appointments/device-selector';
 import { Badge } from '@/components/ui/badge';
 
 // Edit order validation schema
@@ -25,6 +26,9 @@ const editOrderSchema = z.object({
   device_model: z.string(),
   serial_number: z.string().optional(),
   imei: z.string().optional(),
+  color: z.string().optional(),
+  storage_size: z.string().optional(),
+  condition: z.string().optional(),
   repair_issues: z.array(z.string()).min(1, "Select at least one issue"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   priority: z.enum(['low', 'medium', 'high', 'urgent']),
@@ -63,11 +67,24 @@ interface Service {
   skill_level?: string;
 }
 
+interface CustomerDevice {
+  id: string;
+  device_id: string;
+  serial_number?: string;
+  imei?: string;
+  color?: string;
+  storage_size?: string;
+  condition?: string;
+  nickname?: string;
+  device?: Device;
+}
+
 interface EditOrderClientProps {
   order: any;
   customers: any[];
   devices: Device[];
   services: Service[];
+  customerDevices?: CustomerDevice[];
 }
 
 const issueTypes = [
@@ -83,7 +100,7 @@ const issueTypes = [
   { value: "other", label: "Other" },
 ];
 
-export default function EditOrderClient({ order, customers = [], devices = [], services = [] }: EditOrderClientProps) {
+export default function EditOrderClient({ order, customers = [], devices = [], services = [], customerDevices = [] }: EditOrderClientProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   
@@ -108,6 +125,15 @@ export default function EditOrderClient({ order, customers = [], devices = [], s
     order.ticket_services?.map((ts: any) => ts.service_id) || []
   );
   
+  // Device selector state
+  const [selectedDeviceId, setSelectedDeviceId] = useState(order.device_id || '');
+  const [selectedCustomerDeviceId, setSelectedCustomerDeviceId] = useState(order.customer_device_id || '');
+  const [serialNumber, setSerialNumber] = useState(order.serial_number || '');
+  const [imei, setImei] = useState(order.imei || '');
+  const [color, setColor] = useState(order.color || '');
+  const [storageSize, setStorageSize] = useState(order.storage_size || '');
+  const [condition, setCondition] = useState(order.condition || 'good');
+  
   // Initialize form with existing order data
   const form = useForm<EditOrderFormData>({
     resolver: zodResolver(editOrderSchema),
@@ -117,6 +143,9 @@ export default function EditOrderClient({ order, customers = [], devices = [], s
       device_model: order.device_model || order.device?.model_name || '',
       serial_number: order.serial_number || '',
       imei: order.imei || '',
+      color: order.color || '',
+      storage_size: order.storage_size || '',
+      condition: order.condition || 'good',
       repair_issues: order.repair_issues || [],
       description: order.description || '',
       priority: order.priority,
@@ -137,6 +166,13 @@ export default function EditOrderClient({ order, customers = [], devices = [], s
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...values,
+          device_id: selectedDeviceId,
+          serial_number: serialNumber,
+          imei: imei,
+          color: color,
+          storage_size: storageSize,
+          condition: condition,
+          customer_device_id: selectedCustomerDeviceId || null,
           selected_services: selectedServices, // Include selected services
           estimated_completion: values.estimated_completion ? 
             new Date(values.estimated_completion).toISOString() : null
@@ -219,99 +255,34 @@ export default function EditOrderClient({ order, customers = [], devices = [], s
             </CardContent>
           </Card>
           
-          {/* Device Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Device Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="device_id"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Device Model</FormLabel>
-                    <FormControl>
-                      <Combobox
-                        options={deviceOptions}
-                        value={field.value}
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          const device = devices.find(d => d.id === value);
-                          setSelectedDevice(device);
-                          if (device) {
-                            form.setValue('device_brand', device.manufacturer.name);
-                            form.setValue('device_model', device.model_name);
-                          }
-                        }}
-                        placeholder="Select a device..."
-                        searchPlaceholder="Search devices..."
-                        emptyText="Device not found"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              {/* Show selected device info */}
-              {selectedDevice && (
-                <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg">
-                  <div className="flex items-start gap-4">
-                    {selectedDevice.image_url && (
-                      <img 
-                        src={selectedDevice.image_url} 
-                        alt={selectedDevice.model_name}
-                        className="w-16 h-16 object-cover rounded"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <p className="font-medium">{selectedDevice.manufacturer.name} {selectedDevice.model_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedDevice.release_year && `Released: ${selectedDevice.release_year}`}
-                        {selectedDevice.device_type && ` • ${selectedDevice.device_type}`}
-                      </p>
-                      {selectedDevice.parts_availability && (
-                        <p className="text-sm text-muted-foreground">
-                          Parts: {selectedDevice.parts_availability.replace('_', ' ')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="serial_number"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Serial Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Optional" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="imei"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>IMEI</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Optional" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
+          {/* Device Information - Using DeviceSelector */}
+          <DeviceSelector
+            devices={devices}
+            selectedDeviceId={selectedDeviceId}
+            onDeviceChange={(deviceId) => {
+              setSelectedDeviceId(deviceId);
+              const device = devices.find(d => d.id === deviceId);
+              if (device) {
+                form.setValue('device_brand', device.manufacturer.name);
+                form.setValue('device_model', device.model_name);
+              }
+            }}
+            customerDevices={customerDevices}
+            selectedCustomerDeviceId={selectedCustomerDeviceId}
+            onCustomerDeviceChange={setSelectedCustomerDeviceId}
+            serialNumber={serialNumber}
+            onSerialNumberChange={setSerialNumber}
+            imei={imei}
+            onImeiChange={setImei}
+            color={color}
+            onColorChange={setColor}
+            storageSize={storageSize}
+            onStorageSizeChange={setStorageSize}
+            condition={condition}
+            onConditionChange={setCondition}
+            isEditing={true}
+            testMode={false}
+          />
           
           {/* Repair Details */}
           <Card>

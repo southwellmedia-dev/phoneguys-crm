@@ -206,17 +206,29 @@ export function TicketPhotosSidebar({
 
   return (
     <>
-      <Card>
-        <CardHeader>
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-3 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 dark:from-pink-500/5 dark:via-purple-500/5 dark:to-indigo-500/5 border-b border-pink-200/20 dark:border-purple-800/30">
           <CardTitle className="flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <Camera className="h-5 w-5" />
-              Photos
+            <span className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-pink-500/20 to-purple-500/20 dark:from-pink-500/10 dark:to-purple-500/10">
+                <Camera className="h-4 w-4 text-pink-600 dark:text-pink-400" />
+              </div>
+              <div>
+                <span className="text-sm font-semibold bg-gradient-to-r from-pink-600 to-purple-600 dark:from-pink-400 dark:to-purple-400 bg-clip-text text-transparent">
+                  Photos
+                </span>
+                {photos.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {photos.length} {photos.length === 1 ? 'photo' : 'photos'} uploaded
+                  </p>
+                )}
+              </div>
             </span>
             <label htmlFor="photo-upload-sidebar">
-              <Button size="sm" variant="outline" asChild>
-                <span>
-                  <Upload className="h-4 w-4" />
+              <Button size="sm" variant="outline" className="hover:bg-pink-50 dark:hover:bg-pink-950/30 border-pink-200 dark:border-pink-800" asChild>
+                <span className="flex items-center gap-1.5">
+                  <Upload className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline text-xs">Upload</span>
                 </span>
               </Button>
             </label>
@@ -230,11 +242,14 @@ export function TicketPhotosSidebar({
             />
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4">
           {photos.length === 0 ? (
-            <div className="text-center py-4">
-              <ImageIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No photos yet</p>
+            <div className="text-center py-8">
+              <div className="p-4 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900/20 dark:to-purple-900/20 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <ImageIcon className="h-8 w-8 text-pink-500 dark:text-pink-400" />
+              </div>
+              <h3 className="font-medium text-sm mb-1">No photos yet</h3>
+              <p className="text-xs text-muted-foreground">Document the repair process</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -243,25 +258,25 @@ export function TicketPhotosSidebar({
                   <img
                     src={photo.url}
                     alt={photo.description || 'Ticket photo'}
-                    className="w-full h-20 object-cover rounded-lg cursor-pointer"
+                    className="w-full h-20 object-cover rounded-lg cursor-pointer border border-border/50 transition-all group-hover:border-pink-200 dark:group-hover:border-pink-800/50"
                     onClick={() => setPreviewPhoto(photo)}
                   />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-lg flex items-center justify-center gap-2">
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="text-white hover:bg-white/20 h-8 w-8"
+                      className="text-white hover:bg-white/20 h-7 w-7 backdrop-blur-sm"
                       onClick={() => setPreviewPhoto(photo)}
                     >
-                      <Eye className="h-4 w-4" />
+                      <Eye className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="text-white hover:bg-white/20 h-8 w-8"
+                      className="text-white hover:bg-white/20 h-7 w-7 backdrop-blur-sm"
                       onClick={() => handleDelete(photo.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                   {photo.tags && photo.tags.length > 0 && (
@@ -284,9 +299,10 @@ export function TicketPhotosSidebar({
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="w-full"
+                  className="w-full mt-3 text-pink-600 hover:text-pink-700 hover:bg-pink-50 dark:text-pink-400 dark:hover:text-pink-300 dark:hover:bg-pink-950/30 border border-dashed border-pink-200 dark:border-pink-800/50"
                   onClick={() => setPreviewPhoto(photos[0])}
                 >
+                  <Plus className="h-3 w-3 mr-1.5" />
                   View all {photos.length} photos
                 </Button>
               )}

@@ -176,77 +176,71 @@ export function TimeEntriesSection({ entries, totalMinutes, canDelete = false, o
 
   if (entries.length === 0) {
     return (
-      <Card className="border-dashed">
-        <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-          <Timer className="h-12 w-12 text-muted-foreground/50 mb-3" />
-          <p className="text-muted-foreground">No time entries yet</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Start the timer to begin tracking work time
-          </p>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <div className="p-4 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/20 dark:to-amber-900/20 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+          <Timer className="h-8 w-8 text-orange-500 dark:text-orange-400" />
+        </div>
+        <h3 className="font-medium text-sm mb-1">No time entries yet</h3>
+        <p className="text-xs text-muted-foreground">Start the timer to begin tracking work time</p>
+      </div>
     );
   }
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Time Tracking Chart - only show if there are 2+ entries */}
         {chartData.length >= 2 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Time Tracking Progress
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis 
-                    dataKey="sessionNumber" 
-                    className="text-xs"
-                    tick={{ fill: 'currentColor' }}
-                  />
-                  <YAxis 
-                    className="text-xs"
-                    tick={{ fill: 'currentColor' }}
-                    label={{ value: 'Hours', angle: -90, position: 'insideLeft', style: { fill: 'currentColor' } }}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Line 
-                    type="monotone" 
-                    dataKey="cumulativeHours" 
-                    stroke="#0094CA"
-                    strokeWidth={2}
-                    dot={{ r: 4, fill: '#0094CA' }}
-                    activeDot={{ r: 6 }}
-                    name="Total Hours"
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="hours" 
-                    stroke="#fb2c36"
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    dot={{ r: 3, fill: '#fb2c36' }}
-                    name="Session Hours"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-              <div className="flex items-center justify-center gap-6 mt-3 text-xs text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-0.5 bg-[#0094CA]"></div>
-                  <span>Cumulative Time</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-0.5 bg-[#fb2c36] border-dashed"></div>
-                  <span>Session Duration</span>
-                </div>
+          <div className="pt-2">
+            <ResponsiveContainer width="100%" height={180}>
+              <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
+                <XAxis 
+                  dataKey="sessionNumber" 
+                  className="text-xs"
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis 
+                  className="text-xs"
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  label={{ value: 'Hours', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))', fontSize: 10 } }}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Line 
+                  type="monotone" 
+                  dataKey="cumulativeHours" 
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: 'hsl(var(--primary))' }}
+                  activeDot={{ r: 5, fill: 'hsl(var(--primary))' }}
+                  name="Total Hours"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="hours" 
+                  stroke="hsl(var(--orange))"
+                  strokeWidth={1.5}
+                  strokeDasharray="3 3"
+                  dot={{ r: 2, fill: 'hsl(var(--orange))' }}
+                  name="Session Hours"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+            <div className="flex items-center justify-center gap-6 mt-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-0.5 bg-primary rounded-full"></div>
+                <span>Cumulative</span>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-0.5 bg-orange-500 border-dashed rounded-full"></div>
+                <span>Session</span>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Time Entries List */}

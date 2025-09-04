@@ -122,8 +122,8 @@ export function DataTable<TData, TValue>({
         )}
       </div>
 
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-xl overflow-hidden">
+        <Table className="table-modern">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

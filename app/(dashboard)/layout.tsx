@@ -29,7 +29,7 @@ export default async function DashboardLayout({
   };
   return (
     <HeaderProvider>
-      <div className="h-screen flex overflow-hidden">
+      <div className="h-screen flex overflow-hidden bg-background">
         {/* Sidebar Navigation - Fixed to viewport height */}
         <Sidebar user={userWithRole} />
 
@@ -38,9 +38,11 @@ export default async function DashboardLayout({
           {/* Top Header with dynamic content */}
           <HeaderWrapper />
 
-          {/* Main Content - Scrollable */}
-          <main className="flex-1 bg-background overflow-y-auto">
-            {children}
+          {/* Main Content - Scrollable with light blue background in light mode */}
+          <main className="flex-1 bg-primary/[0.03] dark:bg-muted/30 overflow-y-auto">
+            <div className="bg-gradient-to-br from-primary/[0.05] via-transparent to-primary/[0.02] dark:from-muted/20 dark:via-transparent dark:to-muted/20 min-h-full">
+              {children}
+            </div>
           </main>
         </div>
       </div>

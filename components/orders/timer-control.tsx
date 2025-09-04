@@ -97,20 +97,31 @@ export function TimerControl({
 
   return (
     <>
-      <Card className={cn(isDisabled && "opacity-60", className)}>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
-              <Clock className={cn("h-5 w-5", isDisabled ? "text-muted-foreground/50" : "text-muted-foreground")} />
-              <span className={cn("text-sm font-medium", isDisabled && "text-muted-foreground")}>Timer</span>
+      <Card className={cn("overflow-hidden", isDisabled && "opacity-60", className)}>
+        <div className="bg-gradient-to-r from-emerald-50/50 to-green-50/50 dark:from-emerald-950/20 dark:to-green-950/20 border-b p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500/20 to-green-500/20 dark:from-emerald-500/10 dark:to-green-500/10">
+                <Clock className={cn("h-4 w-4", isDisabled ? "text-muted-foreground/50" : "text-emerald-600 dark:text-emerald-400")} />
+              </div>
+              <div>
+                <span className={cn("text-sm font-semibold", isDisabled ? "text-muted-foreground" : "bg-gradient-to-r from-emerald-600 to-green-600 dark:from-emerald-400 dark:to-green-400 bg-clip-text text-transparent")}>
+                  Timer
+                </span>
+                {!isDisabled && isThisTimerActive && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                    <span className="flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-1.5 w-1.5 rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
+                    </span>
+                    Recording time
+                  </p>
+                )}
+              </div>
             </div>
-            {!isDisabled && isThisTimerActive && (
-              <span className="flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-              </span>
-            )}
           </div>
+        </div>
+        <CardContent className="p-6">
 
           {/* Error Display */}
           {error && !isDisabled && (

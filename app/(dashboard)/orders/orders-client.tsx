@@ -5,7 +5,19 @@ import { useRouter } from "next/navigation";
 import { PageContainer } from "@/components/layout/page-container";
 import { DataTable } from "@/components/tables/data-table";
 import { columns, Order } from "@/components/orders/orders-columns";
-import { Plus, Download, RefreshCw } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Plus, 
+  Download, 
+  RefreshCw, 
+  Package, 
+  Clock, 
+  CheckCircle2,
+  AlertCircle,
+  Activity,
+  TrendingUp,
+  ArrowRight
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface OrdersClientProps {
@@ -96,39 +108,113 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
       actions={headerActions}
     >
       <div className="space-y-6">
-        {/* Stats */}
+        {/* Stats Cards - Modern Style */}
         <div className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-lg border p-4">
-            <p className="text-sm text-muted-foreground">Total Orders</p>
-            <p className="text-2xl font-bold">{orders.length}</p>
-          </div>
-          <div className="rounded-lg border p-4">
-            <p className="text-sm text-muted-foreground">New</p>
-            <p className="text-2xl font-bold text-blue-600">
-              {orders.filter((o) => o.status === "NEW").length}
-            </p>
-          </div>
-          <div className="rounded-lg border p-4">
-            <p className="text-sm text-muted-foreground">In Progress</p>
-            <p className="text-2xl font-bold text-cyan-600">
-              {orders.filter((o) => o.status === "IN_PROGRESS").length}
-            </p>
-          </div>
-          <div className="rounded-lg border p-4">
-            <p className="text-sm text-muted-foreground">Completed</p>
-            <p className="text-2xl font-bold text-green-600">
-              {orders.filter((o) => o.status === "COMPLETED").length}
-            </p>
-          </div>
+          <Card className="relative overflow-hidden group hover:-translate-y-0.5">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Total Tickets
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                <Package className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="text-3xl font-bold tracking-tight">{orders.length}</div>
+              <p className="text-sm text-muted-foreground">All repair tickets</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="relative overflow-hidden group hover:-translate-y-0.5 border-blue-500/20">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                New
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+                <AlertCircle className="h-4 w-4 text-blue-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="text-3xl font-bold tracking-tight text-blue-600">
+                {orders.filter((o) => o.status === "NEW").length}
+              </div>
+              <p className="text-sm text-muted-foreground">Awaiting assignment</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="relative overflow-hidden group hover:-translate-y-0.5 border-cyan-500/20">
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                In Progress
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-cyan-500/10 group-hover:bg-cyan-500/20 transition-colors">
+                <Clock className="h-4 w-4 text-cyan-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="text-3xl font-bold tracking-tight text-cyan-600">
+                {orders.filter((o) => o.status === "IN_PROGRESS").length}
+              </div>
+              <p className="text-sm text-muted-foreground">Currently being repaired</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="relative overflow-hidden group hover:-translate-y-0.5 border-green-500/20">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Completed
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-green-500/10 group-hover:bg-green-500/20 transition-colors">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="text-3xl font-bold tracking-tight text-green-600">
+                {orders.filter((o) => o.status === "COMPLETED").length}
+              </div>
+              <p className="text-sm text-muted-foreground">Ready for pickup</p>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Orders Table */}
-        <DataTable 
-          columns={columns} 
-          data={orders} 
-          searchKey="ticket_number"
-          initialSorting={[{ id: "updated_at", desc: true }]}
-        />
+        {/* Tickets List Card */}
+        <Card className="relative overflow-hidden group">
+          {/* Creative corner accent */}
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-2xl group-hover:from-primary/20 transition-colors duration-500" />
+          
+          <CardHeader className="pb-4">
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 backdrop-blur-sm">
+                  <Activity className="h-5 w-5 text-primary" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-green-500 rounded-full border-2 border-card" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                  Repair Tickets
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" />
+                  {orders.length} total tickets
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          
+          <CardContent className="pt-0">
+            <DataTable 
+              columns={columns} 
+              data={orders} 
+              searchKey="ticket_number"
+              initialSorting={[{ id: "updated_at", desc: true }]}
+            />
+          </CardContent>
+        </Card>
       </div>
     </PageContainer>
   );

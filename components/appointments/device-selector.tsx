@@ -41,7 +41,7 @@ interface CustomerDevice {
   storage_size?: string;
   condition?: string;
   nickname?: string;
-  devices?: Device;
+  device?: Device;
 }
 
 interface DeviceSelectorProps {
@@ -131,10 +131,10 @@ export function DeviceSelector({
       if (customerDevice.device_id) {
         console.log('Setting device_id from customer device:', customerDevice.device_id);
         onDeviceChange(customerDevice.device_id);
-      } else if (customerDevice.devices?.id) {
+      } else if (customerDevice.device?.id) {
         // Sometimes device info comes nested
-        console.log('Setting device_id from nested device:', customerDevice.devices.id);
-        onDeviceChange(customerDevice.devices.id);
+        console.log('Setting device_id from nested device:', customerDevice.device.id);
+        onDeviceChange(customerDevice.device.id);
       }
       
       // Set all the device details
@@ -208,11 +208,11 @@ export function DeviceSelector({
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <div className="font-medium">
-                        {cd.nickname || cd.devices?.model_name || 'Unknown Device'}
+                        {cd.nickname || cd.device?.model_name || 'Unknown Device'}
                       </div>
-                      {cd.devices?.manufacturer?.name && (
+                      {cd.device?.manufacturer?.name && (
                         <div className="text-sm text-muted-foreground">
-                          {cd.devices.manufacturer.name}
+                          {cd.device.manufacturer.name}
                         </div>
                       )}
                       <div className="flex gap-2 text-xs text-muted-foreground">

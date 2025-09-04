@@ -7,6 +7,7 @@ import {
   TicketStatus,
   Priority 
 } from '@/lib/types';
+import { CustomerDeviceRepository } from './customer-device.repository';
 
 export class RepairTicketRepository extends BaseRepository<RepairTicket> {
   constructor(useServiceRole = false) {
@@ -211,6 +212,146 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
 
   async assignToUser(ticketId: string, userId: string | null): Promise<RepairTicket> {
     return this.update(ticketId, { assigned_to: userId });
+  }
+
+  /**
+   * Update ticket with device and service management
+   */
+  async updateWithDeviceAndServices(
+    ticketId: string, 
+    updateData: {
+      // Ticket fields
+      device_id?: string;
+      serial_number?: string;
+      imei?: string;
+      repair_issues?: string[];
+      description?: string;
+      priority?: Priority;
+      status?: TicketStatus;
+      estimated_cost?: number;
+      actual_cost?: number;
+      deposit_amount?: number;
+      estimated_completion?: string;
+      
+      // Device fields (for customer_devices table)
+      color?: string;
+      storage_size?: string;
+      condition?: string;
+      customer_device_id?: string;
+      
+      // Services
+      selected_services?: string[];
+    },
+    userId: string
+  ): Promise<RepairTicket> {
+    const client = await this.getClient();
+    
+    // Get existing ticket to check customer_id
+    const existingTicket = await this.findById(ticketId);
+    if (!existingTicket) {
+      throw new Error('Ticket not found');
+    }
+
+    // Separate device fields from ticket fields
+    const {
+      color,
+      storage_size,
+      condition,
+      customer_device_id,
+      selected_services,
+      ...ticketFields
+    } = updateData;
+
+    // Handle customer device creation/update if needed
+    let finalCustomerDeviceId = customer_device_id;
+
+    if (existingTicket.customer_id && updateData.device_id && (color || storage_size || condition || updateData.serial_number || updateData.imei)) {
+      const customerDeviceRepo = new CustomerDeviceRepository(this.useServiceRole);
+      
+      if (customer_device_id) {
+        // Update existing customer device
+        try {
+          await customerDeviceRepo.update(customer_device_id, {
+            device_id: updateData.device_id,
+            serial_number: updateData.serial_number || null,
+            imei: updateData.imei || null,
+            color: color || null,
+            storage_size: storage_size || null,
+            condition: condition || 'good'
+          });
+        } catch (error) {
+          console.error('Failed to update customer device:', error);
+        }
+      } else {
+        // Check if a customer device already exists with this serial/IMEI
+        let existingDevice = null;
+        if (updateData.serial_number) {
+          existingDevice = await customerDeviceRepo.findBySerialNumber(updateData.serial_number);
+        } else if (updateData.imei) {
+          existingDevice = await customerDeviceRepo.findByIMEI(updateData.imei);
+        }
+
+        if (!existingDevice || existingDevice.customer_id !== existingTicket.customer_id) {
+          // Create new customer device
+          try {
+            const newCustomerDevice = await customerDeviceRepo.create({
+              customer_id: existingTicket.customer_id,
+              device_id: updateData.device_id,
+              serial_number: updateData.serial_number || null,
+              imei: updateData.imei || null,
+              color: color || null,
+              storage_size: storage_size || null,
+              condition: condition || 'good',
+              is_active: true
+            });
+            finalCustomerDeviceId = newCustomerDevice.id;
+          } catch (error) {
+            console.error('Failed to create customer device:', error);
+            // Continue without customer device if creation fails
+          }
+        } else {
+          finalCustomerDeviceId = existingDevice.id;
+        }
+      }
+    }
+
+    // Update the ticket with customer_device_id if we have one
+    if (finalCustomerDeviceId) {
+      ticketFields.customer_device_id = finalCustomerDeviceId;
+    }
+
+    // Update the ticket
+    const updatedTicket = await this.update(ticketId, ticketFields);
+
+    // Handle services if provided
+    if (selected_services !== undefined) {
+      // Delete existing ticket services
+      await client
+        .from('ticket_services')
+        .delete()
+        .eq('ticket_id', ticketId);
+      
+      // Insert new services if any
+      if (selected_services && selected_services.length > 0) {
+        const ticketServices = selected_services.map((serviceId: string) => ({
+          ticket_id: ticketId,
+          service_id: serviceId,
+          quantity: 1,
+          performed_by: userId
+        }));
+        
+        const { error: serviceError } = await client
+          .from('ticket_services')
+          .insert(ticketServices);
+          
+        if (serviceError) {
+          console.error('Failed to update ticket services:', serviceError);
+          // Don't throw here, ticket update was successful
+        }
+      }
+    }
+
+    return updatedTicket;
   }
 
   async startTimer(ticketId: string): Promise<RepairTicket> {

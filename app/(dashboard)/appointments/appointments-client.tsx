@@ -299,72 +299,126 @@ export function AppointmentsClient({ appointments: initialAppointments }: { appo
       actions={headerActions}
     >
       <div className="space-y-6">
-        {/* Stats Cards */}
+        {/* Stats Cards - Modern Style */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+          <Card className="relative overflow-hidden group hover:-translate-y-0.5">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Today's Appointments</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{todayCount}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Confirmation</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pendingCount}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Confirmed</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{confirmedCount}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {appointments.length > 0 
-                  ? `${Math.round((appointments.filter(a => a.status === 'converted').length / appointments.length) * 100)}%`
-                  : '0%'
-                }
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Today's Appointments
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                <Calendar className="h-4 w-4 text-primary" />
               </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="text-3xl font-bold tracking-tight">{todayCount}</div>
+              <p className="text-sm text-muted-foreground">Scheduled for today</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="relative overflow-hidden group hover:-translate-y-0.5">
+            <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Pending
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-yellow-500/10 group-hover:bg-yellow-500/20 transition-colors">
+                <Clock className="h-4 w-4 text-yellow-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="text-3xl font-bold tracking-tight">{pendingCount}</div>
+              <p className="text-sm text-muted-foreground">Awaiting confirmation</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="relative overflow-hidden group hover:-translate-y-0.5">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Confirmed
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-green-500/10 group-hover:bg-green-500/20 transition-colors">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="text-3xl font-bold tracking-tight">{confirmedCount}</div>
+              <p className="text-sm text-muted-foreground">Ready for service</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="relative overflow-hidden group hover:-translate-y-0.5">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Conversion Rate
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
+                <ArrowRight className="h-4 w-4 text-purple-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-baseline space-x-2">
+                <div className="text-3xl font-bold tracking-tight">
+                  {appointments.length > 0 
+                    ? `${Math.round((appointments.filter(a => a.status === 'converted').length / appointments.length) * 100)}`
+                    : '0'}
+                </div>
+                <span className="text-xl font-semibold text-muted-foreground">%</span>
+              </div>
+              <p className="text-sm text-muted-foreground">To repair tickets</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tabs and Table */}
-        <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList>
-            <TabsTrigger value="today">Today</TabsTrigger>
-            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-            <TabsTrigger value="past">Past</TabsTrigger>
-            <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
-            <TabsTrigger value="all">All</TabsTrigger>
-          </TabsList>
+        {/* Appointments List Card */}
+        <Card className="relative overflow-hidden group">
+          {/* Creative corner accent */}
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-2xl group-hover:from-primary/20 transition-colors duration-500" />
           
-          <TabsContent value={selectedTab} className="mt-4">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 backdrop-blur-sm">
+                    <Calendar className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-green-500 rounded-full border-2 border-card" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                    Appointment Schedule
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {filteredAppointments.length} {selectedTab === "all" ? "total" : selectedTab} appointments
+                  </p>
+                </div>
+              </div>
+              
+              {/* Tab list below header */}
+              <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
+                <TabsList className="bg-muted/50 w-full justify-start">
+                  <TabsTrigger value="today">Today</TabsTrigger>
+                  <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+                  <TabsTrigger value="past">Past</TabsTrigger>
+                  <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+                  <TabsTrigger value="all">All</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </CardHeader>
+          
+          <CardContent className="pt-0">
             <DataTable
               columns={columns}
               data={filteredAppointments}
               searchKey="customer_name"
             />
-          </TabsContent>
-        </Tabs>
+          </CardContent>
+        </Card>
       </div>
     </PageContainer>
   );

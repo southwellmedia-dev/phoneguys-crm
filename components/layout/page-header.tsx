@@ -36,17 +36,23 @@ export function PageHeader({
   actions = []
 }: PageHeaderProps) {
   return (
-    <header className="h-16 border-b border-border bg-card sticky top-0 z-40">
-      <div className="h-full px-6 flex items-center justify-between">
+    <header className="h-16 border-b border-primary/10 dark:border-border/50 bg-primary/[0.08] dark:bg-card/95 backdrop-blur-md sticky top-0 z-40 shadow-sm">
+      {/* Enhanced gradient accent line at top */}
+      <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary/30 to-transparent dark:opacity-60" />
+      
+      {/* Subtle background gradient - lighter blue in light mode */}
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/[0.06] via-transparent to-primary/[0.04] dark:from-primary/5 dark:via-transparent dark:to-accent/5 pointer-events-none" />
+      
+      <div className="h-full px-6 flex items-center justify-between relative">
         {/* Left side - Page info */}
         <div className="flex items-center space-x-4">
           <Button variant="ghost" size="icon" className="lg:hidden">
             <Menu className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-lg font-semibold">{title}</h1>
+            <h1 className="text-xl font-bold">{title}</h1>
             {description && (
-              <div className="text-xs text-muted-foreground">{description}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{description}</div>
             )}
           </div>
         </div>

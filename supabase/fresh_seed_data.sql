@@ -298,8 +298,7 @@ INSERT INTO "public"."services" ("id", "name", "description", "category", "base_
 	('5fe095b0-9661-4d53-922a-e59e44f8733f', 'Motherboard Repair', NULL, 'motherboard_repair', 200.00, 180, true, 'expert', true, 12, '2025-09-04 00:50:43.179348+00', '2025-09-04 00:50:43.179348+00'),
 	('3ce00a39-7f81-49ce-8b28-01cf61aaa29b', 'Data Recovery', NULL, 'data_recovery', 150.00, 120, false, 'advanced', true, 13, '2025-09-04 00:50:43.179348+00', '2025-09-04 00:50:43.179348+00'),
 	('ea4a9fc0-de06-4754-9177-f2c7af0c306f', 'Virus Removal', NULL, 'software_issue', 60.00, 60, false, 'basic', true, 14, '2025-09-04 00:50:43.179348+00', '2025-09-04 00:50:43.179348+00'),
-	('c0624a20-10fd-4fea-8ad9-5ced15e316fe', 'OS Installation', NULL, 'software_issue', 80.00, 90, false, 'intermediate', true, 15, '2025-09-04 00:50:43.179348+00', '2025-09-04 00:50:43.179348+00')
-ON CONFLICT (name) DO NOTHING;
+	('c0624a20-10fd-4fea-8ad9-5ced15e316fe', 'OS Installation', NULL, 'software_issue', 80.00, 90, false, 'intermediate', true, 15, '2025-09-04 00:50:43.179348+00', '2025-09-04 00:50:43.179348+00');
 
 
 --
@@ -637,10 +636,9 @@ SELECT pg_catalog.setval('"auth"."refresh_tokens_id_seq"', 4, true);
 
 --
 -- Name: hooks_id_seq; Type: SEQUENCE SET; Schema: supabase_functions; Owner: supabase_functions_admin
--- Commented out as this sequence may not exist on remote
 --
 
--- SELECT pg_catalog.setval('"supabase_functions"."hooks_id_seq"', 1, false);
+SELECT pg_catalog.setval('"supabase_functions"."hooks_id_seq"', 1, false);
 
 
 --

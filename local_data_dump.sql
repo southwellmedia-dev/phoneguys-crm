@@ -30,7 +30,11 @@ INSERT INTO "auth"."audit_log_entries" ("instance_id", "id", "payload", "created
 	('00000000-0000-0000-0000-000000000000', '98b7dfc1-a88f-47cb-9893-4ddf05e654a3', '{"action":"token_revoked","actor_id":"241d165f-cf6c-4836-97ae-8fe1152583d9","actor_username":"admin@phoneguys.com","actor_via_sso":false,"log_type":"token"}', '2025-09-03 21:40:12.623712+00', ''),
 	('00000000-0000-0000-0000-000000000000', '8dc19039-1e4a-4a24-8b51-b9df4b8a9502', '{"action":"login","actor_id":"241d165f-cf6c-4836-97ae-8fe1152583d9","actor_username":"admin@phoneguys.com","actor_via_sso":false,"log_type":"account","traits":{"provider":"email"}}', '2025-09-04 00:50:48.708752+00', ''),
 	('00000000-0000-0000-0000-000000000000', '9537c206-f1e5-4b66-86c5-45b717499c9e', '{"action":"token_refreshed","actor_id":"241d165f-cf6c-4836-97ae-8fe1152583d9","actor_username":"admin@phoneguys.com","actor_via_sso":false,"log_type":"token"}', '2025-09-04 01:55:25.692607+00', ''),
-	('00000000-0000-0000-0000-000000000000', 'a29d7ce0-00ef-4d18-89e8-f6a3e5e4d61c', '{"action":"token_revoked","actor_id":"241d165f-cf6c-4836-97ae-8fe1152583d9","actor_username":"admin@phoneguys.com","actor_via_sso":false,"log_type":"token"}', '2025-09-04 01:55:25.69548+00', '');
+	('00000000-0000-0000-0000-000000000000', 'a29d7ce0-00ef-4d18-89e8-f6a3e5e4d61c', '{"action":"token_revoked","actor_id":"241d165f-cf6c-4836-97ae-8fe1152583d9","actor_username":"admin@phoneguys.com","actor_via_sso":false,"log_type":"token"}', '2025-09-04 01:55:25.69548+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'f89932b6-a48a-494d-893d-228c5c4873f0', '{"action":"token_refreshed","actor_id":"241d165f-cf6c-4836-97ae-8fe1152583d9","actor_username":"admin@phoneguys.com","actor_via_sso":false,"log_type":"token"}', '2025-09-04 03:02:30.404214+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'daab4796-9374-4532-b7b6-4fd9a75283de', '{"action":"token_revoked","actor_id":"241d165f-cf6c-4836-97ae-8fe1152583d9","actor_username":"admin@phoneguys.com","actor_via_sso":false,"log_type":"token"}', '2025-09-04 03:02:30.406984+00', ''),
+	('00000000-0000-0000-0000-000000000000', '0cd4b57b-9882-43d2-8327-c3be821cc344', '{"action":"token_refreshed","actor_id":"241d165f-cf6c-4836-97ae-8fe1152583d9","actor_username":"admin@phoneguys.com","actor_via_sso":false,"log_type":"token"}', '2025-09-04 03:02:30.48879+00', ''),
+	('00000000-0000-0000-0000-000000000000', 'cf3c0716-c17f-4118-a3e0-e49730e75630', '{"action":"token_refreshed","actor_id":"241d165f-cf6c-4836-97ae-8fe1152583d9","actor_username":"admin@phoneguys.com","actor_via_sso":false,"log_type":"token"}', '2025-09-04 03:02:30.942278+00', '');
 
 
 --
@@ -44,7 +48,7 @@ INSERT INTO "auth"."audit_log_entries" ("instance_id", "id", "payload", "created
 --
 
 INSERT INTO "auth"."users" ("instance_id", "id", "aud", "role", "email", "encrypted_password", "email_confirmed_at", "invited_at", "confirmation_token", "confirmation_sent_at", "recovery_token", "recovery_sent_at", "email_change_token_new", "email_change", "email_change_sent_at", "last_sign_in_at", "raw_app_meta_data", "raw_user_meta_data", "is_super_admin", "created_at", "updated_at", "phone", "phone_confirmed_at", "phone_change", "phone_change_token", "phone_change_sent_at", "email_change_token_current", "email_change_confirm_status", "banned_until", "reauthentication_token", "reauthentication_sent_at", "is_sso_user", "deleted_at", "is_anonymous") VALUES
-	('00000000-0000-0000-0000-000000000000', '241d165f-cf6c-4836-97ae-8fe1152583d9', 'authenticated', 'authenticated', 'admin@phoneguys.com', '$2a$10$kd8MjfzGQ/tnK7u3p9I/Bu5WjfWQ3Eyy3K1vsMyepaJwZkJsmae6y', '2025-09-03 20:41:35.686387+00', NULL, '', NULL, '', NULL, '', '', NULL, '2025-09-04 00:50:48.710102+00', '{"provider": "email", "providers": ["email"]}', '{"email_verified": true}', NULL, '2025-09-03 20:41:35.679124+00', '2025-09-04 01:55:25.701755+00', NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL, false, NULL, false);
+	('00000000-0000-0000-0000-000000000000', '241d165f-cf6c-4836-97ae-8fe1152583d9', 'authenticated', 'authenticated', 'admin@phoneguys.com', '$2a$10$kd8MjfzGQ/tnK7u3p9I/Bu5WjfWQ3Eyy3K1vsMyepaJwZkJsmae6y', '2025-09-03 20:41:35.686387+00', NULL, '', NULL, '', NULL, '', '', NULL, '2025-09-04 00:50:48.710102+00', '{"provider": "email", "providers": ["email"]}', '{"email_verified": true}', NULL, '2025-09-03 20:41:35.679124+00', '2025-09-04 03:02:30.410832+00', NULL, NULL, '', '', NULL, '', 0, NULL, '', NULL, false, NULL, false);
 
 
 --
@@ -67,7 +71,7 @@ INSERT INTO "auth"."identities" ("provider_id", "user_id", "identity_data", "pro
 
 INSERT INTO "auth"."sessions" ("id", "user_id", "created_at", "updated_at", "factor_id", "aal", "not_after", "refreshed_at", "user_agent", "ip", "tag") VALUES
 	('d9b541a3-f972-4a0c-b72f-c9fb7891f0bf', '241d165f-cf6c-4836-97ae-8fe1152583d9', '2025-09-03 20:41:45.943749+00', '2025-09-03 21:40:12.630888+00', NULL, 'aal1', NULL, '2025-09-03 21:40:12.630833', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', '172.18.0.1', NULL),
-	('9b479135-e56f-4bab-a9ec-b307bb1bd36a', '241d165f-cf6c-4836-97ae-8fe1152583d9', '2025-09-04 00:50:48.710157+00', '2025-09-04 01:55:25.704926+00', NULL, 'aal1', NULL, '2025-09-04 01:55:25.704879', 'Next.js Middleware', '172.18.0.1', NULL);
+	('9b479135-e56f-4bab-a9ec-b307bb1bd36a', '241d165f-cf6c-4836-97ae-8fe1152583d9', '2025-09-04 00:50:48.710157+00', '2025-09-04 03:02:30.944456+00', NULL, 'aal1', NULL, '2025-09-04 03:02:30.944317', 'Next.js Middleware', '172.18.0.1', NULL);
 
 
 --
@@ -111,7 +115,8 @@ INSERT INTO "auth"."refresh_tokens" ("instance_id", "id", "token", "user_id", "r
 	('00000000-0000-0000-0000-000000000000', 1, '275645i3ulcl', '241d165f-cf6c-4836-97ae-8fe1152583d9', true, '2025-09-03 20:41:45.94541+00', '2025-09-03 21:40:12.624498+00', NULL, 'd9b541a3-f972-4a0c-b72f-c9fb7891f0bf'),
 	('00000000-0000-0000-0000-000000000000', 2, 'otjluyk5vshf', '241d165f-cf6c-4836-97ae-8fe1152583d9', false, '2025-09-03 21:40:12.626927+00', '2025-09-03 21:40:12.626927+00', '275645i3ulcl', 'd9b541a3-f972-4a0c-b72f-c9fb7891f0bf'),
 	('00000000-0000-0000-0000-000000000000', 3, 'w762p5zlmrst', '241d165f-cf6c-4836-97ae-8fe1152583d9', true, '2025-09-04 00:50:48.711532+00', '2025-09-04 01:55:25.696493+00', NULL, '9b479135-e56f-4bab-a9ec-b307bb1bd36a'),
-	('00000000-0000-0000-0000-000000000000', 4, 'b63xnezmjf2q', '241d165f-cf6c-4836-97ae-8fe1152583d9', false, '2025-09-04 01:55:25.699445+00', '2025-09-04 01:55:25.699445+00', 'w762p5zlmrst', '9b479135-e56f-4bab-a9ec-b307bb1bd36a');
+	('00000000-0000-0000-0000-000000000000', 4, 'b63xnezmjf2q', '241d165f-cf6c-4836-97ae-8fe1152583d9', true, '2025-09-04 01:55:25.699445+00', '2025-09-04 03:02:30.407995+00', 'w762p5zlmrst', '9b479135-e56f-4bab-a9ec-b307bb1bd36a'),
+	('00000000-0000-0000-0000-000000000000', 5, 'i2myddny5jhy', '241d165f-cf6c-4836-97ae-8fe1152583d9', false, '2025-09-04 03:02:30.409049+00', '2025-09-04 03:02:30.409049+00', 'b63xnezmjf2q', '9b479135-e56f-4bab-a9ec-b307bb1bd36a');
 
 
 --
@@ -298,8 +303,7 @@ INSERT INTO "public"."services" ("id", "name", "description", "category", "base_
 	('5fe095b0-9661-4d53-922a-e59e44f8733f', 'Motherboard Repair', NULL, 'motherboard_repair', 200.00, 180, true, 'expert', true, 12, '2025-09-04 00:50:43.179348+00', '2025-09-04 00:50:43.179348+00'),
 	('3ce00a39-7f81-49ce-8b28-01cf61aaa29b', 'Data Recovery', NULL, 'data_recovery', 150.00, 120, false, 'advanced', true, 13, '2025-09-04 00:50:43.179348+00', '2025-09-04 00:50:43.179348+00'),
 	('ea4a9fc0-de06-4754-9177-f2c7af0c306f', 'Virus Removal', NULL, 'software_issue', 60.00, 60, false, 'basic', true, 14, '2025-09-04 00:50:43.179348+00', '2025-09-04 00:50:43.179348+00'),
-	('c0624a20-10fd-4fea-8ad9-5ced15e316fe', 'OS Installation', NULL, 'software_issue', 80.00, 90, false, 'intermediate', true, 15, '2025-09-04 00:50:43.179348+00', '2025-09-04 00:50:43.179348+00')
-ON CONFLICT (name) DO NOTHING;
+	('c0624a20-10fd-4fea-8ad9-5ced15e316fe', 'OS Installation', NULL, 'software_issue', 80.00, 90, false, 'intermediate', true, 15, '2025-09-04 00:50:43.179348+00', '2025-09-04 00:50:43.179348+00');
 
 
 --
@@ -623,24 +627,10 @@ INSERT INTO "storage"."objects" ("id", "bucket_id", "name", "owner", "created_at
 
 
 --
--- Data for Name: hooks; Type: TABLE DATA; Schema: supabase_functions; Owner: supabase_functions_admin
---
-
-
-
---
 -- Name: refresh_tokens_id_seq; Type: SEQUENCE SET; Schema: auth; Owner: supabase_auth_admin
 --
 
-SELECT pg_catalog.setval('"auth"."refresh_tokens_id_seq"', 4, true);
-
-
---
--- Name: hooks_id_seq; Type: SEQUENCE SET; Schema: supabase_functions; Owner: supabase_functions_admin
--- Commented out as this sequence may not exist on remote
---
-
--- SELECT pg_catalog.setval('"supabase_functions"."hooks_id_seq"', 1, false);
+SELECT pg_catalog.setval('"auth"."refresh_tokens_id_seq"', 5, true);
 
 
 --

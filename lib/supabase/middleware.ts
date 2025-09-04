@@ -56,6 +56,21 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(callbackUrl);
   }
 
+  // Check if this is an invite link with fragments (type=invite in hash)
+  // For invite links that redirect to root with fragments, redirect to accept-invitation page
+  if (request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/auth/login') {
+    const referer = request.headers.get('referer');
+    // Check if coming from Supabase auth verify endpoint with invite type
+    if (referer && referer.includes('supabase.co/auth/v1/verify') && referer.includes('type=invite')) {
+      const inviteUrl = new URL('/auth/accept-invitation', request.url);
+      // Preserve any query parameters
+      request.nextUrl.searchParams.forEach((value, key) => {
+        inviteUrl.searchParams.set(key, value);
+      });
+      return NextResponse.redirect(inviteUrl);
+    }
+  }
+
   // Skip authentication for public API endpoints
   const isPublicAPI = request.nextUrl.pathname.startsWith("/api/repairs");
   const isAPIRoute = request.nextUrl.pathname.startsWith("/api/");
@@ -75,7 +90,10 @@ export async function updateSession(request: NextRequest) {
   const isAuthPage = request.nextUrl.pathname.startsWith("/auth");
   
   // Redirect authenticated users from auth pages to dashboard
-  if (user && isAuthPage && request.nextUrl.pathname !== "/auth/callback") {
+  // But allow access to callback and accept-invitation pages
+  if (user && isAuthPage && 
+      request.nextUrl.pathname !== "/auth/callback" && 
+      request.nextUrl.pathname !== "/auth/accept-invitation") {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);

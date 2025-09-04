@@ -100,8 +100,8 @@ CREATE OR REPLACE FUNCTION migrate_existing_repairs_to_devices()
 RETURNS void AS $$
 DECLARE
     repair_record RECORD;
-    manufacturer_id UUID;
-    model_id UUID;
+    temp_manufacturer_id UUID;
+    temp_model_id UUID;
 BEGIN
     -- Loop through distinct device_brand and device_model combinations
     FOR repair_record IN 
@@ -115,23 +115,23 @@ BEGIN
         VALUES (repair_record.device_brand)
         ON CONFLICT (name) DO NOTHING;
         
-        SELECT id INTO manufacturer_id 
+        SELECT id INTO temp_manufacturer_id 
         FROM public.manufacturers 
         WHERE name = repair_record.device_brand;
         
         -- Insert or get device model
         INSERT INTO public.device_models (manufacturer_id, model_name, device_type)
-        VALUES (manufacturer_id, repair_record.device_model, 'smartphone')
+        VALUES (temp_manufacturer_id, repair_record.device_model, 'smartphone')
         ON CONFLICT (manufacturer_id, model_name, model_number) DO NOTHING;
         
-        SELECT id INTO model_id
+        SELECT id INTO temp_model_id
         FROM public.device_models dm
-        WHERE dm.manufacturer_id = manufacturer_id 
+        WHERE dm.manufacturer_id = temp_manufacturer_id 
         AND dm.model_name = repair_record.device_model;
         
         -- Update repair tickets with device_model_id
         UPDATE public.repair_tickets
-        SET device_model_id = model_id
+        SET device_model_id = temp_model_id
         WHERE device_brand = repair_record.device_brand 
         AND device_model = repair_record.device_model
         AND device_model_id IS NULL;

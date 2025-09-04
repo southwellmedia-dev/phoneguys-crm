@@ -22,8 +22,11 @@ import { useTimer } from "@/lib/contexts/timer-context";
 import { StopTimerDialog } from "@/components/orders/stop-timer-dialog";
 import { UserRole } from "@/lib/types/database.types";
 
+import { Calendar } from "lucide-react";
+
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
+  { name: "Appointments", href: "/appointments", icon: Calendar },
   { name: "Tickets", href: "/orders", icon: Package },
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Reports", href: "/reports", icon: FileText },

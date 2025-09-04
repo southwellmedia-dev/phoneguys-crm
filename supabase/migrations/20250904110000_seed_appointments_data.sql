@@ -1,0 +1,2 @@
+-- Appointments test data is now in seed.sql
+-- This migration file is kept empty to maintain migration order

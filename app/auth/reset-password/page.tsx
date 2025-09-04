@@ -12,7 +12,6 @@ export default function ResetPasswordPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const supabase = createClient();
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,6 +19,7 @@ export default function ResetPasswordPage() {
     setMessage(null);
 
     try {
+      const supabase = createClient();
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
       });

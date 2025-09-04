@@ -3,6 +3,8 @@
 ## ✅ Configuration Changes Made
 1. **Updated `next.config.ts`** to ignore ESLint and TypeScript errors during build
 2. **Supabase image configuration** already properly set for production domains
+3. **Fixed Suspense boundary error** in accept-invitation page (wrapped useSearchParams in Suspense)
+4. **Fixed Supabase client creation** in reset-password page (moved createClient inside event handler)
 
 ## 🎯 Ready to Deploy Steps
 

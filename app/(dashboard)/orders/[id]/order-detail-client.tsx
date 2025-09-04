@@ -53,6 +53,7 @@ interface OrderDetailClientProps {
   isAdmin?: boolean;
   currentUserId?: string;
   matchingCustomerDevice?: any;
+  appointmentData?: any;
   addDeviceToProfile: (data: {
     serial_number?: string;
     imei?: string;
@@ -68,6 +69,7 @@ export function OrderDetailClient({
   isAdmin = false, 
   currentUserId = '',
   matchingCustomerDevice,
+  appointmentData,
   addDeviceToProfile
 }: OrderDetailClientProps) {
   const router = useRouter();
@@ -187,39 +189,68 @@ export function OrderDetailClient({
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Content - Left Side */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Customer Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Customer Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <p className="text-sm text-muted-foreground">Name</p>
-                  <p className="font-medium">
-                    {order.customers?.name || "Unknown Customer"}
-                  </p>
+          {/* Appointment Information (if ticket was created from appointment) */}
+          {appointmentData && (
+            <Card className="border-blue-200 dark:border-blue-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                  <Calendar className="h-5 w-5" />
+                  Created from Appointment
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Appointment Number</p>
+                    <p className="font-medium">{appointmentData.appointment_number}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Scheduled Date & Time</p>
+                    <p className="font-medium">
+                      {new Date(appointmentData.scheduled_date).toLocaleDateString()} at {appointmentData.scheduled_time}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Source</p>
+                    <Badge variant="outline">{appointmentData.source}</Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Priority</p>
+                    <Badge variant={appointmentData.urgency === 'emergency' ? 'destructive' : 'secondary'}>
+                      {appointmentData.urgency}
+                    </Badge>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    {order.customers?.email || "No email"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Phone</p>
-                  <p className="font-medium flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    {order.customers?.phone || "No phone"}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                
+                {appointmentData.issues && appointmentData.issues.length > 0 && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Reported Issues</p>
+                    <div className="flex flex-wrap gap-2">
+                      {appointmentData.issues.map((issue: string, index: number) => (
+                        <Badge key={index} variant="secondary">
+                          {issue.replace(/_/g, ' ')}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {appointmentData.description && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Appointment Description</p>
+                    <p className="text-sm bg-muted/50 p-3 rounded-lg">{appointmentData.description}</p>
+                  </div>
+                )}
+                
+                {appointmentData.notes && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Appointment Notes</p>
+                    <p className="text-sm bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg">{appointmentData.notes}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Device Information */}
           <Card>
@@ -417,13 +448,21 @@ export function OrderDetailClient({
                 <div className="space-y-3">
                   {order.ticket_services.map((ts: any) => (
                     <div key={ts.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                      <div>
+                      <div className="flex-1">
                         <p className="font-medium">{ts.service?.name}</p>
-                        {ts.service?.category && (
-                          <p className="text-sm text-muted-foreground">
-                            Category: {ts.service.category.replace('_', ' ')}
-                          </p>
-                        )}
+                        <div className="flex items-center gap-4 mt-1">
+                          {ts.service?.category && (
+                            <p className="text-sm text-muted-foreground">
+                              Category: {ts.service.category.replace('_', ' ')}
+                            </p>
+                          )}
+                          {ts.service?.estimated_minutes && (
+                            <p className="text-sm text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              Est: {ts.service.estimated_minutes} min
+                            </p>
+                          )}
+                        </div>
                         {ts.technician_notes && (
                           <p className="text-sm text-muted-foreground mt-1">{ts.technician_notes}</p>
                         )}
@@ -439,7 +478,7 @@ export function OrderDetailClient({
                     </div>
                   ))}
                   <div className="pt-3 border-t">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-2">
                       <p className="font-medium">Total Services</p>
                       <p className="font-semibold">
                         ${order.ticket_services.reduce((sum: number, ts: any) => 
@@ -447,6 +486,16 @@ export function OrderDetailClient({
                         ).toFixed(2)}
                       </p>
                     </div>
+                    {order.ticket_services.some((ts: any) => ts.service?.estimated_minutes) && (
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm text-muted-foreground">Total Estimated Time</p>
+                        <p className="text-sm">
+                          {order.ticket_services.reduce((sum: number, ts: any) => 
+                            sum + ((ts.service?.estimated_minutes || 0) * (ts.quantity || 1)), 0
+                          )} minutes
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -481,7 +530,7 @@ export function OrderDetailClient({
             </CardContent>
           </Card>
 
-          {/* Time Entries Section */}
+          {/* Time Entries Section - Back on the left side */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -521,6 +570,7 @@ export function OrderDetailClient({
               />
             </CardContent>
           </Card>
+
 
           {/* Notes Section */}
           <Card>
@@ -577,6 +627,45 @@ export function OrderDetailClient({
             isDisabled={order.status === 'cancelled' || order.status === 'completed'}
             disabledReason={order.status === 'cancelled' ? 'Order has been cancelled' : order.status === 'completed' ? 'Order has been completed' : undefined}
           />
+
+          {/* Customer Information - Moved to right sidebar */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Customer
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Name</p>
+                <p className="font-medium">
+                  {order.customers?.name || "Unknown Customer"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Email</p>
+                <p className="font-medium text-sm flex items-center gap-2">
+                  <Mail className="h-3 w-3 text-muted-foreground" />
+                  {order.customers?.email || "No email"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Phone</p>
+                <p className="font-medium text-sm flex items-center gap-2">
+                  <Phone className="h-3 w-3 text-muted-foreground" />
+                  {order.customers?.phone || "No phone"}
+                </p>
+              </div>
+              {order.customers?.id && (
+                <Link href={`/customers/${order.customers.id}`}>
+                  <Button size="sm" variant="outline" className="w-full mt-2">
+                    View Profile
+                  </Button>
+                </Link>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Order Details */}
           <Card>

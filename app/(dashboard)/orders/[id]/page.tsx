@@ -1,6 +1,7 @@
 import { RepairTicketRepository } from "@/lib/repositories/repair-ticket.repository";
 import { UserRepository } from "@/lib/repositories/user.repository";
 import { CustomerDeviceRepository } from "@/lib/repositories/customer-device.repository";
+import { AppointmentRepository } from "@/lib/repositories/appointment.repository";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { OrderDetailClient } from "./order-detail-client";
@@ -165,6 +166,30 @@ export default async function OrderDetailPage({
     0
   ) || 0;
 
+  // Fetch appointment data if this ticket was created from an appointment
+  let appointmentData = null;
+  if (order.appointment_id) {
+    try {
+      const appointmentRepo = new AppointmentRepository(true);
+      const appointment = await appointmentRepo.findById(order.appointment_id);
+      if (appointment) {
+        appointmentData = {
+          appointment_number: appointment.appointment_number,
+          scheduled_date: appointment.scheduled_date,
+          scheduled_time: appointment.scheduled_time,
+          issues: appointment.issues,
+          description: appointment.description,
+          notes: appointment.notes,
+          urgency: appointment.urgency,
+          source: appointment.source,
+          created_at: appointment.created_at
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching appointment:', error);
+    }
+  }
+
   return (
     <OrderDetailClient 
       order={order} 
@@ -174,6 +199,7 @@ export default async function OrderDetailPage({
       currentUserId={currentUserId}
       matchingCustomerDevice={matchingCustomerDevice}
       addDeviceToProfile={addDeviceToProfile}
+      appointmentData={appointmentData}
     />
   );
 }

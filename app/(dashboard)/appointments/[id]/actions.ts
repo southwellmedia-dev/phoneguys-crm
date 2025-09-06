@@ -17,12 +17,18 @@ export async function updateAppointmentDetails(appointmentId: string, details: a
     }
     
     // Update the appointment with new details
+    // Combine both notes into a JSON structure
+    const notesData = {
+      customer_notes: details.customer_notes || '',
+      technician_notes: details.technician_notes || ''
+    };
+    
     const updateData: any = {
       device_id: details.device_id || null,
       customer_device_id: details.customer_device_id || null,
       service_ids: details.selected_services || [],
       estimated_cost: details.estimated_cost || 0,
-      notes: details.customer_notes || null,
+      notes: JSON.stringify(notesData),
     };
     
     // If a customer device is selected but no device_id, get the device_id from customer device

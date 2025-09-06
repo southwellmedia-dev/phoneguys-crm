@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAppointment, useUpdateAppointment } from "@/lib/hooks/use-appointments";
 import { useQueryClient } from "@tanstack/react-query";
@@ -103,6 +103,18 @@ export function AppointmentDetailEnhanced({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
+  // Parse notes if they're in JSON format
+  const parsedNotes = (() => {
+    try {
+      if (appointment.notes && typeof appointment.notes === 'string' && appointment.notes.startsWith('{')) {
+        return JSON.parse(appointment.notes);
+      }
+    } catch (e) {
+      // If parsing fails, treat as plain text customer notes
+    }
+    return { customer_notes: appointment.notes || '', technician_notes: '' };
+  })();
+  
   // Form state for editable fields
   const [formData, setFormData] = useState({
     // Device details
@@ -121,8 +133,8 @@ export function AppointmentDetailEnhanced({
     // Issues and notes
     issues: appointment.issues || [],
     additional_issues: '',
-    technician_notes: '',
-    customer_notes: appointment.notes || '',
+    technician_notes: parsedNotes.technician_notes || '',
+    customer_notes: parsedNotes.customer_notes || '',
     
     // Customer preferences
     notification_preference: 'email',
@@ -145,6 +157,38 @@ export function AppointmentDetailEnhanced({
         : [...prev.selected_services, serviceId],
     }));
   };
+
+  // Update form data when appointment changes (e.g., from real-time updates)
+  useEffect(() => {
+    const parsedNotes = (() => {
+      try {
+        if (appointment.notes && typeof appointment.notes === 'string' && appointment.notes.startsWith('{')) {
+          return JSON.parse(appointment.notes);
+        }
+      } catch (e) {
+        // If parsing fails, treat as plain text customer notes
+      }
+      return { customer_notes: appointment.notes || '', technician_notes: '' };
+    })();
+
+    setFormData({
+      device_id: appointment.device_id || '',
+      customer_device_id: appointment.customer_device_id || '',
+      serial_number: appointment.customer_devices?.serial_number || '',
+      imei: appointment.customer_devices?.imei || '',
+      color: appointment.customer_devices?.color || '',
+      storage_size: appointment.customer_devices?.storage_size || '',
+      device_condition: appointment.customer_devices?.condition || '',
+      selected_services: appointment.service_ids || [],
+      estimated_cost: appointment.estimated_cost || 0,
+      issues: appointment.issues || [],
+      additional_issues: '',
+      technician_notes: parsedNotes.technician_notes || '',
+      customer_notes: parsedNotes.customer_notes || '',
+      notification_preference: 'email',
+      warranty_status: 'none',
+    });
+  }, [appointment]);
 
   const handleSaveDetails = async () => {
     setIsSaving(true);

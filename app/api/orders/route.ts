@@ -3,7 +3,6 @@ import { getRepository } from '@/lib/repositories/repository-manager';
 import { TicketTransformer } from '@/lib/transformers/ticket.transformer';
 import { requireAuth, requirePermission, handleApiError, successResponse, paginatedResponse } from '@/lib/auth/helpers';
 import { Permission } from '@/lib/services/authorization.service';
-import { FilterOperator } from '@/lib/types/database.types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,6 +17,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const priority = searchParams.get('priority');
     const customerId = searchParams.get('customerId');
+    const assignedTo = searchParams.get('assignedTo');
     const search = searchParams.get('search');
     const sortBy = searchParams.get('sortBy') || 'created_at';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
@@ -25,43 +25,70 @@ export async function GET(request: NextRequest) {
     // Get repository instance using singleton manager
     const ticketRepo = getRepository.tickets();
 
-    // Build filters
-    const filters: any[] = [];
+    // If filtering by assignedTo, use the simple filter approach
+    if (assignedTo) {
+      console.log('API: Filtering by assignedTo:', assignedTo);
+      
+      const tickets = await ticketRepo.findByAssignee(assignedTo);
+      console.log('API: Found tickets for user:', tickets.length);
+      
+      // Get customer data for each ticket
+      const customerRepo = getRepository.customers();
+      const ticketsWithCustomers = await Promise.all(
+        tickets.map(async (ticket) => {
+          const customer = ticket.customer_id 
+            ? await customerRepo.findById(ticket.customer_id)
+            : null;
+          return {
+            ...ticket,
+            customers: customer
+          };
+        })
+      );
+      
+      // Paginate the results manually
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize;
+      const paginatedData = ticketsWithCustomers.slice(start, end);
+      
+      return paginatedResponse(
+        paginatedData,
+        page,
+        pageSize,
+        ticketsWithCustomers.length
+      );
+    }
+
+    // For other filters or no filters, use the standard pagination
+    const filters: any = {};
     
     if (status) {
-      filters.push({ field: 'status', operator: FilterOperator.EQ, value: status });
+      filters.status = status;
     }
     
     if (priority) {
-      filters.push({ field: 'priority', operator: FilterOperator.EQ, value: priority });
+      filters.priority = priority;
     }
     
     if (customerId) {
-      filters.push({ field: 'customer_id', operator: FilterOperator.EQ, value: customerId });
+      filters.customer_id = customerId;
     }
     
-    if (search) {
-      // Search in ticket number, device brand, model
-      filters.push({
-        or: [
-          { field: 'ticket_number', operator: FilterOperator.ILIKE, value: `%${search}%` },
-          { field: 'device_brand', operator: FilterOperator.ILIKE, value: `%${search}%` },
-          { field: 'device_model', operator: FilterOperator.ILIKE, value: `%${search}%` }
-        ]
-      });
-    }
-
-    // For technicians, only show their assigned tickets
+    // For technicians (non-managers), only show their assigned tickets by default
     if (authResult.role === 'technician' && !authResult.isManager) {
-      filters.push({ field: 'assigned_to', operator: FilterOperator.EQ, value: authResult.userId });
+      filters.assigned_to = authResult.userId;
     }
 
+    console.log('API: Final filters:', filters);
+    console.log('API: Current user:', authResult.userId, 'Role:', authResult.role);
+    
     // Get tickets with pagination
-    const result = await ticketRepo.findAll(
-      filters.length > 0 ? { and: filters } : undefined,
-      page,
-      pageSize
+    const result = await ticketRepo.findPaginated(
+      Object.keys(filters).length > 0 ? filters : undefined,
+      { page, pageSize, sortBy, sortOrder }
     );
+    
+    console.log('API: Found tickets:', result.data?.length || 0);
 
     return paginatedResponse(
       result.data,

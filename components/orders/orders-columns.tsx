@@ -30,6 +30,7 @@ export interface Order {
   created_at: string;
   updated_at: string;
   timer_total_minutes?: number;
+  assigned_to?: string;
 }
 
 // Define all available columns as an object for easy access

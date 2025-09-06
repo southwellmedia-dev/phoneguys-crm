@@ -42,6 +42,7 @@ interface DataTableProps<TData, TValue> {
   showColumnToggle?: boolean;
   showPagination?: boolean;
   showRowSelection?: boolean;
+  toolbarActions?: React.ReactNode;
 }
 
 export function DataTable<TData, TValue>({
@@ -52,6 +53,7 @@ export function DataTable<TData, TValue>({
   showColumnToggle = true,
   showPagination = true,
   showRowSelection = true,
+  toolbarActions,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -91,6 +93,7 @@ export function DataTable<TData, TValue>({
               className="max-w-sm"
             />
           )}
+          {toolbarActions}
         </div>
         {showColumnToggle && (
           <DropdownMenu>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PageContainer } from "@/components/layout/page-container";
 import { DataTable } from "@/components/tables/data-table";
 import { columns, Order } from "@/components/orders/orders-columns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { 
   Plus, 
   Download, 
@@ -15,20 +16,50 @@ import {
   AlertCircle,
   Activity,
   TrendingUp,
-  ArrowRight
+  ArrowRight,
+  User,
+  Users
 } from "lucide-react";
 import { useTickets } from "@/lib/hooks/use-tickets";
 import { useRealtime } from "@/lib/hooks/use-realtime";
 import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
 import { SkeletonOrders } from "@/components/ui/skeleton-orders";
+import { createClient } from "@/lib/supabase/client";
+import { getCurrentUserInfo } from "@/lib/utils/user-mapping";
 
 interface OrdersClientProps {
   orders: Order[];
 }
 
 export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
-  const { data: orders = initialOrders, isLoading, isFetching, refetch } = useTickets(undefined, initialOrders);
+  const [showMyTickets, setShowMyTickets] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Get current user info
+  useEffect(() => {
+    async function fetchUserInfo() {
+      const supabase = createClient();
+      const userInfo = await getCurrentUserInfo(supabase);
+      if (userInfo) {
+        // Use the mapped app user ID for filtering
+        setCurrentUserId(userInfo.appUserId);
+      }
+    }
+    fetchUserInfo();
+  }, []);
+  
+  // Fetch tickets with filter
+  // Only apply filter if we have the user ID loaded
+  const shouldFilter = showMyTickets && currentUserId;
+  const filters = shouldFilter ? { assignedTo: currentUserId } : undefined;
+  console.log('OrdersClient - showMyTickets:', showMyTickets, 'currentUserId:', currentUserId, 'shouldFilter:', shouldFilter, 'filters:', filters);
+  
+  // Always use initialOrders as fallback, but let the query refetch with filters
+  const { data: orders = initialOrders, isLoading, isFetching, refetch } = useTickets(
+    filters, 
+    initialOrders // Always provide initial data as fallback
+  );
   
   // Determine if we should show skeleton
   const showSkeleton = useShowSkeleton(isLoading, isFetching, !!orders);
@@ -93,7 +124,9 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="text-3xl font-bold tracking-tight">{safeOrders.length}</div>
-              <p className="text-sm text-muted-foreground">All repair tickets</p>
+              <p className="text-sm text-muted-foreground">
+                {showMyTickets ? "Your tickets" : "All repair tickets"}
+              </p>
             </CardContent>
           </Card>
           
@@ -167,11 +200,11 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
               </div>
               <div>
                 <CardTitle className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-                  Repair Tickets
+                  {showMyTickets ? "My Repair Tickets" : "Repair Tickets"}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
                   <TrendingUp className="h-3 w-3" />
-                  {safeOrders.length} total tickets
+                  {safeOrders.length} {showMyTickets ? "assigned to you" : "total tickets"}
                 </p>
               </div>
             </div>
@@ -183,6 +216,27 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
               data={safeOrders} 
               searchKey="ticket_number"
               initialSorting={[{ id: "updated_at", desc: true }]}
+              toolbarActions={
+                <Button
+                  variant={showMyTickets ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowMyTickets(!showMyTickets)}
+                  className="h-8"
+                  disabled={showMyTickets && !currentUserId} // Disable if waiting for user ID
+                >
+                  {showMyTickets ? (
+                    <>
+                      <User className="mr-2 h-4 w-4" />
+                      {currentUserId ? "My Tickets" : "Loading..."}
+                    </>
+                  ) : (
+                    <>
+                      <Users className="mr-2 h-4 w-4" />
+                      All Tickets
+                    </>
+                  )}
+                </Button>
+              }
             />
           </CardContent>
         </Card>

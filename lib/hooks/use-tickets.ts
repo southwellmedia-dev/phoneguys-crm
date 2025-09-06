@@ -12,6 +12,7 @@ export function useTickets(filters?: {
   status?: string;
   search?: string;
   customerId?: string;
+  assignedTo?: string;
 }, initialData?: Order[]) {
   return useQuery({
     queryKey: ['tickets', filters],
@@ -20,6 +21,10 @@ export function useTickets(filters?: {
       if (filters?.status) params.append('status', filters.status);
       if (filters?.search) params.append('search', filters.search);
       if (filters?.customerId) params.append('customerId', filters.customerId);
+      if (filters?.assignedTo) params.append('assignedTo', filters.assignedTo);
+      
+      console.log('Fetching tickets with filters:', filters);
+      console.log('Query params:', params.toString());
       
       const response = await fetch(`${API_BASE}?${params}`);
       if (!response.ok) {
@@ -45,14 +50,18 @@ export function useTickets(filters?: {
         created_at: ticket.created_at,
         updated_at: ticket.updated_at,
         timer_total_minutes: ticket.total_time_minutes || 0,
+        assigned_to: ticket.assigned_to,
       }));
       
       return orders;
     },
     initialData,
-    enabled: !initialData, // Only fetch if no initial data
+    // Enable fetching when:
+    // 1. No initial data (first load from API)
+    // 2. OR we have filters (need to fetch filtered data)
+    enabled: !initialData || !!filters,
     refetchOnWindowFocus: false,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: filters ? 0 : 1000 * 60 * 5, // No caching when filtering
   });
 }
 

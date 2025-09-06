@@ -24,6 +24,7 @@ async function getOrders(): Promise<Order[]> {
     created_at: ticket.created_at,
     updated_at: ticket.updated_at,
     timer_total_minutes: ticket.total_time_minutes || 0,
+    assigned_to: ticket.assigned_to,
   }));
 
   return ordersWithCustomerData;

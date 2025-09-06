@@ -34,8 +34,8 @@ BEGIN
         (SELECT COUNT(*) FROM public.appointments WHERE created_by = p_user_id),
         (SELECT COUNT(*) FROM public.appointments WHERE assigned_to = p_user_id),
         (SELECT COUNT(*) FROM public.appointments WHERE assigned_to = p_user_id AND converted_to_ticket_id IS NOT NULL),
-        (SELECT COUNT(*) FROM public.appointments WHERE assigned_to = p_user_id AND UPPER(status) = 'CANCELLED'),
-        (SELECT COUNT(*) FROM public.appointments WHERE assigned_to = p_user_id AND UPPER(status) = 'NO_SHOW'),
+        (SELECT COUNT(*) FROM public.appointments WHERE assigned_to = p_user_id AND UPPER(status::text) = 'CANCELLED'),
+        (SELECT COUNT(*) FROM public.appointments WHERE assigned_to = p_user_id AND UPPER(status::text) = 'NO_SHOW'),
         (SELECT COUNT(*) FROM public.ticket_notes WHERE user_id = p_user_id),
         COALESCE((SELECT SUM(total_time_minutes) FROM public.repair_tickets WHERE assigned_to = p_user_id), 0),
         NOW()

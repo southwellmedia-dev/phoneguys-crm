@@ -104,6 +104,10 @@ export default function EditOrderClient({ order, customers = [], devices = [], s
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   
+  // Check if the order is locked for editing
+  const isCompleted = order.status === 'completed';
+  const isCancelled = order.status === 'cancelled';
+  
   // Prepare combobox options
   const customerOptions: ComboboxOption[] = customers.map(customer => ({
     value: customer.id,
@@ -195,6 +199,29 @@ export default function EditOrderClient({ order, customers = [], devices = [], s
     }
   }
   
+  // Show warning if viewing a completed ticket
+  const CompletedWarning = () => {
+    if (!isCompleted && !isCancelled) return null;
+    
+    return (
+      <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+        <div className="flex items-center gap-2">
+          <span className="text-amber-600 dark:text-amber-400 font-semibold">
+            ⚠️ Limited Editing Mode
+          </span>
+          <Badge variant={isCompleted ? 'default' : 'secondary'}>
+            {order.status}
+          </Badge>
+        </div>
+        <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+          {isCompleted 
+            ? "This ticket is completed. Only notes and administrative fields can be edited."
+            : "This ticket is cancelled. Only notes can be edited."}
+        </p>
+      </div>
+    );
+  };
+  
   const headerActions = [
     {
       label: "Back to Order",
@@ -226,6 +253,7 @@ export default function EditOrderClient({ order, customers = [], devices = [], s
       description="Update order details and status"
       actions={headerActions}
     >
+      <CompletedWarning />
       <Form {...form}>
         <div className="space-y-6">
           {/* Customer Information */}
@@ -348,7 +376,7 @@ export default function EditOrderClient({ order, customers = [], devices = [], s
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Priority</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isCompleted || isCancelled}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select priority" />
@@ -430,6 +458,8 @@ export default function EditOrderClient({ order, customers = [], devices = [], s
                             : 'hover:bg-muted/50'
                         }`}
                         onClick={(e) => {
+                          // Prevent editing if completed or cancelled
+                          if (isCompleted || isCancelled) return;
                           // Prevent triggering if clicking on checkbox itself
                           if ((e.target as HTMLElement).closest('button[role="checkbox"]')) {
                             return;
@@ -444,7 +474,9 @@ export default function EditOrderClient({ order, customers = [], devices = [], s
                         <div className="flex items-start gap-3">
                           <Checkbox 
                             checked={selectedServices.includes(service.id)}
+                            disabled={isCompleted || isCancelled}
                             onCheckedChange={(checked) => {
+                              if (isCompleted || isCancelled) return;
                               setSelectedServices(prev => 
                                 checked
                                   ? [...prev, service.id]
@@ -522,6 +554,7 @@ export default function EditOrderClient({ order, customers = [], devices = [], s
                         <Input 
                           type="number" 
                           step="0.01"
+                          disabled={isCompleted || isCancelled}
                           {...field}
                           onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                         />
@@ -541,6 +574,7 @@ export default function EditOrderClient({ order, customers = [], devices = [], s
                         <Input 
                           type="number" 
                           step="0.01"
+                          disabled={isCompleted || isCancelled}
                           {...field}
                           onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                         />
@@ -560,6 +594,7 @@ export default function EditOrderClient({ order, customers = [], devices = [], s
                         <Input 
                           type="number" 
                           step="0.01"
+                          disabled={isCompleted || isCancelled}
                           {...field}
                           onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                         />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { User, UserRole } from "@/lib/types/database.types";
 import { useUsers, useDeleteUser } from "@/lib/hooks/use-admin";
 import { useRealtime } from "@/lib/hooks/use-realtime";
@@ -274,6 +275,12 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/admin/users/${user.id}/profile`}>
+                              <UsersIcon className="h-4 w-4 mr-2" />
+                              View Profile
+                            </Link>
+                          </DropdownMenuItem>
                           <DropdownMenuItem>
                             <Edit className="h-4 w-4 mr-2" />
                             Edit User

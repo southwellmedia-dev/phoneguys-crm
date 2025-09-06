@@ -46,6 +46,7 @@ interface NewOrderClientProps {
   customers: Array<{ id: string; name: string; email: string; phone: string }>;
   devices: Device[];
   services: Service[];
+  technicians: Array<{ id: string; name: string; email: string; role: string }>;
 }
 
 const issueTypes = [
@@ -60,7 +61,7 @@ const issueTypes = [
   { value: "other", label: "Other", serviceCategory: "diagnostic" }
 ];
 
-export function NewOrderClient({ customers, devices, services }: NewOrderClientProps) {
+export function NewOrderClient({ customers, devices, services, technicians }: NewOrderClientProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -87,6 +88,7 @@ export function NewOrderClient({ customers, devices, services }: NewOrderClientP
     issue_types: [] as string[],
     issue_description: "",
     priority: "medium",
+    assigned_to: "", // Technician assignment
     selected_services: [] as string[],
     estimated_cost: 0,
     deposit_amount: 0,
@@ -281,6 +283,7 @@ export function NewOrderClient({ customers, devices, services }: NewOrderClientP
         issue_type: formData.issue_types,
         issue_description: formData.issue_description,
         priority: formData.priority,
+        assigned_to: formData.assigned_to || null,
         estimated_cost: formData.estimated_cost || servicesTotal || 0,
         deposit_amount: formData.deposit_amount || 0,
         internal_notes: formData.internal_notes || null,
@@ -725,9 +728,9 @@ export function NewOrderClient({ customers, devices, services }: NewOrderClientP
               </div>
             </div>
 
-            {/* Description and Priority */}
+            {/* Description, Priority, and Assignment */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2 space-y-2">
+              <div className="md:col-span-1 space-y-2">
                 <Label htmlFor="description">Detailed Description</Label>
                 <Textarea
                   id="description"
@@ -751,6 +754,23 @@ export function NewOrderClient({ customers, devices, services }: NewOrderClientP
                   <option value="urgent">Urgent</option>
                 </select>
                 <p className="text-sm text-muted-foreground">Urgency of repair</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="assigned_to">Assign to Technician</Label>
+                <select
+                  id="assigned_to"
+                  value={formData.assigned_to}
+                  onChange={(e) => setFormData(prev => ({ ...prev, assigned_to: e.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">Select Technician (Optional)</option>
+                  {technicians.map((tech) => (
+                    <option key={tech.id} value={tech.id}>
+                      {tech.name} ({tech.role})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-sm text-muted-foreground">Who will work on this repair?</p>
               </div>
             </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import {
@@ -17,10 +17,23 @@ import {
   Wrench,
   Smartphone,
   Image,
+  LogOut,
+  User,
+  ChevronUp,
 } from "lucide-react";
 import { useTimer } from "@/lib/contexts/timer-context";
 import { StopTimerDialog } from "@/components/orders/stop-timer-dialog";
 import { UserRole } from "@/lib/types/database.types";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 import { Calendar } from "lucide-react";
 
@@ -45,13 +58,16 @@ interface SidebarProps {
     email?: string;
     id: string;
     role?: UserRole;
+    full_name?: string;
   };
 }
 
 export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { activeTimer, pauseTimer, error, clearError } = useTimer();
   const [showStopDialog, setShowStopDialog] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -61,6 +77,7 @@ export function Sidebar({ user }: SidebarProps) {
       .toString()
       .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
+
 
   const handlePauseTimer = async () => {
     try {
@@ -76,6 +93,28 @@ export function Sidebar({ user }: SidebarProps) {
 
   const handleStopConfirm = () => {
     setShowStopDialog(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      const supabase = createClient();
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        toast.error('Failed to sign out');
+        console.error('Logout error:', error);
+        return;
+      }
+      
+      toast.success('Signed out successfully');
+      router.push('/auth/login');
+    } catch (error) {
+      toast.error('An error occurred while signing out');
+      console.error('Logout error:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -274,19 +313,53 @@ export function Sidebar({ user }: SidebarProps) {
 
         {/* User Section - Always visible at bottom */}
         <div className="p-4 border-t border-white/20 dark:border-border flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-full bg-white/20 dark:bg-primary flex items-center justify-center backdrop-blur-sm">
-                <span className="text-white dark:text-primary-foreground text-sm font-medium">
-                  {user.email?.[0]?.toUpperCase() || "U"}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white dark:text-foreground truncate">{user.email || "User"}</p>
-                <p className="text-xs text-white/70 dark:text-muted-foreground capitalize">{user.role || 'Staff'}</p>
-              </div>
-            </div>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/10 dark:hover:bg-muted/30 transition-colors group">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-full bg-white/20 dark:bg-primary flex items-center justify-center backdrop-blur-sm">
+                    <span className="text-white dark:text-primary-foreground text-sm font-medium">
+                      {user.full_name?.charAt(0)?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U"}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="text-sm font-medium text-white dark:text-foreground truncate">
+                      Hi, {user.full_name || "User"}
+                    </p>
+                    <p className="text-xs text-white/70 dark:text-muted-foreground truncate">
+                      {user.email || "user@example.com"}
+                    </p>
+                  </div>
+                </div>
+                <ChevronUp className="h-4 w-4 text-white/60 dark:text-muted-foreground group-hover:text-white dark:group-hover:text-foreground transition-colors" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top" className="w-56">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href={`/admin/users/${user.id}/profile`} className="flex items-center cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile Hub</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/settings" className="flex items-center cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="flex items-center cursor-pointer text-destructive focus:text-destructive"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>{isLoggingOut ? 'Signing out...' : 'Sign out'}</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

@@ -112,6 +112,7 @@ export async function POST(request: NextRequest) {
       status: body.status || 'new',
       estimated_cost: body.estimated_cost || 0,
       deposit_amount: body.deposit_amount || 0,
+      created_by: authResult.userId, // Track who created the ticket
       assigned_to: body.assigned_to || authResult.userId
     });
 

@@ -1,4 +1,5 @@
 import { CustomerRepository } from "@/lib/repositories/customer.repository";
+import { UserRepository } from "@/lib/repositories/user.repository";
 import { createClient } from "@/lib/supabase/server";
 import { NewAppointmentClient } from "./new-appointment-client";
 
@@ -35,10 +36,21 @@ async function getDevices() {
 }
 
 export default async function NewAppointmentPage() {
+  const userRepo = new UserRepository(true);
+  
+  // Get technicians for assignment dropdown
+  const technicians = await userRepo.findByRole(['technician', 'manager', 'admin']);
+  const technicianList = technicians.map(t => ({
+    id: t.id,
+    name: t.full_name || t.email || 'Unknown',
+    email: t.email,
+    role: t.role
+  }));
+  
   const [customers, devices] = await Promise.all([
     getCustomers(),
     getDevices()
   ]);
   
-  return <NewAppointmentClient customers={customers} devices={devices} />;
+  return <NewAppointmentClient customers={customers} devices={devices} technicians={technicianList} />;
 }

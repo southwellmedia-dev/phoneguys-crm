@@ -37,6 +37,12 @@ interface Device {
 interface NewAppointmentClientProps {
   customers: Customer[];
   devices: Device[];
+  technicians?: Array<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  }>;
 }
 
 const issueTypes = [
@@ -51,7 +57,7 @@ const issueTypes = [
   { value: "other", label: "Other" }
 ];
 
-export function NewAppointmentClient({ customers, devices }: NewAppointmentClientProps) {
+export function NewAppointmentClient({ customers, devices, technicians = [] }: NewAppointmentClientProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   
@@ -82,6 +88,7 @@ export function NewAppointmentClient({ customers, devices }: NewAppointmentClien
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
   const [urgency, setUrgency] = useState<"scheduled" | "emergency" | "walk-in">("scheduled");
+  const [assignedTo, setAssignedTo] = useState("");
 
   // Prepare customer options for combobox
   const customerOptions: ComboboxOption[] = customers.map(c => ({
@@ -164,7 +171,8 @@ export function NewAppointmentClient({ customers, devices }: NewAppointmentClien
         description: description || undefined,
         notes: notes || undefined,
         urgency,
-        source: 'walk-in' as const
+        source: 'walk-in' as const,
+        assigned_to: assignedTo || undefined
       };
 
       const result = await createAppointment(appointmentData);
@@ -333,6 +341,24 @@ export function NewAppointmentClient({ customers, devices }: NewAppointmentClien
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Technician Assignment */}
+            <div>
+              <Label htmlFor="assigned_to">Assign To (Optional)</Label>
+              <Select value={assignedTo || "unassigned"} onValueChange={(value) => setAssignedTo(value === "unassigned" ? "" : value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a technician" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {technicians.map((tech) => (
+                    <SelectItem key={tech.id} value={tech.id}>
+                      {tech.name} ({tech.role})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>

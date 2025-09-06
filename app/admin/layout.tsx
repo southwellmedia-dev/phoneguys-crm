@@ -32,6 +32,7 @@ export default async function AdminLayout({
   const userWithRole = {
     ...user,
     role: userData?.role || "technician",
+    full_name: userData?.full_name || user.email?.split('@')[0] || 'User'
   };
 
   return (

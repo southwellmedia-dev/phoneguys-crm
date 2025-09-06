@@ -12,6 +12,8 @@ import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import {
   ArrowLeft,
   Edit,
@@ -63,6 +65,12 @@ interface OrderDetailClientProps {
   currentUserId?: string;
   matchingCustomerDevice?: any;
   appointmentData?: any;
+  technicians?: Array<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  }>;
   addDeviceToProfile: (data: {
     serial_number?: string;
     imei?: string;
@@ -79,6 +87,7 @@ export function OrderDetailClient({
   currentUserId = "",
   matchingCustomerDevice,
   appointmentData,
+  technicians = [],
   addDeviceToProfile,
 }: OrderDetailClientProps) {
   const router = useRouter();
@@ -801,6 +810,87 @@ export function OrderDetailClient({
             </CardHeader>
             <CardContent className="pt-4">
               <div className="space-y-4">
+                {/* Assignment Section */}
+                <div>
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                    Assigned Technician
+                    {(order.status === 'completed' || order.status === 'cancelled') && (
+                      <span className="text-xs font-normal text-muted-foreground ml-2">
+                        (Locked - {order.status})
+                      </span>
+                    )}
+                  </h4>
+                  <Select
+                    value={order.assigned_to || "unassigned"}
+                    disabled={order.status === 'completed' || order.status === 'cancelled'}
+                    onValueChange={async (value) => {
+                      try {
+                        const response = await fetch(`/api/orders/${orderId}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ assigned_to: value === "unassigned" ? null : value }),
+                        });
+
+                        if (!response.ok) {
+                          throw new Error("Failed to update assignment");
+                        }
+
+                        // Update cache
+                        queryClient.setQueryData(['ticket', orderId], (old: any) => ({
+                          ...old,
+                          assigned_to: value === "unassigned" ? null : value,
+                          users: value === "unassigned" ? null : technicians.find(t => t.id === value) || null,
+                        }));
+
+                        // Find technician name for toast
+                        const technician = technicians.find(t => t.id === value);
+                        toast.success(
+                          value === "unassigned"
+                            ? "Assignment removed"
+                            : `Assigned to ${technician?.name || 'technician'}`
+                        );
+                      } catch (error) {
+                        console.error("Failed to update assignment:", error);
+                        toast.error("Failed to update assignment");
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a technician">
+                        {order.assigned_to ? (
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4" />
+                            {order.users?.full_name || order.users?.email || technicians.find(t => t.id === order.assigned_to)?.name || "Unknown"}
+                          </div>
+                        ) : (
+                          "Unassigned"
+                        )}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          Unassigned
+                        </div>
+                      </SelectItem>
+                      {technicians.map((tech) => (
+                        <SelectItem key={tech.id} value={tech.id}>
+                          <div className="flex items-center justify-between gap-2 w-full">
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4" />
+                              <span>{tech.name}</span>
+                            </div>
+                            <Badge variant="outline" className="text-xs">
+                              {tech.role}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Issues Section */}
                 <div>
                   <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">

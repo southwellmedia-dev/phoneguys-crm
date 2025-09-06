@@ -75,6 +75,12 @@ interface AppointmentDetailEnhancedProps {
   availableServices: Service[];
   availableDevices: any[];
   customerDevices?: any[];
+  technicians?: Array<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  }>;
 }
 
 const statusConfig = {
@@ -91,7 +97,8 @@ export function AppointmentDetailEnhanced({
   appointmentId, 
   availableServices,
   availableDevices,
-  customerDevices = []
+  customerDevices = [],
+  technicians = []
 }: AppointmentDetailEnhancedProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -101,6 +108,10 @@ export function AppointmentDetailEnhanced({
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Check if appointment is converted (fully locked)
+  const isConverted = appointment.status === 'converted';
+  const isLocked = isConverted || appointment.status === 'cancelled' || appointment.status === 'no_show';
   const [isSaving, setIsSaving] = useState(false);
   
   // Parse notes if they're in JSON format
@@ -242,7 +253,7 @@ export function AppointmentDetailEnhanced({
   ];
 
   // Add save/edit toggle
-  if (appointment.status === 'arrived' || appointment.status === 'confirmed') {
+  if ((appointment.status === 'arrived' || appointment.status === 'confirmed') && !isLocked) {
     headerActions.push({
       label: isEditing ? "Save Changes" : "Edit Details",
       icon: isEditing ? <Save className="h-4 w-4" /> : <Edit className="h-4 w-4" />,
@@ -283,6 +294,40 @@ export function AppointmentDetailEnhanced({
         }
         actions={headerActions}
       >
+        {/* Converted/Locked Warning */}
+        {isConverted && (
+          <div className="mb-6 p-4 bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-800 rounded-lg">
+            <div className="flex items-center gap-2">
+              <ArrowRight className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+              <span className="text-cyan-600 dark:text-cyan-400 font-semibold">
+                Appointment Converted to Ticket
+              </span>
+            </div>
+            <p className="text-sm text-cyan-600 dark:text-cyan-400 mt-1">
+              This appointment has been converted to a repair ticket. It is now read-only and cannot be edited.
+              {appointment.converted_to_ticket_id && (
+                <span className="block mt-1">
+                  View the ticket: #{appointment.converted_to_ticket_id}
+                </span>
+              )}
+            </p>
+          </div>
+        )}
+        
+        {(appointment.status === 'cancelled' || appointment.status === 'no_show') && (
+          <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-950/20 border border-gray-200 dark:border-gray-800 rounded-lg">
+            <div className="flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+              <span className="text-gray-600 dark:text-gray-400 font-semibold">
+                Appointment {appointment.status === 'cancelled' ? 'Cancelled' : 'No Show'}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              This appointment is locked and cannot be edited.
+            </p>
+          </div>
+        )}
+
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Main Content - Left Side */}
           <div className="lg:col-span-2 space-y-6">
@@ -299,6 +344,7 @@ export function AppointmentDetailEnhanced({
                       size="sm" 
                       variant="outline"
                       onClick={() => setIsEditing(!isEditing)}
+                      disabled={isLocked}
                     >
                       {isEditing ? <Save className="mr-1 h-3 w-3" /> : <Edit className="mr-1 h-3 w-3" />}
                       {isEditing ? 'Save Changes' : 'Edit Details'}
@@ -515,7 +561,7 @@ export function AppointmentDetailEnhanced({
                     placeholder="Add internal notes about the repair, diagnosis, or customer interactions..."
                     className="mt-1"
                     rows={4}
-                    disabled={!isEditing}
+                    disabled={!isEditing || isLocked}
                   />
                 </div>
                 
@@ -557,6 +603,86 @@ export function AppointmentDetailEnhanced({
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6 space-y-3">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Assigned To
+                    {(appointment.status === 'converted' || appointment.status === 'cancelled' || appointment.status === 'no_show') && (
+                      <span className="text-xs font-normal text-muted-foreground ml-2">
+                        (Locked - {appointment.status.replace('_', ' ')})
+                      </span>
+                    )}
+                  </p>
+                  <Select
+                    value={appointment.assigned_to || "unassigned"}
+                    disabled={appointment.status === 'converted' || appointment.status === 'cancelled' || appointment.status === 'no_show'}
+                    onValueChange={async (value) => {
+                      try {
+                        const response = await fetch(`/api/appointments/${appointmentId}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ assigned_to: value === "unassigned" ? null : value }),
+                        });
+
+                        if (!response.ok) {
+                          throw new Error("Failed to update assignment");
+                        }
+
+                        // Update cache
+                        queryClient.setQueryData(['appointment', appointmentId], (old: any) => ({
+                          ...old,
+                          assigned_to: value === "unassigned" ? null : value,
+                          users: value === "unassigned" ? null : technicians.find(t => t.id === value) || null,
+                        }));
+
+                        // Find technician name for toast
+                        const technician = technicians.find(t => t.id === value);
+                        toast.success(
+                          value === "unassigned"
+                            ? "Assignment removed"
+                            : `Assigned to ${technician?.name || 'technician'}`
+                        );
+                      } catch (error) {
+                        console.error("Failed to update assignment:", error);
+                        toast.error("Failed to update assignment");
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a technician">
+                        {appointment.assigned_to ? (
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4" />
+                            {appointment.users?.full_name || appointment.users?.email || technicians.find(t => t.id === appointment.assigned_to)?.name || "Unknown"}
+                          </div>
+                        ) : (
+                          "Unassigned"
+                        )}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          Unassigned
+                        </div>
+                      </SelectItem>
+                      {technicians.map((tech) => (
+                        <SelectItem key={tech.id} value={tech.id}>
+                          <div className="flex items-center justify-between gap-2 w-full">
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4" />
+                              <span>{tech.name}</span>
+                            </div>
+                            <Badge variant="outline" className="text-xs">
+                              {tech.role}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div>
                   <p className="text-sm text-muted-foreground">Date & Time</p>
                   <p className="font-medium">

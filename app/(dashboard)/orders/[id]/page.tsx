@@ -132,12 +132,12 @@ export default async function OrderDetailPage({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
-  // Use UserRepository to get user details
+  // Use UserRepository to get user details and technicians
+  const userRepo = new UserRepository(true); // Use service role
   let isAdmin = false;
   let currentUserId = '';
+  
   if (user) {
-    const userRepo = new UserRepository(true); // Use service role
-    
     // First try to find by auth ID
     let dbUser = await userRepo.findById(user.id);
     
@@ -158,9 +158,18 @@ export default async function OrderDetailPage({
     }
     
     currentUserId = dbUser?.id || user.id;
-    isAdmin = dbUser?.role === 'admin';
+    isAdmin = dbUser?.role === 'admin' || dbUser?.role === 'manager';
     console.log('Admin check:', { authId: user.id, dbUser: dbUser?.email, role: dbUser?.role, isAdmin });
   }
+  
+  // Get all technicians for assignment dropdown
+  const technicians = await userRepo.findByRole(['technician', 'manager', 'admin']);
+  const technicianList = technicians.map(t => ({
+    id: t.id,
+    name: t.full_name || t.email || 'Unknown',
+    email: t.email,
+    role: t.role
+  }));
 
   const totalTimeMinutes = order.time_entries?.reduce(
     (acc: number, entry: any) => acc + (entry.duration_minutes || 0),
@@ -201,6 +210,7 @@ export default async function OrderDetailPage({
       matchingCustomerDevice={matchingCustomerDevice}
       addDeviceToProfile={addDeviceToProfile}
       appointmentData={appointmentData}
+      technicians={technicianList}
     />
   );
 }

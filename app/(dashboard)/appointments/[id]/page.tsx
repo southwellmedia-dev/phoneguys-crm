@@ -1,4 +1,5 @@
 import { AppointmentRepository } from "@/lib/repositories/appointment.repository";
+import { UserRepository } from "@/lib/repositories/user.repository";
 import { AppointmentDetailEnhanced } from "./appointment-detail-enhanced";
 import { createServiceClient } from "@/lib/supabase/service";
 import { notFound } from "next/navigation";
@@ -62,6 +63,7 @@ export default async function AppointmentDetailPage({ params }: PageProps) {
   const { id } = await params;
   
   const appointmentRepo = new AppointmentRepository(true);
+  const userRepo = new UserRepository(true);
   
   // Get full appointment details with all relations
   const fullAppointment = await appointmentRepo.findByIdWithDetails(id);
@@ -69,6 +71,15 @@ export default async function AppointmentDetailPage({ params }: PageProps) {
   if (!fullAppointment) {
     notFound();
   }
+  
+  // Get technicians for assignment dropdown
+  const technicians = await userRepo.findByRole(['technician', 'manager', 'admin']);
+  const technicianList = technicians.map(t => ({
+    id: t.id,
+    name: t.full_name || t.email || 'Unknown',
+    email: t.email,
+    role: t.role
+  }));
   
   // Get additional data
   const [services, devices, customerDevices] = await Promise.all([
@@ -84,6 +95,7 @@ export default async function AppointmentDetailPage({ params }: PageProps) {
       availableServices={services}
       availableDevices={devices}
       customerDevices={customerDevices}
+      technicians={technicianList}
     />
   );
 }

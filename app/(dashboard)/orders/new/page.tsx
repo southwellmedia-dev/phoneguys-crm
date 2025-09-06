@@ -1,4 +1,5 @@
 import { CustomerRepository } from "@/lib/repositories/customer.repository";
+import { UserRepository } from "@/lib/repositories/user.repository";
 import { createClient } from "@/lib/supabase/server";
 import { NewOrderClient } from "./new-order-client-stable";
 
@@ -62,12 +63,30 @@ async function getServices() {
   return services || [];
 }
 
+async function getTechnicians() {
+  const userRepo = new UserRepository(true); // Use service role
+  // Get all technicians and managers who can be assigned tickets
+  const users = await userRepo.findByRole(['technician', 'manager', 'admin']);
+  return users.map(u => ({
+    id: u.id,
+    name: u.full_name || u.email || 'Unknown',
+    email: u.email,
+    role: u.role
+  }));
+}
+
 export default async function NewOrderPage() {
-  const [customers, devices, services] = await Promise.all([
+  const [customers, devices, services, technicians] = await Promise.all([
     getCustomers(),
     getDevices(),
-    getServices()
+    getServices(),
+    getTechnicians()
   ]);
   
-  return <NewOrderClient customers={customers} devices={devices} services={services} />;
+  return <NewOrderClient 
+    customers={customers} 
+    devices={devices} 
+    services={services} 
+    technicians={technicians} 
+  />;
 }

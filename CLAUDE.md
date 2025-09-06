@@ -7,6 +7,7 @@ Before starting work, review these critical documents:
 - **[LOCAL_DEVELOPMENT_WORKFLOW.md](./docs/LOCAL_DEVELOPMENT_WORKFLOW.md)** - Complete guide for local development setup
 - **[PROJECT_MASTER.md](./docs/PROJECT_MASTER.md)** - Complete project context and overview
 - **[DEVELOPMENT_GUIDELINES.md](./docs/DEVELOPMENT_GUIDELINES.md)** - Coding standards, patterns, and folder structure
+- **[FEATURE_DEVELOPMENT_GUIDE.md](./docs/features/FEATURE_DEVELOPMENT_GUIDE.md)** - Step-by-step guide for building new features
 - **[project-checklist.md](./docs/project-checklist.md)** - Implementation phases and current progress
 
 ## Project Overview
@@ -73,7 +74,16 @@ Component → Hook → Service → Repository → Database
 
 ## Development Patterns
 
-### Creating a New Feature
+### 🚀 Creating a New Feature
+
+**IMPORTANT:** Follow the **[FEATURE_DEVELOPMENT_GUIDE.md](./docs/features/FEATURE_DEVELOPMENT_GUIDE.md)** for detailed step-by-step instructions on building new features. The guide includes:
+- Complete implementation checklist
+- Code templates and examples
+- Common pitfalls to avoid
+- Testing guidelines
+- Real-world patterns from existing features
+
+### Quick Overview
 
 #### 1. Repository Layer
 ```typescript

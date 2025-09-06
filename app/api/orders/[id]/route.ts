@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RepairTicketRepository } from '@/lib/repositories/repair-ticket.repository';
-import { TicketNoteRepository } from '@/lib/repositories/ticket-note.repository';
+import { getRepository } from '@/lib/repositories/repository-manager';
+import { TicketTransformer } from '@/lib/transformers/ticket.transformer';
 import { requireAuth, requirePermission, handleApiError, successResponse } from '@/lib/auth/helpers';
 import { Permission, AuthorizationService } from '@/lib/services/authorization.service';
 
@@ -21,8 +21,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const ticketId = resolvedParams.id;
     
-    // Create repository instance - use service role for full data access
-    const ticketRepo = new RepairTicketRepository(true);
+    // Get repository instance - use service role for full data access
+    const ticketRepo = getRepository.tickets(true);
     
     // Try to get ticket with full details first
     let ticket: any = null;
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Get ticket notes as well
-    const noteRepo = new TicketNoteRepository();
+    const noteRepo = getRepository.notes();
     const notes = await noteRepo.findByTicket(ticketId);
 
     return successResponse({
@@ -84,8 +84,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const ticketId = resolvedParams.id;
     const body = await request.json();
     
-    // Create repository instance
-    const ticketRepo = new RepairTicketRepository();
+    // Get repository instance using singleton manager
+    const ticketRepo = getRepository.tickets();
     
     // Check if ticket exists
     const existingTicket = await ticketRepo.findById(ticketId);
@@ -137,8 +137,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const ticketId = resolvedParams.id;
     
-    // Create repository instance
-    const ticketRepo = new RepairTicketRepository();
+    // Get repository instance using singleton manager
+    const ticketRepo = getRepository.tickets();
     
     // Check if ticket exists
     const existingTicket = await ticketRepo.findById(ticketId);

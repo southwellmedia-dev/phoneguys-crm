@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RepairTicketRepository } from '@/lib/repositories/repair-ticket.repository';
-import { TicketNoteRepository } from '@/lib/repositories/ticket-note.repository';
+import { getRepository } from '@/lib/repositories/repository-manager';
+import { TicketTransformer } from '@/lib/transformers/ticket.transformer';
 import { requireAuth, requirePermission, handleApiError, successResponse, paginatedResponse } from '@/lib/auth/helpers';
 import { Permission } from '@/lib/services/authorization.service';
 import { FilterOperator } from '@/lib/types/database.types';
@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy') || 'created_at';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
-    // Create repository instance
-    const ticketRepo = new RepairTicketRepository();
+    // Get repository instance using singleton manager
+    const ticketRepo = getRepository.tickets();
 
     // Build filters
     const filters: any[] = [];
@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create repository instance
-    const ticketRepo = new RepairTicketRepository();
+    // Get repository instance using singleton manager
+    const ticketRepo = getRepository.tickets();
 
     // Extract services array before creating ticket
     const selectedServices = body.selected_services;
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
 
     // Add internal notes if provided
     if (body.internal_notes) {
-      const noteRepo = new TicketNoteRepository();
+      const noteRepo = getRepository.notes();
       await noteRepo.create({
         ticket_id: ticket.id,
         user_id: authResult.userId,

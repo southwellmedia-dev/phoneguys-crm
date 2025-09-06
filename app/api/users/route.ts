@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { UserRepository } from '@/lib/repositories/user.repository';
+import { getRepository } from '@/lib/repositories/repository-manager';
 import { requirePermission, handleApiError, successResponse } from '@/lib/auth/helpers';
 import { Permission, AuthorizationService } from '@/lib/services/authorization.service';
 import { z } from 'zod';
@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
     const role = searchParams.get('role');
     const isActive = searchParams.get('isActive');
 
-    // Create repository instance
-    const userRepo = new UserRepository();
+    // Get repository instance using singleton manager
+    const userRepo = getRepository.users();
     
     // Build filters
     let filters: any = {};
@@ -104,8 +104,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create repository instance
-    const userRepo = new UserRepository();
+    // Get repository instance using singleton manager
+    const userRepo = getRepository.users();
 
     // Check if user already exists
     const existing = await userRepo.findByEmail(validation.data.email);

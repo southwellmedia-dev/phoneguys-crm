@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { CustomerDeviceRepository } from '@/lib/repositories/customer-device.repository';
+import { getRepository } from '@/lib/repositories/repository-manager';
 import { requireAuth, handleApiError, successResponse } from '@/lib/auth/helpers';
 
 export async function PATCH(
@@ -32,7 +32,7 @@ export async function PATCH(
     });
     
     // Update device
-    const customerDeviceRepo = new CustomerDeviceRepository();
+    const customerDeviceRepo = getRepository.customerDevices();
     
     // If setting as primary, unset other primary devices first
     if (body.is_primary === true) {
@@ -78,7 +78,7 @@ export async function DELETE(
     const { deviceId } = params;
     
     // Soft delete the device
-    const customerDeviceRepo = new CustomerDeviceRepository();
+    const customerDeviceRepo = getRepository.customerDevices();
     const result = await customerDeviceRepo.update(deviceId, { is_active: false });
     
     if (!result) {

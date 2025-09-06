@@ -48,7 +48,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CustomerDevice } from '@/lib/types/database.types';
-import { DeviceRepository } from '@/lib/repositories/device.repository';
 
 interface CustomerDevicesProps {
   customerId: string;
@@ -98,9 +97,14 @@ export function CustomerDevices({ customerId, customerName }: CustomerDevicesPro
 
   const loadAvailableDevices = async () => {
     try {
-      const repo = new DeviceRepository();
-      const allDevices = await repo.findAll();
-      setAvailableDevices(allDevices);
+      // Use API endpoint instead of direct repository access
+      const response = await fetch('/api/devices/available');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableDevices(data.data || []);
+      } else {
+        console.error('Failed to load available devices');
+      }
     } catch (error) {
       console.error('Error loading available devices:', error);
     }

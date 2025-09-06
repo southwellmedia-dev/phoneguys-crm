@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { ServiceService } from '@/lib/services/service.service';
-import { UserRepository } from '@/lib/repositories/user.repository';
+import { getRepository } from '@/lib/repositories/repository-manager';
 import { z } from 'zod';
 
 const UpdateServiceSchema = z.object({
@@ -28,7 +28,7 @@ async function checkAdminAuth() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const userRepo = new UserRepository();
+  const userRepo = getRepository.users();
   const userData = await userRepo.findByEmail(user.email || '');
   
   if (userData?.role !== 'admin') {

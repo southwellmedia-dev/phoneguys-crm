@@ -1,11 +1,4 @@
-import { 
-  RepairTicketRepository, 
-  CustomerRepository, 
-  TicketNoteRepository,
-  TimeEntryRepository,
-  NotificationRepository,
-  UserRepository 
-} from '@/lib/repositories';
+import { getRepository } from '@/lib/repositories/repository-manager';
 import { 
   RepairTicket, 
   Customer,
@@ -17,20 +10,43 @@ import {
 } from '@/lib/types';
 
 export class RepairOrderService {
-  private ticketRepo: RepairTicketRepository;
-  private customerRepo: CustomerRepository;
-  private noteRepo: TicketNoteRepository;
-  private timeRepo: TimeEntryRepository;
-  private notificationRepo: NotificationRepository;
-  private userRepo: UserRepository;
+  private useServiceRole: boolean;
 
   constructor(useServiceRole = false) {
-    this.ticketRepo = new RepairTicketRepository(useServiceRole);
-    this.customerRepo = new CustomerRepository(useServiceRole);
-    this.noteRepo = new TicketNoteRepository(useServiceRole);
-    this.timeRepo = new TimeEntryRepository(useServiceRole);
-    this.notificationRepo = new NotificationRepository(useServiceRole);
-    this.userRepo = new UserRepository(useServiceRole);
+    // Store the service role flag for repository access
+    this.useServiceRole = useServiceRole;
+  }
+
+  // Lazy load repositories using singleton manager
+  private get ticketRepo() {
+    return getRepository.tickets(this.useServiceRole);
+  }
+
+  private get customerRepo() {
+    return getRepository.customers(this.useServiceRole);
+  }
+
+  private get noteRepo() {
+    return getRepository.notes(this.useServiceRole);
+  }
+
+  private get timeRepo() {
+    // Note: TimeEntryRepository not in getRepository helper yet
+    // You may want to add it to the repository manager
+    const { TimeEntryRepository } = require('@/lib/repositories');
+    const { RepositoryManager } = require('@/lib/repositories/repository-manager');
+    return RepositoryManager.get(TimeEntryRepository, this.useServiceRole);
+  }
+
+  private get notificationRepo() {
+    // Note: NotificationRepository not in getRepository helper yet
+    const { NotificationRepository } = require('@/lib/repositories');
+    const { RepositoryManager } = require('@/lib/repositories/repository-manager');
+    return RepositoryManager.get(NotificationRepository, this.useServiceRole);
+  }
+
+  private get userRepo() {
+    return getRepository.users(this.useServiceRole);
   }
 
   async createRepairOrder(data: CreateRepairTicketDto): Promise<RepairTicket> {

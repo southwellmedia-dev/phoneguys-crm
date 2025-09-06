@@ -4,6 +4,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { Order } from '@/components/orders/orders-columns';
+import { TicketTransformer } from '@/lib/transformers/ticket.transformer';
 
 /**
  * Centralized Real-Time Service
@@ -76,30 +77,32 @@ export class RealtimeService {
     return channel;
   }
 
+  // Cache for preventing duplicate fetches
+  private fetchCache = new Map<string, Promise<any>>();
+  private cacheTimeout = 1000; // 1 second cache
+
   private async handleTicketInsert(payload: RealtimePostgresChangesPayload<any>) {
     console.log('🆕 New ticket created:', payload.new.ticket_number);
     
-    // Fetch full ticket data with relationships
+    // Check cache to prevent duplicate fetches
+    const cacheKey = `insert-${payload.new.id}`;
+    let fetchPromise = this.fetchCache.get(cacheKey);
+    
+    if (!fetchPromise) {
+      // Use optimized real-time endpoint
+      fetchPromise = fetch(`/api/orders/${payload.new.id}/realtime`)
+        .then(res => res.ok ? res.json() : null);
+      
+      this.fetchCache.set(cacheKey, fetchPromise);
+      
+      // Clear cache after timeout
+      setTimeout(() => this.fetchCache.delete(cacheKey), this.cacheTimeout);
+    }
+    
     try {
-      const response = await fetch(`/api/orders/${payload.new.id}`);
-      if (response.ok) {
-        const fullTicket = await response.json();
-        
-        // Transform to Order format
-        const newOrder: Order = {
-          id: fullTicket.id,
-          ticket_number: fullTicket.ticket_number,
-          customer_id: fullTicket.customer_id,
-          customer_name: fullTicket.customers?.name || "Unknown Customer",
-          customer_phone: fullTicket.customers?.phone || "",
-          device_brand: fullTicket.device?.manufacturer?.name || fullTicket.device_brand || "",
-          device_model: fullTicket.device?.model_name || fullTicket.device_model || "",
-          repair_issues: fullTicket.repair_issues || [],
-          status: fullTicket.status,
-          created_at: fullTicket.created_at,
-          updated_at: fullTicket.updated_at,
-          timer_total_minutes: fullTicket.total_time_minutes || 0,
-        };
+      const newOrder = await fetchPromise;
+      
+      if (newOrder) {
         
         // Update all ticket list queries - add to beginning
         this.queryClient.setQueriesData(
@@ -119,31 +122,42 @@ export class RealtimeService {
     }
   }
 
+  // Debounce map for rapid updates
+  private updateDebounce = new Map<string, NodeJS.Timeout>();
+  private debounceDelay = 100; // 100ms debounce
+
   private handleTicketUpdate(payload: RealtimePostgresChangesPayload<any>) {
     console.log('🔄 Ticket updated:', payload.new.ticket_number);
     
+    const ticketId = payload.new.id;
+    
+    // Clear existing debounce for this ticket
+    const existingTimeout = this.updateDebounce.get(ticketId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+    
+    // Debounce rapid updates
+    const timeout = setTimeout(() => {
+      this.applyTicketUpdate(payload);
+      this.updateDebounce.delete(ticketId);
+    }, this.debounceDelay);
+    
+    this.updateDebounce.set(ticketId, timeout);
+  }
+  
+  private applyTicketUpdate(payload: RealtimePostgresChangesPayload<any>) {
     const updated = payload.new;
     const old = payload.old;
     
-    // Update all ticket list queries
+    // Update all ticket list queries using transformer
     this.queryClient.setQueriesData(
       { queryKey: ['tickets'], exact: false },
       (oldData: Order[] = []) => {
         return oldData.map(ticket => {
           if (ticket.id === updated.id) {
-            return {
-              ...ticket,
-              status: updated.status,
-              updated_at: updated.updated_at,
-              timer_is_running: updated.timer_is_running,
-              timer_started_at: updated.timer_started_at,
-              timer_total_minutes: updated.timer_total_minutes || ticket.timer_total_minutes,
-              // Preserve customer/device info unless specifically updated
-              customer_id: updated.customer_id || ticket.customer_id,
-              device_brand: updated.device_brand || ticket.device_brand,
-              device_model: updated.device_model || ticket.device_model,
-              repair_issues: updated.repair_issues || ticket.repair_issues,
-            };
+            // Use transformer to merge updates consistently
+            return TicketTransformer.mergeOrderUpdate(ticket, updated);
           }
           return ticket;
         });
@@ -366,33 +380,54 @@ export class RealtimeService {
     return channel;
   }
 
-  private handleCustomerInsert(payload: RealtimePostgresChangesPayload<any>) {
+  private async handleCustomerInsert(payload: RealtimePostgresChangesPayload<any>) {
     console.log('👤 New customer created:', payload.new.name);
     
-    // Add to all customer list queries
-    this.queryClient.setQueriesData(
-      { queryKey: ['customers'], exact: false },
-      (old: any) => {
-        // Handle both array and object with data property
-        if (Array.isArray(old)) {
-          if (old.find((c: any) => c.id === payload.new.id)) return old;
-          return [payload.new, ...old];
-        } else if (old?.data && Array.isArray(old.data)) {
-          if (old.data.find((c: any) => c.id === payload.new.id)) return old;
-          return {
-            ...old,
-            data: [payload.new, ...old.data]
-          };
-        }
-        return old;
+    // Check cache to prevent duplicate fetches
+    const cacheKey = `customer-insert-${payload.new.id}`;
+    let fetchPromise = this.fetchCache.get(cacheKey);
+    
+    if (!fetchPromise) {
+      // Use optimized real-time endpoint
+      fetchPromise = fetch(`/api/customers/${payload.new.id}/realtime`)
+        .then(res => res.ok ? res.json() : null);
+      
+      this.fetchCache.set(cacheKey, fetchPromise);
+      setTimeout(() => this.fetchCache.delete(cacheKey), this.cacheTimeout);
+    }
+    
+    try {
+      const customerData = await fetchPromise;
+      
+      if (customerData) {
+        // Add to all customer list queries
+        this.queryClient.setQueriesData(
+          { queryKey: ['customers'], exact: false },
+          (old: any) => {
+            // Handle both array and object with data property
+            if (Array.isArray(old)) {
+              if (old.find((c: any) => c.id === customerData.id)) return old;
+              return [customerData, ...old];
+            } else if (old?.data && Array.isArray(old.data)) {
+              if (old.data.find((c: any) => c.id === customerData.id)) return old;
+              return {
+                ...old,
+                data: [customerData, ...old.data]
+              };
+            }
+            return old;
+          }
+        );
       }
-    );
+    } catch (error) {
+      console.error('Error fetching new customer data:', error);
+    }
 
     // Update dashboard counts
     this.updateDashboardCounts('customers', 'increment');
   }
 
-  private handleCustomerUpdate(payload: RealtimePostgresChangesPayload<any>) {
+  private handleCustomerUpdate(payload: RealtimePostgresChangesPayload<Record<string, any>>) {
     console.log('👤 Customer updated:', payload.new.name);
     
     // Update all customer list queries
@@ -562,7 +597,7 @@ export class RealtimeService {
     }
   }
 
-  private handleAppointmentUpdate(payload: RealtimePostgresChangesPayload<any>) {
+  private handleAppointmentUpdate(payload: RealtimePostgresChangesPayload<Record<string, any>>) {
     console.log('📅 Appointment updated:', payload.new.appointment_number);
     
     // Update all appointment list queries, preserving customer and device data
@@ -753,6 +788,14 @@ export class RealtimeService {
   }
 
   unsubscribeAll() {
+    // Clear all debounce timeouts
+    this.updateDebounce.forEach(timeout => clearTimeout(timeout));
+    this.updateDebounce.clear();
+    
+    // Clear fetch cache
+    this.fetchCache.clear();
+    
+    // Unsubscribe from all channels
     this.channels.forEach((channel, name) => {
       this.supabase.removeChannel(channel);
       console.log(`🔌 Unsubscribed from ${name}`);
@@ -767,5 +810,25 @@ export class RealtimeService {
 
   getActiveSubscriptions(): string[] {
     return Array.from(this.channels.keys());
+  }
+  
+  /**
+   * Get cache statistics for monitoring
+   */
+  getCacheStats() {
+    return {
+      fetchCacheSize: this.fetchCache.size,
+      debounceQueueSize: this.updateDebounce.size,
+      activeChannels: this.channels.size,
+      isConnected: this.isConnected
+    };
+  }
+  
+  /**
+   * Clear stale cache entries
+   */
+  clearStaleCache() {
+    this.fetchCache.clear();
+    console.log('🧹 Cleared fetch cache');
   }
 }

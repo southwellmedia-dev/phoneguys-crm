@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { UserRepository } from '@/lib/repositories/user.repository';
+import { getRepository } from '@/lib/repositories/repository-manager';
 import { UserService, InviteUserInput } from '@/lib/services/user.service';
 import { z } from 'zod';
 
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is admin
-    const userRepo = new UserRepository();
+    const userRepo = getRepository.users();
     const userData = await userRepo.findByEmail(user.email || '');
     
     if (userData?.role !== 'admin') {

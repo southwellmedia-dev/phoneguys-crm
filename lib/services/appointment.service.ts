@@ -291,11 +291,13 @@ export class AppointmentService {
       priority: appointment.urgency === 'emergency' ? 'urgent' : 'medium',
     } as any);
 
+    // Create supabase client for direct database operations
+    const supabase = createServiceClient();
+
     // Add services to the ticket
     const serviceIds = additionalData?.selected_services || appointment.service_ids || [];
     if (serviceIds.length > 0) {
       // Create ticket_services entries for each selected service
-      const supabase = createServiceClient();
       
       // Get service details to get prices
       const { data: services } = await supabase
@@ -345,7 +347,7 @@ export class AppointmentService {
       
       // Create customer note if exists
       if (customerNotes) {
-        await this.supabase
+        await supabase
           .from('ticket_notes')
           .insert({
             ticket_id: ticket.id,
@@ -357,7 +359,7 @@ export class AppointmentService {
       
       // Create technician note if exists
       if (technicianNotes) {
-        await this.supabase
+        await supabase
           .from('ticket_notes')
           .insert({
             ticket_id: ticket.id,
@@ -368,7 +370,7 @@ export class AppointmentService {
       }
       
       // Create system note about conversion
-      await this.supabase
+      await supabase
         .from('ticket_notes')
         .insert({
           ticket_id: ticket.id,

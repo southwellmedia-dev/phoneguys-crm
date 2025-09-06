@@ -8,53 +8,137 @@
 
 ```
 phoneguys-crm/
-├── app/                      # Next.js App Router
-│   ├── (auth)/              # Authentication group routes
-│   │   ├── login/
-│   │   ├── signup/
-│   │   └── forgot-password/
-│   ├── (dashboard)/         # Protected dashboard routes
-│   │   ├── layout.tsx       # Dashboard layout wrapper
-│   │   ├── page.tsx         # Dashboard home
-│   │   ├── orders/          # Order management
-│   │   │   ├── page.tsx     # Orders list
-│   │   │   └── [id]/        # Order detail
-│   │   ├── customers/       # Customer management
-│   │   │   ├── page.tsx     # Customers list
-│   │   │   └── [id]/        # Customer detail
-│   │   ├── reports/         # Reporting section
-│   │   └── settings/        # Settings pages
-│   ├── api/                 # API Routes
-│   │   ├── repairs/         # External API for Astro
-│   │   ├── orders/          # Internal order API
-│   │   ├── customers/       # Customer API
-│   │   └── notifications/   # Notification API
-│   ├── layout.tsx           # Root layout
-│   ├── globals.css          # Global styles
-│   └── providers.tsx        # App-wide providers
+├── app/                         # Next.js 15 App Router
+│   ├── (dashboard)/            # Protected CRM routes
+│   │   ├── layout.tsx          # Dashboard layout with sidebar
+│   │   ├── page.tsx            # Dashboard home
+│   │   ├── orders/             # Repair ticket management
+│   │   │   ├── page.tsx        # Orders list
+│   │   │   ├── [id]/           # Order detail pages
+│   │   │   │   ├── page.tsx    # View order
+│   │   │   │   └── edit/       # Edit order
+│   │   │   └── new/            # Create new order
+│   │   ├── customers/          # Customer management
+│   │   │   ├── page.tsx        # Customers list
+│   │   │   ├── [id]/           # Customer detail pages
+│   │   │   │   ├── page.tsx    # View customer
+│   │   │   │   └── edit/       # Edit customer
+│   │   │   └── new/            # Create new customer
+│   │   └── appointments/       # Appointment scheduling
+│   │       ├── page.tsx        # Appointments list
+│   │       ├── [id]/           # Appointment detail
+│   │       └── new/            # Create appointment
+│   │
+│   ├── admin/                  # Admin-only routes
+│   │   ├── layout.tsx          # Admin layout
+│   │   ├── devices/            # Device model management
+│   │   ├── services/           # Service catalog
+│   │   ├── users/              # User management
+│   │   └── media/              # Media library
+│   │
+│   ├── api/                    # REST API Routes
+│   │   ├── orders/             # Ticket/Order endpoints
+│   │   │   ├── route.ts        # List/Create orders
+│   │   │   └── [id]/           # Single order operations
+│   │   │       ├── route.ts    # Get/Update/Delete
+│   │   │       ├── realtime/   # Optimized real-time endpoint
+│   │   │       ├── timer/      # Timer operations
+│   │   │       └── photos/     # Photo management
+│   │   ├── customers/          # Customer endpoints
+│   │   ├── appointments/       # Appointment endpoints
+│   │   ├── repairs/            # External API (Astro integration)
+│   │   ├── admin/              # Admin-only endpoints
+│   │   │   ├── devices/        # Device CRUD
+│   │   │   ├── services/       # Service CRUD
+│   │   │   └── users/          # User management
+│   │   └── dashboard/          # Dashboard statistics
+│   │
+│   ├── auth/                   # Authentication pages
+│   │   ├── login/              # Login page
+│   │   ├── sign-up/            # Registration
+│   │   ├── forgot-password/    # Password reset
+│   │   └── callback/           # OAuth callback
+│   │
+│   ├── layout.tsx              # Root layout
+│   ├── globals.css             # Global styles
+│   └── not-found.tsx           # 404 page
 │
-├── components/              # React Components
-│   ├── ui/                 # shadcn/ui primitives
-│   ├── forms/              # Form components
-│   ├── tables/             # Table components
-│   ├── charts/             # Chart components
-│   └── layout/             # Layout components
+├── components/                 # React Components
+│   ├── ui/                    # shadcn/ui primitives (New York style)
+│   ├── admin/                 # Admin-specific components
+│   ├── appointments/          # Appointment components
+│   ├── customers/             # Customer components
+│   ├── dashboard/             # Dashboard widgets
+│   ├── forms/                 # Form components
+│   ├── layout/                # Layout components (sidebar, header)
+│   ├── orders/                # Order/ticket components
+│   ├── providers/             # Context providers
+│   ├── skeletons/             # Loading skeletons
+│   └── tables/                # Data table components
 │
-├── lib/                    # Core library code
-│   ├── repositories/       # Data access layer
-│   ├── services/          # Business logic layer
-│   ├── supabase/          # Supabase clients
-│   ├── utils/             # Utility functions
-│   ├── hooks/             # Custom React hooks
-│   ├── types/             # TypeScript types
-│   └── validations/       # Zod schemas
+├── lib/                       # Core application logic
+│   ├── auth/                  # Authentication utilities
+│   ├── constants/             # App constants
+│   ├── contexts/              # React contexts
+│   ├── design/                # Design system tokens
+│   ├── hooks/                 # Custom React hooks
+│   │   ├── use-tickets.ts     # Ticket data fetching
+│   │   ├── use-customers.ts   # Customer data fetching
+│   │   ├── use-realtime.ts    # Real-time subscriptions
+│   │   └── use-admin.ts       # Admin data hooks
+│   ├── providers/             # Provider components
+│   ├── repositories/          # Database access layer
+│   │   ├── base.repository.ts # Base repository class
+│   │   ├── repository-manager.ts # Singleton manager (NEW)
+│   │   └── *.repository.ts    # Entity repositories
+│   ├── services/              # Business logic layer
+│   │   ├── realtime.service.ts # Real-time WebSocket management
+│   │   ├── timer.service.ts    # Global timer service
+│   │   └── *.service.ts        # Domain services
+│   ├── stores/                # Zustand stores (if needed)
+│   ├── supabase/              # Supabase configuration
+│   │   ├── client.ts          # Browser client
+│   │   ├── server.ts          # Server client
+│   │   └── service.ts         # Service role client
+│   ├── transformers/          # Data transformers (NEW)
+│   │   ├── ticket.transformer.ts
+│   │   ├── customer.transformer.ts
+│   │   └── appointment.transformer.ts
+│   ├── types/                 # TypeScript definitions
+│   │   ├── database.types.ts  # Database schema types
+│   │   └── index.ts           # Exported types
+│   ├── utils.ts               # Utility functions
+│   └── validations/           # Zod validation schemas
 │
-├── public/                # Static assets
-├── supabase/             # Supabase config
-│   ├── migrations/       # Database migrations
-│   ├── functions/        # Edge functions (if needed)
-│   └── seed.sql          # Seed data
-└── docs/                 # Documentation
+├── public/                    # Static assets
+│   ├── images/               # Images
+│   └── fonts/                # Custom fonts (if any)
+│
+├── supabase/                 # Supabase configuration
+│   ├── migrations/           # Database migrations
+│   │   ├── 20250906132220_remote_schema.sql
+│   │   └── 20250906132236_remote_schema.sql
+│   ├── seed.sql             # Development seed data
+│   └── config.toml           # Local Supabase config
+│
+├── docs/                     # Project documentation
+│   ├── ARCHITECTURE_ANALYSIS.md
+│   ├── DEVELOPMENT_GUIDELINES.md
+│   ├── LOCAL_DEVELOPMENT_WORKFLOW.md
+│   ├── PROJECT_MASTER.md
+│   └── project-checklist.md
+│
+├── scripts/                  # Utility scripts
+│   └── update-repositories.js # Repository update script
+│
+└── Configuration Files
+    ├── .env.local           # Local environment variables
+    ├── .env.local.development # Development config
+    ├── .env.local.production  # Production config
+    ├── next.config.js       # Next.js configuration
+    ├── tailwind.config.ts   # Tailwind CSS config
+    ├── tsconfig.json        # TypeScript config
+    └── package.json         # Dependencies
 ```
 
 ## 🏗️ Architecture Patterns
@@ -121,18 +205,76 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
 }
 ```
 
-### 2. Service Layer
-Business logic should be encapsulated in services:
+#### Repository Manager Pattern (NEW)
+To improve performance and resource management, use the Repository Manager for singleton instances:
+
+```typescript
+// lib/repositories/repository-manager.ts
+import { getRepository, RepositoryManager } from '@/lib/repositories/repository-manager';
+
+// In API routes (server-side only):
+export async function GET(request: NextRequest) {
+  // Use the convenient helper functions
+  const ticketRepo = getRepository.tickets();
+  const customerRepo = getRepository.customers();
+  
+  // Or use with service role for admin operations
+  const adminRepo = getRepository.tickets(true);
+  
+  // The Repository Manager handles:
+  // - Singleton instances (reused across requests)
+  // - Automatic cleanup of stale instances (5-minute TTL)
+  // - Memory optimization
+  // - Connection pooling
+}
+
+// SECURITY: Repository Manager includes runtime checks
+// It will throw an error if used in client-side code
+```
+
+### 2. Data Transformers
+Use transformers to ensure consistent data shapes across the application:
+
+```typescript
+// lib/transformers/ticket.transformer.ts
+import { TicketTransformer } from '@/lib/transformers/ticket.transformer';
+
+// Transform database model to display format
+const order = TicketTransformer.toOrder(ticketWithRelations);
+
+// Transform multiple items
+const orders = TicketTransformer.toOrders(tickets);
+
+// Merge updates consistently
+const updated = TicketTransformer.mergeOrderUpdate(existing, partialUpdate);
+
+// Available transformers:
+// - TicketTransformer: RepairTicket ↔ Order transformations
+// - CustomerTransformer: Customer display formats and validation
+// - AppointmentTransformer: Appointment conversions and formatting
+```
+
+### 3. Service Layer
+Business logic should be encapsulated in services. Services should use the Repository Manager for singleton instances:
 
 ```typescript
 // lib/services/repair-order.service.ts
-export class RepairOrderService {
-  private ticketRepo: RepairTicketRepository;
-  private notificationService: NotificationService;
+import { getRepository } from '@/lib/repositories/repository-manager';
 
-  constructor() {
-    this.ticketRepo = new RepairTicketRepository();
-    this.notificationService = new NotificationService();
+export class RepairOrderService {
+  private useServiceRole: boolean;
+
+  constructor(useServiceRole = false) {
+    this.useServiceRole = useServiceRole;
+  }
+
+  // Lazy load repositories using singleton manager
+  private get ticketRepo() {
+    return getRepository.tickets(this.useServiceRole);
+  }
+
+  private get notificationService() {
+    return new NotificationService(); // Services can still be instantiated
   }
 
   async createRepairOrder(data: CreateRepairOrderDto): Promise<RepairTicket> {

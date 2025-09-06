@@ -48,7 +48,9 @@ export function TimerControl({
   useEffect(() => {
     const checkAdminStatus = async () => {
       try {
-        const response = await fetch('/api/auth/session');
+        // Use window.location.origin to ensure we're hitting the correct host
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+        const response = await fetch(`${baseUrl}/api/auth/session`);
         if (response.ok) {
           const data = await response.json();
           setIsAdmin(data.user?.role === 'admin' || data.user?.role === 'super_admin');

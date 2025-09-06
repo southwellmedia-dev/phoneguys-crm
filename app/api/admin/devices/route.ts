@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { DeviceRepository } from '@/lib/repositories/device.repository';
-import { UserRepository } from '@/lib/repositories/user.repository';
+import { getRepository } from '@/lib/repositories/repository-manager';
 import { checkAdminAuthOptimized } from '@/lib/auth/admin-auth';
 import { z } from 'zod';
 
@@ -23,7 +22,7 @@ async function checkAdminAuth() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const userRepo = new UserRepository();
+  const userRepo = getRepository.users();
   const userData = await userRepo.findByEmail(user.email || '');
   
   if (userData?.role !== 'admin') {
@@ -44,7 +43,7 @@ export async function GET() {
 
   try {
     const queryStart = Date.now();
-    const deviceRepo = new DeviceRepository();
+    const deviceRepo = getRepository.devices();
     const devices = await deviceRepo.getActiveDevices();
     const queryTime = Date.now() - queryStart;
     console.log(`[Devices API] Database query took: ${queryTime}ms`);
@@ -82,7 +81,7 @@ export async function POST(request: NextRequest) {
       specifications: validatedData.specifications || {},
     };
 
-    const deviceRepo = new DeviceRepository();
+    const deviceRepo = getRepository.devices();
     const device = await deviceRepo.create(cleanedData);
     
     return NextResponse.json({ success: true, data: device }, { status: 201 });

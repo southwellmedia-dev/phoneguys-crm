@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { UserRepository } from '@/lib/repositories/user.repository';
+import { getRepository } from '@/lib/repositories/repository-manager';
 import { requirePermission, handleApiError, successResponse } from '@/lib/auth/helpers';
 import { Permission, AuthorizationService } from '@/lib/services/authorization.service';
 import { z } from 'zod';
@@ -29,8 +29,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const userId = params.id;
     
-    // Create repository instance
-    const userRepo = new UserRepository();
+    // Get repository instance using singleton manager
+    const userRepo = getRepository.users();
     const user = await userRepo.findById(userId);
 
     if (!user) {
@@ -104,8 +104,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // Create repository instance
-    const userRepo = new UserRepository();
+    // Get repository instance using singleton manager
+    const userRepo = getRepository.users();
 
     // Update user
     const updatedUser = await userRepo.update(userId, validation.data);
@@ -143,8 +143,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Create repository instance
-    const userRepo = new UserRepository();
+    // Get repository instance using singleton manager
+    const userRepo = getRepository.users();
 
     // Soft delete (mark as inactive)
     await userRepo.update(userId, { is_active: false });

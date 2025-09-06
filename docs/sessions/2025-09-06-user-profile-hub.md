@@ -106,12 +106,29 @@ Successfully implemented a comprehensive User Profile Hub system with statistics
 
 ### 7. Bug Fixes & Improvements (Session 2)
 
-#### Repository Instance Caching Issue:
+#### Repository Instance Caching Issues (Session 3):
 1. **Error: "this.noteRepo.createNote is not a function"**
    - Occurred when changing ticket status to complete in production
    - Root cause: Stale repository instance or module caching issue
    - Solution: Restarting the dev server cleared cached instances
    - No code changes required - issue was environment-related
+
+2. **Error: "e.findByEmail is not a function"**
+   - Occurred when inviting users in production
+   - Root cause: Direct repository instantiation instead of using singleton manager
+   - Fix: Updated UserService to use `getRepository.users()` instead of `new UserRepository()`
+
+3. **Error: 405 Method Not Allowed on appointment assignment**
+   - Occurred when trying to assign appointments
+   - Root cause: Missing PATCH handler in `/api/appointments/[id]/route.ts`
+   - Fix: Created complete appointment API route with GET, PATCH, DELETE handlers
+   - Added proper validation to prevent reassignment of converted/cancelled appointments
+
+4. **Service Repository Pattern Updates**
+   - Updated `UserService` to use repository manager singleton
+   - Updated `CustomerService` to use repository manager singleton
+   - Updated `AppointmentService` to use repository manager singleton
+   - This ensures consistent repository instance management across the application
 
 ### 8. Additional Bug Fixes
 

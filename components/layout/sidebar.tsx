@@ -338,9 +338,9 @@ export function Sidebar({ user }: SidebarProps) {
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href={`/admin/users/${user.id}/profile`} className="flex items-center cursor-pointer">
+                <Link href="/profile" className="flex items-center cursor-pointer">
                   <User className="mr-2 h-4 w-4" />
-                  <span>Profile Hub</span>
+                  <span>My Profile</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>

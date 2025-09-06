@@ -42,8 +42,6 @@ const navigation = [
   { name: "Appointments", href: "/appointments", icon: Calendar },
   { name: "Tickets", href: "/orders", icon: Package },
   { name: "Customers", href: "/customers", icon: Users },
-  { name: "Reports", href: "/reports", icon: FileText, disabled: true },
-  { name: "Settings", href: "/settings", icon: Settings, disabled: true },
 ];
 
 const adminNavigation = [
@@ -51,6 +49,8 @@ const adminNavigation = [
   { name: "Devices", href: "/admin/devices", icon: Smartphone },
   { name: "Services", href: "/admin/services", icon: Wrench },
   { name: "Media Gallery", href: "/admin/media", icon: Image },
+  { name: "Reports", href: "/reports", icon: FileText, disabled: true },
+  { name: "Settings", href: "/settings", icon: Settings, disabled: true },
 ];
 
 interface SidebarProps {
@@ -123,20 +123,14 @@ export function Sidebar({ user }: SidebarProps) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/20 pointer-events-none dark:from-primary/5 dark:via-transparent dark:to-accent/5" />
       
       <div className="relative flex flex-col h-full overflow-hidden">
-        {/* Logo Section - Enhanced - Matching header height (h-16) */}
-        <div className="h-16 px-6 flex items-center border-b border-white/10 dark:border-border/50 bg-gradient-to-r from-transparent via-white/5 to-transparent dark:from-transparent dark:via-muted/20 dark:to-transparent">
-          <Link href="/" className="flex items-center space-x-3 group">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 overflow-hidden">
-              <img
-                src="https://egotypldqzdzjclikmeg.supabase.co/storage/v1/object/public/device-images/phone-guys-lg.jpg"
-                alt="The Phone Guys"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-white dark:text-foreground">The Phone Guys</h1>
-              <p className="text-xs text-white/70 dark:text-muted-foreground">CRM & Ticketing Platform</p>
-            </div>
+        {/* Logo Section - Enhanced - Matching header height (h-28) */}
+        <div className="h-28 px-4 py-4 flex items-center border-b border-white/10 dark:border-border/50 bg-gradient-to-r from-transparent via-white/5 to-transparent dark:from-transparent dark:via-muted/20 dark:to-transparent">
+          <Link href="/" className="group w-full h-full">
+            <img
+              src="https://egotypldqzdzjclikmeg.supabase.co/storage/v1/object/public/device-images/phoneguys-logo.png"
+              alt="The Phone Guys"
+              className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
+            />
           </Link>
         </div>
 
@@ -156,7 +150,6 @@ export function Sidebar({ user }: SidebarProps) {
                     <item.icon className="h-4 w-4 text-white/50 dark:text-muted-foreground" />
                   </div>
                   <span className="text-white/50 dark:text-muted-foreground">{item.name}</span>
-                  <span className="ml-auto text-xs text-white/40 dark:text-muted-foreground/70">Coming Soon</span>
                 </div>
               );
             }
@@ -209,6 +202,20 @@ export function Sidebar({ user }: SidebarProps) {
                   {adminNavigation.map((item) => {
                   const isActive = pathname === item.href || 
                     (item.href !== "/" && pathname.startsWith(item.href));
+                  
+                  if (item.disabled) {
+                    return (
+                      <div
+                        key={item.name}
+                        className="relative flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium opacity-50 cursor-not-allowed"
+                      >
+                        <div className="p-2 rounded-lg bg-white/10 dark:bg-muted/30">
+                          <item.icon className="h-4 w-4 text-white/50 dark:text-muted-foreground" />
+                        </div>
+                        <span className="text-white/50 dark:text-muted-foreground">{item.name}</span>
+                      </div>
+                    );
+                  }
                   
                   return (
                     <Link

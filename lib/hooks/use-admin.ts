@@ -34,9 +34,9 @@ export function useInviteUser() {
       if (!response.ok) throw new Error('Failed to invite user');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success('User invited successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      // Real-time will handle the cache update
     },
     onError: () => {
       toast.error('Failed to invite user');
@@ -57,9 +57,9 @@ export function useUpdateUser() {
       if (!response.ok) throw new Error('Failed to update user');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, { id, ...updatedData }) => {
       toast.success('User updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      // Real-time will handle the cache update
     },
     onError: () => {
       toast.error('Failed to update user');
@@ -78,9 +78,9 @@ export function useDeleteUser() {
       if (!response.ok) throw new Error('Failed to delete user');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, id) => {
       toast.success('User deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      // Real-time will handle the cache update
     },
     onError: () => {
       toast.error('Failed to delete user');
@@ -119,9 +119,9 @@ export function useCreateDevice() {
       if (!response.ok) throw new Error('Failed to create device');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success('Device created successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'devices'] });
+      // Real-time will handle the cache update
     },
     onError: () => {
       toast.error('Failed to create device');
@@ -142,9 +142,9 @@ export function useUpdateDevice() {
       if (!response.ok) throw new Error('Failed to update device');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, { id, ...updatedData }) => {
       toast.success('Device updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'devices'] });
+      // Real-time will handle the cache update
     },
     onError: () => {
       toast.error('Failed to update device');
@@ -163,9 +163,9 @@ export function useDeleteDevice() {
       if (!response.ok) throw new Error('Failed to delete device');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, id) => {
       toast.success('Device deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'devices'] });
+      // Real-time will handle the cache update
     },
     onError: () => {
       toast.error('Failed to delete device');
@@ -213,9 +213,9 @@ export function useCreateService() {
       if (!response.ok) throw new Error('Failed to create service');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success('Service created successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'services'] });
+      // Real-time will handle the cache update
     },
     onError: () => {
       toast.error('Failed to create service');
@@ -236,9 +236,9 @@ export function useUpdateService() {
       if (!response.ok) throw new Error('Failed to update service');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, { id, ...updatedData }) => {
       toast.success('Service updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'services'] });
+      // Real-time will handle the cache update
     },
     onError: () => {
       toast.error('Failed to update service');
@@ -257,9 +257,9 @@ export function useDeleteService() {
       if (!response.ok) throw new Error('Failed to delete service');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, id) => {
       toast.success('Service deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'services'] });
+      // Real-time will handle the cache update
     },
     onError: () => {
       toast.error('Failed to delete service');
@@ -297,9 +297,9 @@ export function useUploadMedia() {
       if (!response.ok) throw new Error('Failed to upload media');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success('Media uploaded successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'media-gallery'] });
+      // Real-time will handle the cache update
     },
     onError: () => {
       toast.error('Failed to upload media');
@@ -320,9 +320,9 @@ export function useDeleteMedia() {
       if (!response.ok) throw new Error('Failed to delete media');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, filename) => {
       toast.success('Media deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'media-gallery'] });
+      // Real-time will handle the cache update
     },
     onError: () => {
       toast.error('Failed to delete media');

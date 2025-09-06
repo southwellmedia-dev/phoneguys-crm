@@ -41,7 +41,8 @@ interface CustomerDevice {
   storage_size?: string;
   condition?: string;
   nickname?: string;
-  device?: Device;
+  device?: Device;  // Can come as 'device' from some queries
+  devices?: Device; // Can come as 'devices' from other queries (when using device_id alias)
 }
 
 interface DeviceSelectorProps {
@@ -131,9 +132,13 @@ export function DeviceSelector({
       if (customerDevice.device_id) {
         console.log('Setting device_id from customer device:', customerDevice.device_id);
         onDeviceChange(customerDevice.device_id);
+      } else if (customerDevice.devices?.id) {
+        // Handle 'devices' property (from device_id alias)
+        console.log('Setting device_id from devices property:', customerDevice.devices.id);
+        onDeviceChange(customerDevice.devices.id);
       } else if (customerDevice.device?.id) {
-        // Sometimes device info comes nested
-        console.log('Setting device_id from nested device:', customerDevice.device.id);
+        // Handle 'device' property
+        console.log('Setting device_id from device property:', customerDevice.device.id);
         onDeviceChange(customerDevice.device.id);
       }
       
@@ -208,11 +213,11 @@ export function DeviceSelector({
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <div className="font-medium">
-                        {cd.nickname || cd.device?.model_name || 'Unknown Device'}
+                        {cd.nickname || cd.devices?.model_name || cd.device?.model_name || 'Unknown Device'}
                       </div>
-                      {cd.device?.manufacturer?.name && (
+                      {(cd.devices?.manufacturer?.name || cd.device?.manufacturer?.name) && (
                         <div className="text-sm text-muted-foreground">
-                          {cd.device.manufacturer.name}
+                          {cd.devices?.manufacturer?.name || cd.device?.manufacturer?.name}
                         </div>
                       )}
                       <div className="flex gap-2 text-xs text-muted-foreground">
@@ -251,7 +256,30 @@ export function DeviceSelector({
                 />
               ) : (
                 <p className="font-medium mt-1">
-                  {devices.find(d => d.id === selectedDeviceId)?.model_name || 'Not specified'}
+                  {(() => {
+                    // First try to get device name from selected customer device
+                    if (selectedCustomerDeviceId && customerDevices.length > 0) {
+                      const customerDevice = customerDevices.find(cd => cd.id === selectedCustomerDeviceId);
+                      if (customerDevice) {
+                        // Try different property paths for the device name
+                        const deviceName = customerDevice.nickname || 
+                                         customerDevice.devices?.model_name || 
+                                         customerDevice.device?.model_name ||
+                                         'Device information not available';
+                        const manufacturer = customerDevice.devices?.manufacturer?.name || 
+                                           customerDevice.device?.manufacturer?.name || '';
+                        return manufacturer ? `${manufacturer} ${deviceName}` : deviceName;
+                      }
+                    }
+                    // Otherwise, try to find in the devices list
+                    const device = devices.find(d => d.id === selectedDeviceId);
+                    if (device) {
+                      return device.manufacturer?.name 
+                        ? `${device.manufacturer.name} ${device.model_name}`
+                        : device.model_name;
+                    }
+                    return 'Not specified';
+                  })()}
                 </p>
               )}
             </div>

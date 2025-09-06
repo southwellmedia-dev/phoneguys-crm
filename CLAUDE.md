@@ -2,22 +2,287 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 📚 Essential Documentation
-Before starting work, review these critical documents:
-- **[PROJECT_MASTER.md](./docs/PROJECT_MASTER.md)** - Complete project context and overview
-- **[DEVELOPMENT_GUIDELINES.md](./docs/DEVELOPMENT_GUIDELINES.md)** - Coding standards, patterns, and folder structure
-- **[project-checklist.md](./docs/project-checklist.md)** - Implementation phases and current progress
-
 ## Project Overview
-This is a Next.js 15 application with Supabase authentication, using TypeScript, Tailwind CSS, and shadcn/ui components.
-This project aims to develop a custom CRM/Booking platform for "The Phone Guys," a mobile device repair service. It will integrate with their existing Astro-based customer-facing website, providing a robust backend for managing repair requests, orders, customer data, and internal operations.
 
-Key features include:
-- **Online Repair Management**: Capturing multi-step repair form data from the Astro website and auto-creating tickets
-- **Order Management**: Tracking repair status, time, customer notes, and automated notifications
-- **Customer Relationship Management**: Managing customer data, submissions, user roles, and search functionality
+**The Phone Guys CRM** is a comprehensive repair management system for a mobile device repair service. Built with Next.js 15, TypeScript, Supabase, and TanStack Query, it provides real-time collaboration, efficient order tracking, and seamless customer management.
 
-Our Supabase instance is already set up with existing schema and seed data.
+### Core Features
+- **Repair Order Management**: Track repairs from intake to completion with real-time status updates
+- **Customer & Device Tracking**: Manage customer profiles and their device history
+- **Appointment System**: Schedule and convert appointments to repair tickets
+- **Time Tracking & Billing**: Track technician time with automatic billing calculations
+- **Admin Dashboard**: Comprehensive admin tools for users, devices, and services
+- **External API**: REST endpoints for Astro website integration
+
+### Tech Stack
+- **Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS, shadcn/ui
+- **State Management**: TanStack Query v5 + Supabase Realtime
+- **Database**: Supabase (PostgreSQL with Row Level Security)
+- **Authentication**: Supabase Auth with cookie-based sessions
+- **UI Components**: shadcn/ui (New York style) with custom design system
+
+## Architecture & Project Structure
+
+### Folder Structure
+```
+/app                    # Next.js App Router pages and layouts
+  /(dashboard)         # Protected CRM pages
+  /admin              # Admin-only pages
+  /api                # REST API endpoints
+  /auth               # Authentication pages
+
+/components           # React components
+  /admin             # Admin-specific components
+  /appointments      # Appointment components
+  /customers         # Customer management components
+  /layout            # Layout components
+  /orders            # Order/ticket components
+  /ui                # shadcn/ui primitives
+
+/lib                  # Core application logic
+  /hooks             # React Query hooks for data fetching
+  /repositories      # Database access layer (Supabase client)
+  /services          # Business logic layer
+  /types             # TypeScript type definitions
+  /utils             # Utility functions
+  /supabase          # Supabase client configuration
+
+/docs                # Project documentation
+/supabase           # Database migrations and seed data
+```
+
+### Data Flow Architecture
+```
+Component → Hook → Service → Repository → Database
+    ↑         ↓
+    └── React Query Cache ← Realtime Subscription
+```
+
+1. **Components** use hooks to fetch/mutate data
+2. **Hooks** (React Query) manage caching and state
+3. **Services** contain business logic and validation
+4. **Repositories** handle direct database operations
+5. **Realtime** updates flow directly to React Query cache
+
+## Development Patterns
+
+### Creating a New Feature
+
+#### 1. Repository Layer
+```typescript
+// lib/repositories/feature.repository.ts
+export class FeatureRepository extends BaseRepository {
+  constructor(supabase: SupabaseClient) {
+    super(supabase, 'table_name');
+  }
+
+  async customQuery(params: Params) {
+    const query = this.supabase
+      .from(this.table)
+      .select('*, related_table(*)')
+      .eq('status', params.status);
+    
+    return this.handleResponse(query);
+  }
+}
+```
+
+#### 2. Service Layer
+```typescript
+// lib/services/feature.service.ts
+export class FeatureService {
+  constructor(
+    private featureRepo: FeatureRepository,
+    private relatedRepo: RelatedRepository
+  ) {}
+
+  async processFeature(data: FeatureData) {
+    // Business logic here
+    const processed = this.validateAndTransform(data);
+    
+    // Use repositories for database operations
+    const result = await this.featureRepo.create(processed);
+    
+    // Handle related operations
+    if (result.needsNotification) {
+      await this.relatedRepo.notify(result.id);
+    }
+    
+    return result;
+  }
+}
+```
+
+#### 3. React Query Hook
+```typescript
+// lib/hooks/use-feature.ts
+export function useFeature(id?: string) {
+  const supabase = createClient();
+  
+  // Query for fetching data
+  const query = useQuery({
+    queryKey: ['feature', id],
+    queryFn: async () => {
+      const repo = new FeatureRepository(supabase);
+      return repo.findById(id);
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!id
+  });
+
+  // Mutation for updates
+  const updateMutation = useMutation({
+    mutationFn: async (data: UpdateData) => {
+      const service = new FeatureService(repo, otherRepo);
+      return service.updateFeature(id, data);
+    },
+    onMutate: async (data) => {
+      // Optimistic update
+      await queryClient.cancelQueries(['feature', id]);
+      const previous = queryClient.getQueryData(['feature', id]);
+      
+      queryClient.setQueryData(['feature', id], old => ({
+        ...old,
+        ...data
+      }));
+      
+      return { previous };
+    },
+    onError: (err, data, context) => {
+      // Rollback on error
+      if (context?.previous) {
+        queryClient.setQueryData(['feature', id], context.previous);
+      }
+    }
+  });
+
+  // Real-time subscription
+  useRealtime({
+    channel: `feature-${id}`,
+    table: 'features',
+    filter: `id=eq.${id}`,
+    onUpdate: (payload) => {
+      queryClient.setQueryData(['feature', id], payload.new);
+    }
+  });
+
+  return { ...query, updateFeature: updateMutation.mutate };
+}
+```
+
+#### 4. Component Implementation
+```typescript
+// components/feature/feature-detail.tsx
+export function FeatureDetail({ id }: Props) {
+  const { data, isLoading, updateFeature } = useFeature(id);
+  
+  if (isLoading) return <FeatureSkeleton />;
+  
+  const handleUpdate = (values: FormValues) => {
+    updateFeature(values, {
+      onSuccess: () => toast.success('Updated successfully'),
+      onError: () => toast.error('Update failed')
+    });
+  };
+  
+  return <FeatureForm data={data} onSubmit={handleUpdate} />;
+}
+```
+
+## Critical Guidelines
+
+### ✅ DO
+
+1. **Use setQueryData for real-time updates**
+```typescript
+// Correct: Direct cache update
+queryClient.setQueryData(['tickets'], newData);
+```
+
+2. **Handle both array and wrapped responses**
+```typescript
+queryClient.setQueryData(['customers'], (old: any) => {
+  if (Array.isArray(old)) {
+    return updateArray(old);
+  } else if (old?.data) {
+    return { ...old, data: updateArray(old.data) };
+  }
+  return old;
+});
+```
+
+3. **Cleanup subscriptions properly**
+```typescript
+useEffect(() => {
+  const channel = supabase.channel('unique-channel');
+  // subscribe...
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
+```
+
+4. **Implement optimistic updates with rollback**
+```typescript
+onMutate: async (data) => {
+  await queryClient.cancelQueries(['resource']);
+  const previous = queryClient.getQueryData(['resource']);
+  queryClient.setQueryData(['resource'], optimisticData);
+  return { previous };
+},
+onError: (err, data, context) => {
+  if (context?.previous) {
+    queryClient.setQueryData(['resource'], context.previous);
+  }
+}
+```
+
+### ❌ DON'T
+
+1. **Never use router.refresh()**
+```typescript
+// Wrong: Causes full page reload
+router.refresh();
+
+// Correct: Update cache directly
+queryClient.setQueryData(['data'], newData);
+```
+
+2. **Never invalidate queries in real-time handlers**
+```typescript
+// Wrong: Causes refetch, breaking real-time flow
+onUpdate: () => {
+  queryClient.invalidateQueries(['tickets']);
+}
+
+// Correct: Update cache directly
+onUpdate: (payload) => {
+  queryClient.setQueryData(['tickets'], payload.new);
+}
+```
+
+3. **Never mix setQueryData with invalidateQueries**
+```typescript
+// Wrong: Invalidate undoes the cache update
+queryClient.setQueryData(['tickets'], newData);
+queryClient.invalidateQueries(['tickets']); // DON'T DO THIS
+
+// Correct: Only update cache
+queryClient.setQueryData(['tickets'], newData);
+```
+
+4. **Never use refetch() after mutations**
+```typescript
+// Wrong: Let real-time handle updates
+onSuccess: () => {
+  query.refetch();
+}
+
+// Correct: Real-time subscription will update cache
+onSuccess: () => {
+  toast.success('Updated');
+}
+```
 
 ## Commands
 
@@ -27,10 +292,6 @@ npm run dev        # Start development server with Turbopack
 npm run build      # Build production application
 npm start          # Start production server
 npm run lint       # Run ESLint
-```
-
-### TypeScript Check
-```bash
 npx tsc --noEmit   # Type-check without emitting files
 ```
 
@@ -39,117 +300,207 @@ npx tsc --noEmit   # Type-check without emitting files
 npx supabase start  # Start local Supabase services
 npx supabase stop   # Stop local Supabase services
 npx supabase status # Check status of local services
-npx supabase db push --password "iZPi-8JYjn?0KtvY"  # Push local changes to remote
-npx supabase db pull --password "iZPi-8JYjn?0KtvY"  # Pull remote schema
+npx supabase db reset # Reset database with seed data
 
 # Local URLs
+# App: http://localhost:3000
 # Studio: http://127.0.0.1:54323
 # API: http://127.0.0.1:54321
-# DB: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+# Inbucket (Email): http://127.0.0.1:54324
 ```
 
-## Architecture & Development Patterns
+### Database Management
+```bash
+# Pull remote schema (be careful with production)
+npx supabase db pull --password "your-password"
 
-### 📁 Project Structure
-Follow the structure defined in [DEVELOPMENT_GUIDELINES.md](./docs/DEVELOPMENT_GUIDELINES.md):
-- `/app` - Next.js App Router pages and API routes
-- `/lib/repositories` - Data access layer (Repository pattern)
-- `/lib/services` - Business logic layer (Service pattern)
-- `/lib/types` - TypeScript type definitions
-- `/components` - React components (organized by feature)
+# Generate types from database
+npx supabase gen types typescript --local > lib/types/supabase.ts
 
-### 🏗️ Key Patterns to Follow
-1. **Repository Pattern**: All database access through repository classes
-2. **Service Layer**: Business logic separated from controllers
-3. **DTO Pattern**: Use Data Transfer Objects for API communication
-4. **Validation**: Zod schemas for all input validation
-5. **Error Handling**: Custom error classes with proper status codes
+# Run migrations
+npx supabase migration up
+```
 
-### 🎯 Development Workflow
+## Common Patterns
 
-### Authentication Flow
-- Uses Supabase Auth with cookie-based sessions via `@supabase/ssr`
-- Middleware (`middleware.ts`) refreshes sessions on every request
-- Protected routes check authentication using `supabase.auth.getClaims()` and redirect to `/auth/login` if unauthorized
-- Auth routes: `/auth/login`, `/auth/sign-up`, `/auth/forgot-password`, `/auth/update-password`
-
-### Supabase Client Creation Pattern
-- **Server Components**: Use `createClient()` from `lib/supabase/server.ts`
-- **Client Components**: Use `createClient()` from `lib/supabase/client.ts`
-- **Middleware**: Uses `updateSession()` from `lib/supabase/middleware.ts`
-- Always create new client instances within functions, never store in global variables
-
-### UI Components
-- Uses shadcn/ui components (New York style, CSS variables)
-- Component configuration in `components.json`
-- Custom components in `components/` directory
-- UI primitives in `components/ui/`
-- Theme switching via `next-themes` provider
-
-### REST API for External Integration
-- The CRM needs to expose a REST API endpoint(s) for the Astro website to submit repair requests. This API should be designed to receive the multi-step form data.
-- This API should handle data validation and securely store the repair request in the Supabase database, creating a new "job ticket."
-- Consider using Next.js Route Handlers (app/api/...) for these API endpoints.
-- Secure API endpoints as necessary, potentially with API keys or other authentication methods if the Astro site requires it (discuss with client if needed).
-
-### Environment Variables
-Required for Supabase connection:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY`
-
-For local development, use `.env.local.development` with local Supabase URLs.
-For production, use `.env.local` with production Supabase URLs.
-
-### Database Schema
-Existing tables in the database:
-- `customers` - Customer information
-- `repair_tickets` - Main repair ticket management
-- `ticket_notes` - Notes on repair tickets  
-- `time_entries` - Time tracking for billing
-- `notifications` - Email notification queue
-- `users` - Staff users management
-
-### Path Aliases
-- `@/*` maps to root directory (configured in tsconfig.json)
-
-## Key Patterns
-
-### Protected Routes
-Protected pages should check authentication and redirect:
+### Real-time Subscription with React Query
 ```typescript
-const supabase = await createClient();
-const { data, error } = await supabase.auth.getClaims();
-if (error || !data?.claims) {
-  redirect("/auth/login");
+import { useRealtime } from '@/lib/hooks/use-realtime';
+
+function useTickets() {
+  const { data, ...query } = useQuery({
+    queryKey: ['tickets'],
+    queryFn: fetchTickets
+  });
+
+  // Subscribe to real-time updates
+  useRealtime({
+    channel: 'tickets-channel',
+    table: 'repair_tickets',
+    onInsert: (payload) => {
+      queryClient.setQueryData(['tickets'], old => 
+        [...(old || []), payload.new]
+      );
+    },
+    onUpdate: (payload) => {
+      queryClient.setQueryData(['tickets'], old =>
+        old?.map(t => t.id === payload.new.id ? payload.new : t)
+      );
+    },
+    onDelete: (payload) => {
+      queryClient.setQueryData(['tickets'], old =>
+        old?.filter(t => t.id !== payload.old.id)
+      );
+    }
+  });
+
+  return { data, ...query };
 }
 ```
 
-### Form Components
-Auth forms (login, sign-up, etc.) use Server Actions for form submission and handle errors/success states inline.
+### Service Layer with Multiple Repositories
+```typescript
+export class OrderService {
+  async createOrder(data: CreateOrderDTO) {
+    // Start transaction mindset (though Supabase doesn't support transactions)
+    try {
+      // Create customer if needed
+      let customerId = data.customerId;
+      if (!customerId && data.customer) {
+        const customer = await this.customerRepo.create(data.customer);
+        customerId = customer.id;
+      }
 
-## 🎯 Implementation Priorities
+      // Create the ticket
+      const ticket = await this.ticketRepo.create({
+        ...data.ticket,
+        customer_id: customerId
+      });
 
-When implementing features, follow this priority order:
-1. **Data Layer First**: Create repositories for database access
-2. **Business Logic**: Implement services with business rules
-3. **API Routes**: Build REST endpoints with proper validation
-4. **UI Components**: Create reusable components following design system
-5. **Integration**: Connect components to API and test end-to-end
+      // Create initial note if provided
+      if (data.initialNote) {
+        await this.noteRepo.create({
+          ticket_id: ticket.id,
+          content: data.initialNote
+        });
+      }
 
-## 📝 Important Notes for Development
+      return ticket;
+    } catch (error) {
+      // Handle errors appropriately
+      throw new Error(`Failed to create order: ${error.message}`);
+    }
+  }
+}
+```
 
-1. **Always follow the patterns** in [DEVELOPMENT_GUIDELINES.md](./docs/DEVELOPMENT_GUIDELINES.md)
-2. **Check current progress** in [project-checklist.md](./docs/project-checklist.md)
-3. **Use existing seed data** for testing (see `supabase/seed.sql`)
-4. **Maintain type safety** - no `any` types unless absolutely necessary
-5. **Write clean, self-documenting code** - minimize comments, maximize clarity
-6. **Test locally first** before pushing any database changes
-7. **Use the existing database schema** - tables are already created
+### Optimistic Updates Pattern
+```typescript
+const mutation = useMutation({
+  mutationFn: updateStatus,
+  onMutate: async (newStatus) => {
+    // Cancel in-flight queries
+    await queryClient.cancelQueries(['ticket', ticketId]);
+    
+    // Snapshot current data
+    const previous = queryClient.getQueryData(['ticket', ticketId]);
+    
+    // Optimistically update
+    queryClient.setQueryData(['ticket', ticketId], old => ({
+      ...old,
+      status: newStatus
+    }));
+    
+    // Return context for rollback
+    return { previous };
+  },
+  onError: (err, newStatus, context) => {
+    // Rollback on error
+    queryClient.setQueryData(['ticket', ticketId], context.previous);
+    toast.error('Failed to update status');
+  },
+  onSuccess: () => {
+    toast.success('Status updated');
+  }
+});
+```
 
-## 🔍 Where to Find Things
+## Testing Checklist
 
-- **Database Schema**: `supabase/migrations/20250903141058_remote_schema.sql`
-- **Seed Data**: `supabase/seed.sql`
-- **Environment Variables**: `.env.local` (production) and `.env.local.development` (local)
-- **Project Documentation**: `docs/` folder
-- **Current Implementation Status**: ~15% complete (Phase 2: Database & Data Layer)
+Before deploying changes:
+
+- [ ] Test with multiple users for real-time updates
+- [ ] Verify optimistic updates and rollback behavior
+- [ ] Check subscription cleanup (no memory leaks)
+- [ ] Test error states and recovery
+- [ ] Verify loading states and skeletons
+- [ ] Check responsive design on mobile
+- [ ] Test with slow network (throttling)
+- [ ] Verify TypeScript types (no `any` types)
+
+## Environment Variables
+
+```bash
+# Required for Supabase
+NEXT_PUBLIC_SUPABASE_URL=your-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+
+# For local development
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# External API (for Astro integration)
+API_SECRET_KEY=your-api-secret
+```
+
+## Key Services & Hooks
+
+### Core Hooks
+- `useTickets()` - Order/ticket management with real-time
+- `useCustomers()` - Customer data and devices
+- `useAppointments()` - Appointment scheduling
+- `useAdmin()` - Admin dashboard data
+- `useRealtime()` - Real-time subscription helper
+
+### Singleton Services
+- `RealtimeService` - Manages all WebSocket connections
+- `AuthorizationService` - Role-based permissions
+- `TimerService` - Global timer state management
+
+### Repository Pattern
+All database operations go through repositories extending `BaseRepository`:
+- `RepairTicketRepository`
+- `CustomerRepository`
+- `AppointmentRepository`
+- `UserRepository`
+- etc.
+
+## Important Notes
+
+1. **Performance**: The app has been optimized to eliminate page refreshes. Always use cache updates instead of refetching.
+
+2. **Real-time**: All data updates should flow through Supabase Realtime subscriptions to React Query cache.
+
+3. **TypeScript**: Maintain strict typing. Avoid `any` types unless absolutely necessary.
+
+4. **Error Handling**: Always implement proper error handling with user-friendly messages.
+
+5. **Testing**: Use the seed data for testing. Test user: `admin@phoneguys.com` / `admin123456`
+
+## Quick Start
+
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Start Supabase: `npx supabase start`
+4. Copy `.env.local.example` to `.env.local.development`
+5. Run development server: `npm run dev`
+6. Access app at `http://localhost:3000`
+
+## Where to Find Things
+
+- **Database Schema**: `/supabase/migrations/`
+- **Seed Data**: `/supabase/seed.sql`
+- **API Routes**: `/app/api/`
+- **React Hooks**: `/lib/hooks/`
+- **UI Components**: `/components/`
+- **Business Logic**: `/lib/services/`
+- **Type Definitions**: `/lib/types/`

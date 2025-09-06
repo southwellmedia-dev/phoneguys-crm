@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Service, ServiceCategory, SkillLevel } from "@/lib/types/database.types";
 import { useServices, useDeleteService } from "@/lib/hooks/use-admin";
+import { useRealtime } from "@/lib/hooks/use-realtime";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,9 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
   const { data: services = initialServices, isLoading, isFetching, refetch } = useServices(initialServices);
   const deleteService = useDeleteService();
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Set up real-time subscriptions
+  useRealtime(['admin']);
   
   // Determine if we should show skeleton
   const showSkeleton = useShowSkeleton(isLoading, isFetching, !!services);

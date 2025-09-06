@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useDashboard } from "@/lib/hooks/use-dashboard";
-import { useQueryClient } from "@tanstack/react-query";
+import { useRealtime } from "@/lib/hooks/use-realtime";
 import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
 import { SkeletonDashboard } from "@/components/ui/skeleton-dashboard";
 
@@ -41,8 +41,10 @@ interface DashboardClientProps {
 }
 
 export function DashboardClient({ metrics: initialMetrics }: DashboardClientProps) {
-  const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Set up real-time subscriptions for all entities
+  useRealtime(['all']);
   
   // Transform initial metrics to match the dashboard data structure
   const initialData = {
@@ -80,7 +82,6 @@ export function DashboardClient({ metrics: initialMetrics }: DashboardClientProp
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     await refetch();
     setIsRefreshing(false);
   };

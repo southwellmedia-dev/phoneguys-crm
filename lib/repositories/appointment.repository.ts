@@ -214,6 +214,52 @@ export class AppointmentRepository extends BaseRepository<Appointment> {
   }
 
   /**
+   * Find appointment by ID with full details
+   */
+  async findByIdWithDetails(id: string) {
+    const supabase = await this.getClient();
+    
+    const { data, error } = await supabase
+      .from(this.tableName)
+      .select(`
+        *,
+        customers (
+          id,
+          name,
+          email,
+          phone,
+          address
+        ),
+        devices (
+          id,
+          model_name,
+          manufacturer:manufacturers (
+            name
+          )
+        ),
+        customer_devices (
+          id,
+          serial_number,
+          imei,
+          color,
+          storage_size,
+          condition,
+          nickname,
+          devices:device_id (
+            id,
+            model_name,
+            manufacturer:manufacturers(name)
+          )
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  }
+
+  /**
    * Find appointment by number
    */
   async findByAppointmentNumber(appointmentNumber: string) {
@@ -227,11 +273,29 @@ export class AppointmentRepository extends BaseRepository<Appointment> {
           id,
           name,
           email,
-          phone
+          phone,
+          address
         ),
         devices (
           id,
-          model_name
+          model_name,
+          manufacturer:manufacturers (
+            name
+          )
+        ),
+        customer_devices (
+          id,
+          serial_number,
+          imei,
+          color,
+          storage_size,
+          condition,
+          nickname,
+          devices:device_id (
+            id,
+            model_name,
+            manufacturer:manufacturers(name)
+          )
         )
       `)
       .eq('appointment_number', appointmentNumber)

@@ -72,9 +72,9 @@ export function useCreateAppointment() {
       if (!response.ok) throw new Error('Failed to create appointment');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success('Appointment created successfully');
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      // Real-time will handle the cache update
     },
     onError: () => {
       toast.error('Failed to create appointment');
@@ -112,12 +112,18 @@ export function useUpdateAppointment() {
       }
       toast.error('Failed to update appointment');
     },
-    onSuccess: () => {
+    onSuccess: (data, { id, ...updatedData }) => {
       toast.success('Appointment updated successfully');
-    },
-    onSettled: (_, __, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      queryClient.invalidateQueries({ queryKey: ['appointment', id] });
+      
+      // Update all appointment lists
+      queryClient.setQueriesData(
+        { queryKey: ['appointments'], exact: false },
+        (old: Appointment[] = []) => {
+          return old.map(appointment => 
+            appointment.id === id ? { ...appointment, ...updatedData } : appointment
+          );
+        }
+      );
     },
   });
 }
@@ -133,9 +139,19 @@ export function useDeleteAppointment() {
       if (!response.ok) throw new Error('Failed to delete appointment');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, id) => {
       toast.success('Appointment deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      
+      // Remove from all appointment lists
+      queryClient.setQueriesData(
+        { queryKey: ['appointments'], exact: false },
+        (old: Appointment[] = []) => {
+          return old.filter(appointment => appointment.id !== id);
+        }
+      );
+      
+      // Remove individual appointment query
+      queryClient.removeQueries({ queryKey: ['appointment', id] });
     },
     onError: () => {
       toast.error('Failed to delete appointment');

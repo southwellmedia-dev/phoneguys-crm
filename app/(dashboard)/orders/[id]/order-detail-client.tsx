@@ -50,6 +50,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTicket, useUpdateTicketStatus } from "@/lib/hooks/use-tickets";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRealtime } from "@/lib/hooks/use-realtime";
 import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
 import { SkeletonOrderDetail } from "@/components/ui/skeleton-order-detail";
 import { cn } from "@/lib/utils";
@@ -73,7 +74,7 @@ interface OrderDetailClientProps {
 export function OrderDetailClient({
   order: initialOrder,
   orderId,
-  totalTimeMinutes,
+  totalTimeMinutes: initialTotalTimeMinutes,
   isAdmin = false,
   currentUserId = "",
   matchingCustomerDevice,
@@ -84,6 +85,15 @@ export function OrderDetailClient({
   const queryClient = useQueryClient();
   const { data: order = initialOrder, isLoading, isFetching } = useTicket(orderId, initialOrder);
   const updateStatusMutation = useUpdateTicketStatus();
+  
+  // Set up real-time subscriptions for tickets
+  useRealtime(['tickets']);
+  
+  // Calculate total time from order data (real-time updates will keep this current)
+  const totalTimeMinutes = order?.time_entries?.reduce(
+    (acc: number, entry: any) => acc + (entry.duration_minutes || 0),
+    0
+  ) || order?.timer_total_minutes || order?.total_time_minutes || initialTotalTimeMinutes || 0;
   
   // Determine if we should show skeleton
   const showSkeleton = useShowSkeleton(isLoading, isFetching, !!order);
@@ -116,8 +126,24 @@ export function OrderDetailClient({
       }
 
       toast.success("Order reopened successfully");
-      queryClient.invalidateQueries({ queryKey: ['ticket', orderId] });
-      queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      
+      // Update ticket in cache directly
+      queryClient.setQueryData(['ticket', orderId], (old: any) => {
+        if (!old) return old;
+        return { ...old, status: 'in_progress', updated_at: new Date().toISOString() };
+      });
+      
+      // Update ticket lists
+      queryClient.setQueriesData(
+        { queryKey: ['tickets'], exact: false },
+        (old: any[] = []) => {
+          return old.map(ticket => 
+            ticket.id === orderId 
+              ? { ...ticket, status: 'in_progress', updated_at: new Date().toISOString() }
+              : ticket
+          );
+        }
+      );
     } catch (error) {
       toast.error("Failed to reopen order");
       console.error("Error reopening order:", error);
@@ -211,12 +237,14 @@ export function OrderDetailClient({
   return (
     <PageContainer
       title={order.ticket_number}
-      description="Repair Ticket Details"
+      description={
+        <div className="flex items-center gap-2">
+          <span>Repair Ticket Details</span>
+          <StatusBadge status={order.status as RepairStatus} />
+        </div>
+      }
       actions={headerActions}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <StatusBadge status={order.status as RepairStatus} />
-      </div>
       {/* Key Metrics Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {/* Total Time - Primary metric with cyan accent */}
@@ -863,7 +891,7 @@ export function OrderDetailClient({
                 )}
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               <TimeEntriesSection
                 entries={order.time_entries || []}
                 totalMinutes={totalTimeMinutes}
@@ -885,7 +913,46 @@ export function OrderDetailClient({
                     toast.success("Time entry deleted successfully", {
                       className: "bg-green-500 text-white border-green-600",
                     });
-                    queryClient.invalidateQueries({ queryKey: ['ticket', orderId] });
+                    
+                    // Update ticket in cache by removing the time entry
+                    queryClient.setQueryData(['ticket', orderId], (old: any) => {
+                      if (!old) return old;
+                      
+                      // Find the deleted entry to get its duration
+                      const deletedEntry = old.time_entries?.find((e: any) => e.id === entryId);
+                      const deletedDuration = deletedEntry?.duration_minutes || 0;
+                      
+                      // Remove the entry from the array
+                      const updatedTimeEntries = (old.time_entries || []).filter(
+                        (entry: any) => entry.id !== entryId
+                      );
+                      
+                      return {
+                        ...old,
+                        time_entries: updatedTimeEntries,
+                        timer_total_minutes: Math.max(0, (old.timer_total_minutes || 0) - deletedDuration),
+                        total_time_minutes: Math.max(0, (old.total_time_minutes || 0) - deletedDuration),
+                        updated_at: new Date().toISOString(),
+                      };
+                    });
+                    
+                    // Update ticket lists with new total time
+                    queryClient.setQueriesData(
+                      { queryKey: ['tickets'], exact: false },
+                      (old: any[] = []) => {
+                        return old.map(ticket => {
+                          if (ticket.id === orderId) {
+                            const currentTicket = queryClient.getQueryData(['ticket', orderId]) as any;
+                            return {
+                              ...ticket,
+                              timer_total_minutes: currentTicket?.timer_total_minutes || ticket.timer_total_minutes,
+                              updated_at: new Date().toISOString(),
+                            };
+                          }
+                          return ticket;
+                        });
+                      }
+                    );
                   } catch (error) {
                     console.error("Failed to delete time entry:", error);
                     toast.error("Failed to delete time entry", {
@@ -1218,7 +1285,7 @@ export function OrderDetailClient({
                 Quick Actions
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="pt-6 space-y-2">
               <Button className="w-full" variant="outline">
                 <Phone className="mr-2 h-4 w-4" />
                 Call Customer
@@ -1270,8 +1337,8 @@ export function OrderDetailClient({
         currentImei={order.imei}
         addDeviceToProfile={addDeviceToProfile}
         onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ['ticket', orderId] });
-          queryClient.invalidateQueries({ queryKey: ['customer-devices'] });
+          // Real-time will handle the updates
+          toast.success('Device added to profile');
         }}
       />
     </PageContainer>

@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAppointments, useUpdateAppointment } from "@/lib/hooks/use-appointments";
-import { useQueryClient } from "@tanstack/react-query";
+import { useRealtime } from "@/lib/hooks/use-realtime";
 import { PageContainer } from "@/components/layout/page-container";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
@@ -70,10 +70,12 @@ const statusConfig = {
 
 export function AppointmentsClient({ appointments: initialAppointments }: { appointments: Appointment[] }) {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { data: appointments = initialAppointments, isLoading, isFetching, refetch } = useAppointments(undefined, initialAppointments);
   const updateAppointment = useUpdateAppointment();
   const [selectedTab, setSelectedTab] = useState("today");
+  
+  // Set up real-time subscriptions
+  useRealtime(['appointments']);
   
   // Determine if we should show skeleton
   const showSkeleton = useShowSkeleton(isLoading, isFetching, !!appointments);

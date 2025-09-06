@@ -153,8 +153,7 @@ export function AppointmentDetailEnhanced({
       if (result.success) {
         toast.success("Appointment details updated successfully");
         setIsEditing(false);
-        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
+        // Real-time will handle the cache update
       } else {
         toast.error(result.error || "Failed to update details");
       }
@@ -250,7 +249,7 @@ export function AppointmentDetailEnhanced({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Quick Actions</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-6">
                   <div className="flex flex-wrap gap-2">
                     <Button 
                       size="sm" 
@@ -285,7 +284,7 @@ export function AppointmentDetailEnhanced({
                   Customer Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="pt-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Name</p>
@@ -358,7 +357,7 @@ export function AppointmentDetailEnhanced({
                   Warranty Information
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <div className="space-y-2">
                   <Label>Warranty Status</Label>
                   {isEditing ? (
@@ -395,7 +394,7 @@ export function AppointmentDetailEnhanced({
                   {isEditing ? "Select all services needed for this repair" : "Services identified for this repair"}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 {isEditing ? (
                   <div className="space-y-3">
                     {availableServices.map((service) => (
@@ -463,7 +462,7 @@ export function AppointmentDetailEnhanced({
                   Notes & Additional Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="pt-6 space-y-4">
                 <div>
                   <Label>Technician Notes (Internal)</Label>
                   <Textarea
@@ -513,7 +512,7 @@ export function AppointmentDetailEnhanced({
                   Appointment Info
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="pt-6 space-y-3">
                 <div>
                   <p className="text-sm text-muted-foreground">Date & Time</p>
                   <p className="font-medium">
@@ -553,7 +552,7 @@ export function AppointmentDetailEnhanced({
                   Reported Issues
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 {appointment.issues && appointment.issues.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {appointment.issues.map((issue: string) => (
@@ -580,7 +579,7 @@ export function AppointmentDetailEnhanced({
               <CardHeader>
                 <CardTitle>Status Actions</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="pt-6 space-y-2">
                 {appointment.status === 'scheduled' && (
                   <Button 
                     className="w-full" 
@@ -589,8 +588,7 @@ export function AppointmentDetailEnhanced({
                       const result = await confirmAppointment(appointmentId);
                       if (result.success) {
                         toast.success("Appointment confirmed");
-                        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
+                        // Real-time will handle the cache update
                       }
                     }}
                   >
@@ -607,8 +605,7 @@ export function AppointmentDetailEnhanced({
                       const result = await markAppointmentArrived(appointmentId);
                       if (result.success) {
                         toast.success("Customer marked as arrived");
-                        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
+                        // Real-time will handle the cache update
                       }
                     }}
                   >
@@ -650,20 +647,20 @@ export function AppointmentDetailEnhanced({
             <AlertDialogTitle>Convert to Repair Ticket</AlertDialogTitle>
             <AlertDialogDescription>
               This will create a new repair ticket with all the information from this appointment.
-              {formData.selected_services.length > 0 && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <p className="font-medium mb-2">The following will be included:</p>
-                  <ul className="text-sm space-y-1">
-                    <li>• Customer information</li>
-                    <li>• Device details: {formData.serial_number || 'Device info'}</li>
-                    <li>• {formData.selected_services.length} selected services</li>
-                    <li>• Estimated cost: ${calculateEstimatedCost()}</li>
-                    {formData.technician_notes && <li>• Technician notes</li>}
-                  </ul>
-                </div>
-              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {formData.selected_services.length > 0 && (
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <p className="font-medium mb-2">The following will be included:</p>
+              <ul className="text-sm space-y-1">
+                <li>• Customer information</li>
+                <li>• Device details: {formData.serial_number || 'Device info'}</li>
+                <li>• {formData.selected_services.length} selected services</li>
+                <li>• Estimated cost: ${calculateEstimatedCost()}</li>
+                {formData.technician_notes && <li>• Technician notes</li>}
+              </ul>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConvertToTicket} disabled={isConverting}>
@@ -689,8 +686,7 @@ export function AppointmentDetailEnhanced({
                 const result = await cancelAppointment(appointmentId, "Cancelled by staff");
                 if (result.success) {
                   toast.success("Appointment cancelled");
-                  queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
+                  // Real-time will handle the cache update
                 }
                 setShowCancelDialog(false);
               }}

@@ -62,23 +62,24 @@ export default async function AppointmentDetailPage({ params }: PageProps) {
   const { id } = await params;
   
   const appointmentRepo = new AppointmentRepository(true);
-  const appointment = await appointmentRepo.findById(id);
   
-  if (!appointment) {
+  // Get full appointment details with all relations
+  const fullAppointment = await appointmentRepo.findByIdWithDetails(id);
+  
+  if (!fullAppointment) {
     notFound();
   }
   
-  // Get full appointment details with relations
-  const [fullAppointment, services, devices, customerDevices] = await Promise.all([
-    appointmentRepo.findByAppointmentNumber(appointment.appointment_number),
+  // Get additional data
+  const [services, devices, customerDevices] = await Promise.all([
     getServices(),
     getDevices(),
-    getCustomerDevices(appointment.customer_id)
+    getCustomerDevices(fullAppointment.customer_id)
   ]);
   
   return (
     <AppointmentDetailEnhanced 
-      appointment={fullAppointment || appointment}
+      appointment={fullAppointment}
       appointmentId={id}
       availableServices={services}
       availableDevices={devices}

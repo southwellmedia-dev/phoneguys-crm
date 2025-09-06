@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { Customer } from '@/lib/types/database.types';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,10 @@ import { Button } from '@/components/ui/button';
 import { useShowSkeleton } from '@/lib/hooks/use-navigation-loading';
 import { SkeletonCustomers } from '@/components/ui/skeleton-customers';
 import { useCustomers, useDeleteCustomer } from '@/lib/hooks/use-customers';
-import { RefreshCw } from 'lucide-react';
+import { useRealtime } from '@/lib/hooks/use-realtime';
+import { RefreshCw, Shield } from 'lucide-react';
+import { DeleteCustomerDialog } from '@/components/customers/delete-customer-dialog';
+import { createClient } from '@/lib/supabase/client';
 import {
   Table,
   TableBody,
@@ -54,18 +57,45 @@ export function CustomersTable({ initialCustomers }: CustomersTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<keyof Customer>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
+  
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user && user.email) {
+        // Query by email (more reliable with current seed data structure)
+        const { data: profile } = await supabase
+          .from('users')
+          .select('role')
+          .eq('email', user.email)
+          .single();
+        
+        setIsAdmin(profile?.role === 'admin' || profile?.role === 'super_admin');
+      }
+    };
+    checkAdminStatus();
+  }, []);
   
   // Use React Query with initial data
   const { data: customers = initialCustomers, isLoading, isFetching, refetch } = useCustomers(undefined, initialCustomers);
   const deleteCustomer = useDeleteCustomer();
+  
+  // Set up real-time subscriptions
+  useRealtime(['customers']);
+  
+  // Ensure customers is always an array
+  const customersArray = Array.isArray(customers) ? customers : [];
   
   // Determine if we should show skeleton
   const showSkeleton = useShowSkeleton(isLoading, isFetching, !!customers);
 
   // Filter and sort customers
   const filteredCustomers = useMemo(() => {
-    let filtered = customers.filter((customer) => {
+    let filtered = customersArray.filter((customer) => {
       const search = searchTerm.toLowerCase();
       return (
         customer.name?.toLowerCase().includes(search) ||
@@ -87,7 +117,7 @@ export function CustomersTable({ initialCustomers }: CustomersTableProps) {
     });
 
     return filtered;
-  }, [customers, searchTerm, sortField, sortDirection]);
+  }, [customersArray, searchTerm, sortField, sortDirection]);
 
   const handleSort = (field: keyof Customer) => {
     if (sortField === field) {
@@ -114,7 +144,7 @@ export function CustomersTable({ initialCustomers }: CustomersTableProps) {
     });
   };
 
-  if (customers.length === 0 && !searchTerm) {
+  if (customersArray.length === 0 && !searchTerm) {
     return (
       <Card className="border-dashed">
         <CardContent className="flex flex-col items-center justify-center py-12">
@@ -134,10 +164,10 @@ export function CustomersTable({ initialCustomers }: CustomersTableProps) {
   }
 
   // Calculate metrics
-  const totalRepairs = customers.reduce((sum, customer) => sum + (customer.repair_count || 0), 0);
-  const activeCustomers = customers.filter(c => (c.repair_count || 0) > 0).length;
-  const avgRepairsPerCustomer = customers.length > 0 ? (totalRepairs / customers.length).toFixed(1) : '0';
-  const newThisMonth = customers.filter(c => {
+  const totalRepairs = customersArray.reduce((sum, customer) => sum + (customer.repair_count || 0), 0);
+  const activeCustomers = customersArray.filter(c => (c.repair_count || 0) > 0).length;
+  const avgRepairsPerCustomer = customersArray.length > 0 ? (totalRepairs / customersArray.length).toFixed(1) : '0';
+  const newThisMonth = customersArray.filter(c => {
     const customerDate = new Date(c.created_at);
     const now = new Date();
     return customerDate.getMonth() === now.getMonth() && 
@@ -164,7 +194,7 @@ export function CustomersTable({ initialCustomers }: CustomersTableProps) {
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div className="text-3xl font-bold tracking-tight">{customers.length}</div>
+            <div className="text-3xl font-bold tracking-tight">{customersArray.length}</div>
             <p className="text-sm text-muted-foreground">Registered customers</p>
           </CardContent>
         </Card>
@@ -238,7 +268,7 @@ export function CustomersTable({ initialCustomers }: CustomersTableProps) {
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
                   <TrendingUp className="h-3 w-3" />
-                  {filteredCustomers.length} of {customers.length} customers
+                  {filteredCustomers.length} of {customersArray.length} customers
                 </p>
               </div>
             </div>
@@ -390,14 +420,30 @@ export function CustomersTable({ initialCustomers }: CustomersTableProps) {
                               Call Customer
                             </a>
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            className="text-destructive"
-                            onClick={() => handleDelete(customer.id)}
-                          >
-                            <Trash className="mr-2 h-4 w-4" />
-                            Delete Customer
-                          </DropdownMenuItem>
+                          {isAdmin && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DeleteCustomerDialog
+                                customerId={customer.id}
+                                customerName={customer.name}
+                                trigger={
+                                  <DropdownMenuItem 
+                                    className="text-destructive"
+                                    onSelect={(e) => e.preventDefault()}
+                                  >
+                                    <Shield className="mr-2 h-4 w-4" />
+                                    Delete Customer (Admin)
+                                  </DropdownMenuItem>
+                                }
+                                onSuccess={() => {
+                                  // Update the cache directly instead of refetching
+                                  // The real-time subscription should handle the update
+                                  // For immediate UI feedback, remove from filtered list
+                                  setFilteredCustomers(prev => prev.filter(c => c.id !== customer.id));
+                                }}
+                              />
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

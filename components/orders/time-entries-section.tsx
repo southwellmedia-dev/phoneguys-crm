@@ -79,7 +79,7 @@ export function TimeEntriesSection({ entries, totalMinutes, canDelete = false, o
         }),
         duration: duration,
         cumulative: cumulativeMinutes,
-        technician: entry.user?.name || 'Unknown',
+        technician: entry.user?.full_name || 'Unknown User',
         description: entry.description || '',
         isActive: !entry.end_time,
         hours: parseFloat((duration / 60).toFixed(2)),

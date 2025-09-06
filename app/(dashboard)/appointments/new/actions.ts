@@ -29,19 +29,19 @@ export async function createAppointment(data: CreateAppointmentData) {
   try {
     const appointmentService = new AppointmentService(true);
     
-    // Build the device object with all details
+    // Build the device object if we have a device_id
     let device = undefined;
     if (data.device_id) {
       device = {
         id: data.device_id,
-        customer_device_id: data.customer_device_id,
-        ...data.device_details
       };
     }
     
     const appointment = await appointmentService.createAppointment({
       customer: data.customer,
       device,
+      device_details: data.device_details,
+      customer_device_id: data.customer_device_id,
       scheduled_date: data.scheduled_date,
       scheduled_time: data.scheduled_time,
       duration_minutes: data.duration_minutes,

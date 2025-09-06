@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useMediaGallery, useUploadMedia, useDeleteMedia } from '@/lib/hooks/use-admin';
+import { useRealtime } from '@/lib/hooks/use-realtime';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageContainer } from '@/components/layout/page-container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,6 +58,9 @@ export function MediaGallery({
   const { data: images = initialImages, isLoading, refetch } = useMediaGallery(initialImages);
   const uploadMedia = useUploadMedia();
   const deleteMedia = useDeleteMedia();
+  
+  // Set up real-time subscriptions
+  useRealtime(['admin']);
   
   // Ensure images is always an array
   const safeImages = Array.isArray(images) ? images : [];

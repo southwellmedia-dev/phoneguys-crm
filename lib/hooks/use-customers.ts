@@ -13,7 +13,9 @@ export function useCustomers(search?: string, initialData?: Customer[]) {
       const params = search ? `?search=${encodeURIComponent(search)}` : '';
       const response = await fetch(`${API_BASE}${params}`);
       if (!response.ok) throw new Error('Failed to fetch customers');
-      return response.json() as Promise<Customer[]>;
+      const result = await response.json();
+      // Handle both paginated and non-paginated responses
+      return result.data || result;
     },
     initialData,
     enabled: !initialData, // Only fetch if no initial data provided
@@ -29,7 +31,9 @@ export function useCustomer(id?: string, initialData?: Customer) {
       if (!id) throw new Error('Customer ID is required');
       const response = await fetch(`${API_BASE}/${id}`);
       if (!response.ok) throw new Error('Failed to fetch customer');
-      return response.json() as Promise<Customer>;
+      const result = await response.json();
+      // Handle API response wrapper
+      return result.data || result;
     },
     initialData,
     enabled: !!id && !initialData, // Only fetch if no initial data provided
@@ -64,9 +68,9 @@ export function useCreateCustomer() {
       if (!response.ok) throw new Error('Failed to create customer');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success('Customer created successfully');
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      // Real-time will handle the cache update
     },
     onError: () => {
       toast.error('Failed to create customer');
@@ -104,12 +108,18 @@ export function useUpdateCustomer() {
       }
       toast.error('Failed to update customer');
     },
-    onSuccess: () => {
+    onSuccess: (data, { id, ...updatedData }) => {
       toast.success('Customer updated successfully');
-    },
-    onSettled: (_, __, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['customer', id] });
+      
+      // Update all customer lists
+      queryClient.setQueriesData(
+        { queryKey: ['customers'], exact: false },
+        (old: Customer[] = []) => {
+          return old.map(customer => 
+            customer.id === id ? { ...customer, ...updatedData } : customer
+          );
+        }
+      );
     },
   });
 }
@@ -143,9 +153,13 @@ export function useAddCustomerDevice() {
       if (!response.ok) throw new Error('Failed to add device');
       return response.json();
     },
-    onSuccess: (_, { customerId }) => {
+    onSuccess: (data, { customerId }) => {
       toast.success('Device added successfully');
-      queryClient.invalidateQueries({ queryKey: ['customer-devices', customerId] });
+      
+      // Add device to cache
+      queryClient.setQueryData(['customer-devices', customerId], (old: any[] = []) => {
+        return [...old, data];
+      });
     },
     onError: () => {
       toast.error('Failed to add device');
@@ -174,9 +188,15 @@ export function useUpdateCustomerDevice() {
       if (!response.ok) throw new Error('Failed to update device');
       return response.json();
     },
-    onSuccess: (_, { customerId }) => {
+    onSuccess: (data, { customerId, deviceId }) => {
       toast.success('Device updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['customer-devices', customerId] });
+      
+      // Update device in cache
+      queryClient.setQueryData(['customer-devices', customerId], (old: any[] = []) => {
+        return old.map(device => 
+          device.id === deviceId ? { ...device, ...data } : device
+        );
+      });
     },
     onError: () => {
       toast.error('Failed to update device');
@@ -201,9 +221,13 @@ export function useDeleteCustomerDevice() {
       if (!response.ok) throw new Error('Failed to delete device');
       return response.json();
     },
-    onSuccess: (_, { customerId }) => {
+    onSuccess: (_, { customerId, deviceId }) => {
       toast.success('Device deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['customer-devices', customerId] });
+      
+      // Remove device from cache
+      queryClient.setQueryData(['customer-devices', customerId], (old: any[] = []) => {
+        return old.filter(device => device.id !== deviceId);
+      });
     },
     onError: () => {
       toast.error('Failed to delete device');
@@ -222,9 +246,19 @@ export function useDeleteCustomer() {
       if (!response.ok) throw new Error('Failed to delete customer');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, customerId) => {
       toast.success('Customer deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      
+      // Remove from all customer lists
+      queryClient.setQueriesData(
+        { queryKey: ['customers'], exact: false },
+        (old: Customer[] = []) => {
+          return old.filter(customer => customer.id !== customerId);
+        }
+      );
+      
+      // Remove individual customer query
+      queryClient.removeQueries({ queryKey: ['customer', customerId] });
     },
     onError: () => {
       toast.error('Failed to delete customer');

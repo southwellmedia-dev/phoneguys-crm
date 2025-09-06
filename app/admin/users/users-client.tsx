@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { User, UserRole } from "@/lib/types/database.types";
 import { useUsers, useDeleteUser } from "@/lib/hooks/use-admin";
+import { useRealtime } from "@/lib/hooks/use-realtime";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,9 @@ export function UsersClient({ initialUsers }: UsersClientProps) {
   const queryClient = useQueryClient();
   const { data: users = initialUsers, isLoading, isFetching, refetch } = useUsers(initialUsers);
   const deleteUser = useDeleteUser();
+  
+  // Set up real-time subscriptions
+  useRealtime(['admin']);
   
   // Determine if we should show skeleton
   const showSkeleton = useShowSkeleton(isLoading, isFetching, !!users);

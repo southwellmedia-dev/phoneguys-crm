@@ -22,9 +22,10 @@ async function getOrder(id: string) {
 export default async function OrderDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const order = await getOrder(params.id);
+  const resolvedParams = await params;
+  const order = await getOrder(resolvedParams.id);
 
   if (!order) {
     notFound();
@@ -193,7 +194,7 @@ export default async function OrderDetailPage({
   return (
     <OrderDetailClient 
       order={order} 
-      orderId={params.id} 
+      orderId={resolvedParams.id} 
       totalTimeMinutes={totalTimeMinutes}
       isAdmin={isAdmin}
       currentUserId={currentUserId}

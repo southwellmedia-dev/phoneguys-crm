@@ -97,8 +97,7 @@ export function AppointmentDetailClient({ appointment: initialAppointment, appoi
       const result = await confirmAppointment(appointmentId);
       if (result.success) {
         toast.success("Appointment confirmed");
-        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
+        // Real-time will handle the cache update
       } else {
         toast.error(result.error || "Failed to confirm appointment");
       }
@@ -112,8 +111,7 @@ export function AppointmentDetailClient({ appointment: initialAppointment, appoi
       const result = await markAppointmentArrived(appointmentId);
       if (result.success) {
         toast.success("Customer marked as arrived");
-        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
+        // Real-time will handle the cache update
       } else {
         toast.error(result.error || "Failed to update status");
       }
@@ -127,8 +125,7 @@ export function AppointmentDetailClient({ appointment: initialAppointment, appoi
       const result = await cancelAppointment(appointmentId, "Cancelled by staff");
       if (result.success) {
         toast.success("Appointment cancelled");
-        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
+        // Real-time will handle the cache update
       } else {
         toast.error(result.error || "Failed to cancel appointment");
       }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { PageContainer } from "@/components/layout/page-container";
 import { DataTable } from "@/components/tables/data-table";
 import { columns, Order } from "@/components/orders/orders-columns";
@@ -18,8 +18,7 @@ import {
   ArrowRight
 } from "lucide-react";
 import { useTickets } from "@/lib/hooks/use-tickets";
-import { useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { useRealtime } from "@/lib/hooks/use-realtime";
 import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
 import { SkeletonOrders } from "@/components/ui/skeleton-orders";
 
@@ -28,7 +27,6 @@ interface OrdersClientProps {
 }
 
 export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
-  const queryClient = useQueryClient();
   const { data: orders = initialOrders, isLoading, isFetching, refetch } = useTickets(undefined, initialOrders);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
@@ -38,44 +36,8 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
   // Use React Query data if available, otherwise fall back to initial data
   const safeOrders = Array.isArray(orders) ? orders : [];
 
-  // Set up Supabase real-time subscription
-  useEffect(() => {
-    const supabase = createClient();
-    
-    // Subscribe to changes on repair_tickets table
-    const channel = supabase
-      .channel('orders-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
-          schema: 'public',
-          table: 'repair_tickets'
-        },
-        (payload) => {
-          // Invalidate queries instead of router refresh
-          queryClient.invalidateQueries({ queryKey: ['tickets'] });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Also listen to time_entries changes
-          schema: 'public',
-          table: 'time_entries'
-        },
-        (payload) => {
-          // Invalidate queries when time entries change
-          queryClient.invalidateQueries({ queryKey: ['tickets'] });
-        }
-      )
-      .subscribe();
-
-    // Cleanup subscription on unmount
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
+  // Set up real-time subscriptions using centralized service
+  useRealtime(['tickets']);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

@@ -20,7 +20,15 @@
 - 🚧 Phase 6: Email Notifications
 - 🚧 Final Testing & Deployment Preparation
 
-### Recently Completed (Session 20 - Sep 4, 2025)
+### Recently Completed (Session 21 - Sep 6, 2025)
+- ✅ **Email Notification Error Fix** - Fixed "Invalid recipient email address" error during appointment creation
+- ✅ **Real-time Appointment Updates** - Fixed customer/device display in appointments list after creation
+- ✅ **Customer Device Auto-Creation** - Appointments now automatically create customer_device records
+- ✅ **Device Name Display Fix** - Resolved "Unknown Device" display issue in appointment details
+- ✅ **HTML Nesting Fix** - Fixed invalid HTML structure in Convert to Ticket dialog
+- ✅ **CLAUDE.md Update** - Completely rewrote development guide with current architecture and patterns
+
+### Previous Session (Session 20 - Sep 4, 2025)
 - ✅ **Ticket Detail Color Modernization** - Removed "rainbow" effect, implemented professional neutral palette
 - ✅ **Design System Alignment** - Aligned UI with The Phone Guys brand identity (bold, efficient, productive)
 - ✅ **Consistent Component Styling** - Unified color approach across all ticket detail sections
@@ -604,8 +612,8 @@ Development of a custom CRM/Booking platform for The Phone Guys to manage mobile
 ---
 
 ## Progress Tracking
-**Last Updated:** September 4, 2025 (Session 19)
-**Current Phase:** UI Polish & Final Testing
+**Last Updated:** September 6, 2025 (Session 21)
+**Current Phase:** Bug Fixes & System Refinement
 **Overall Progress:** ~99%
 
 ### Session History
@@ -626,6 +634,8 @@ Development of a custom CRM/Booking platform for The Phone Guys to manage mobile
 - **Session 17** (Jan 4, 2025): **Complete Appointment System** - [View Summary](./sessions/2025-01-04-session17-appointment-system-implementation.md) (~99% complete)
 - **Session 18** (Jan 5, 2025): **Appointment Fixes & Ticket Integration** - [View Summary](./sessions/2025-01-05-session18-appointments-fixes-ticket-integration.md) (~99% complete)
 - **Session 19** (Sep 4, 2025): **Ticket Detail Modernization & Repository Pattern** - [View Summary](./sessions/2025-09-04-session19-ticket-detail-modernization.md) (~99% complete)
+- **Session 20** (Sep 4, 2025): **UI Color Modernization & Component Consistency** (~99% complete)
+- **Session 21** (Sep 6, 2025): **Appointment System Fixes & Real-time Updates** (~99% complete)
 
 ### Notes:
 - Database schema already exists with core tables
@@ -711,6 +721,33 @@ Development of a custom CRM/Booking platform for The Phone Guys to manage mobile
 3. Email notification processing
 4. Reports and analytics dashboard
 5. Settings and user management
+
+## Session 21 Updates (September 6, 2025)
+
+### Major Fixes Implemented
+- ✅ **Appointment Email Notifications**: Temporarily disabled broken email notifications to prevent errors
+- ✅ **Real-time Cache Updates**: Enhanced real-time service to fetch full appointment data with relations
+- ✅ **Customer Device Creation**: Automated customer_device record creation during appointments
+- ✅ **Device Display Logic**: Fixed DeviceSelector to handle both 'device' and 'devices' properties
+- ✅ **HTML Structure**: Resolved invalid nesting in AlertDialog components
+
+### Technical Improvements
+- **AppointmentService**: Added CustomerDeviceRepository integration for auto-creating device records
+- **RealtimeService**: Modified `handleAppointmentInsert` to fetch full data with customer/device relations
+- **DeviceSelector**: Enhanced to handle multiple property naming conventions from different queries
+- **AppointmentRepository**: Added `findByIdWithDetails` method for complete data fetching
+- **CLAUDE.md**: Complete rewrite with current architecture, patterns, and best practices
+
+### Bug Fixes
+1. **Email Error**: Commented out notification calls in appointment service until notification system supports appointments
+2. **Device Names**: Fixed "Unknown Device" display by handling both singular and plural device property names
+3. **Real-time Updates**: New appointments now show customer and device info immediately without refresh
+4. **HTML Validation**: Moved block elements outside of `<p>` tags in dialogs
+
+### System Enhancements
+- Customer devices are now automatically created when appointments are made with device details
+- Device information properly cascades from appointments to tickets
+- Improved data consistency across the appointment lifecycle
 
 ## Session 8 Updates (September 3, 2025)
 

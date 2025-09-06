@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Device } from "@/lib/types/database.types";
 import { useDevices, useDeleteDevice } from "@/lib/hooks/use-admin";
+import { useRealtime } from "@/lib/hooks/use-realtime";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +75,9 @@ export function DevicesClient({
   const deleteDevice = useDeleteDevice();
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  
+  // Set up real-time subscriptions
+  useRealtime(['admin']);
   
   // Determine if we should show skeleton
   const showSkeleton = useShowSkeleton(isLoading, isFetching, !!devices);

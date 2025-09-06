@@ -102,12 +102,18 @@ export function useUpdateTicketStatus() {
       }
       toast.error('Failed to update status');
     },
-    onSuccess: () => {
+    onSuccess: (data, { id, status }) => {
       toast.success('Status updated successfully');
-    },
-    onSettled: (_, __, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['tickets'] });
-      queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+      
+      // Update ticket lists with the new status
+      queryClient.setQueriesData(
+        { queryKey: ['tickets'], exact: false },
+        (old: any[] = []) => {
+          return old.map(ticket => 
+            ticket.id === id ? { ...ticket, status, updated_at: new Date().toISOString() } : ticket
+          );
+        }
+      );
     },
   });
 }
@@ -125,9 +131,38 @@ export function useStartTimer() {
       if (!response.ok) throw new Error('Failed to start timer');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, ticketId) => {
       toast.success('Timer started');
-      queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      
+      // Update ticket in cache with timer state
+      if (data?.data) {
+        queryClient.setQueryData(['ticket', ticketId], (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            timer_is_running: true,
+            timer_started_at: data.data.timer_started_at,
+            updated_at: new Date().toISOString()
+          };
+        });
+        
+        // Update ticket lists
+        queryClient.setQueriesData(
+          { queryKey: ['tickets'], exact: false },
+          (old: any[] = []) => {
+            return old.map(ticket => 
+              ticket.id === ticketId 
+                ? { 
+                    ...ticket, 
+                    timer_is_running: true,
+                    timer_started_at: data.data.timer_started_at,
+                    updated_at: new Date().toISOString()
+                  } 
+                : ticket
+            );
+          }
+        );
+      }
     },
     onError: () => {
       toast.error('Failed to start timer');
@@ -148,12 +183,169 @@ export function useStopTimer() {
       if (!response.ok) throw new Error('Failed to stop timer');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, { ticketId }) => {
       toast.success('Timer stopped');
-      queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      
+      // Update ticket in cache with timer state and new time entry
+      if (data?.data) {
+        queryClient.setQueryData(['ticket', ticketId], (old: any) => {
+          if (!old) return old;
+          
+          // Add the new time entry if it exists
+          const updatedTimeEntries = data.data.newTimeEntry 
+            ? [...(old.time_entries || []), data.data.newTimeEntry]
+            : old.time_entries;
+          
+          return {
+            ...old,
+            timer_is_running: false,
+            timer_started_at: null,
+            timer_total_minutes: data.data.timer_total_minutes,
+            total_time_minutes: data.data.total_time_minutes,
+            time_entries: updatedTimeEntries,
+            updated_at: new Date().toISOString()
+          };
+        });
+        
+        // Update ticket lists
+        queryClient.setQueriesData(
+          { queryKey: ['tickets'], exact: false },
+          (old: any[] = []) => {
+            return old.map(ticket => 
+              ticket.id === ticketId 
+                ? { 
+                    ...ticket, 
+                    timer_is_running: false,
+                    timer_started_at: null,
+                    timer_total_minutes: data.data.timer_total_minutes,
+                    updated_at: new Date().toISOString()
+                  } 
+                : ticket
+            );
+          }
+        );
+      }
     },
     onError: () => {
       toast.error('Failed to stop timer');
+    },
+  });
+}
+
+// Clear timer mutation (admin function)
+// Create ticket mutation
+export function useCreateTicket() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to create ticket');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast.success('Ticket created successfully');
+      // Real-time will handle the cache update
+    },
+    onError: () => {
+      toast.error('Failed to create ticket');
+    },
+  });
+}
+
+// Update ticket mutation
+export function useUpdateTicket() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await fetch(`${API_BASE}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to update ticket');
+      return response.json();
+    },
+    onSuccess: (data, { id }) => {
+      toast.success('Ticket updated successfully');
+      // Real-time will handle the cache update
+    },
+    onError: () => {
+      toast.error('Failed to update ticket');
+    },
+  });
+}
+
+// Delete ticket mutation
+export function useDeleteTicket() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`${API_BASE}/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete ticket');
+      return response.json();
+    },
+    onSuccess: (data, id) => {
+      toast.success('Ticket deleted successfully');
+      // Real-time will handle the cache update
+    },
+    onError: () => {
+      toast.error('Failed to delete ticket');
+    },
+  });
+}
+
+export function useClearTimer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ticketId: string) => {
+      const response = await fetch(`/api/orders/${ticketId}/clear-timer`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to clear timer');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data, ticketId) => {
+      // Update the ticket in cache
+      queryClient.setQueryData(['ticket', ticketId], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          timer_is_running: false,
+          timer_started_at: null,
+        };
+      });
+
+      // Update ticket lists
+      queryClient.setQueriesData(
+        { queryKey: ['tickets'], exact: false },
+        (old: any[] = []) => {
+          return old.map(ticket => 
+            ticket.id === ticketId 
+              ? { ...ticket, timer_is_running: false, timer_started_at: null }
+              : ticket
+          );
+        }
+      );
+
+      toast.success('Timer cleared successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to clear timer');
     },
   });
 }

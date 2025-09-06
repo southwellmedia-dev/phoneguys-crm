@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Play, Pause, Square, Clock, AlertCircle, XCircle } from "lucide-react";
+import { Play, Pause, Square, Clock, AlertCircle, XCircle, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTimer } from "@/lib/contexts/timer-context";
 import { StopTimerDialog } from "./stop-timer-dialog";
 import { toast } from "sonner";
+import { useClearTimer } from "@/lib/hooks/use-tickets";
+import { useTicket } from "@/lib/hooks/use-tickets";
 
 interface TimerControlProps {
   ticketId: string;
@@ -36,6 +38,27 @@ export function TimerControl({
   } = useTimer();
   
   const [showStopDialog, setShowStopDialog] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  
+  // Get ticket data to check timer status
+  const { data: ticketData } = useTicket(ticketId);
+  const clearTimerMutation = useClearTimer();
+  
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        const response = await fetch('/api/auth/session');
+        if (response.ok) {
+          const data = await response.json();
+          setIsAdmin(data.user?.role === 'admin' || data.user?.role === 'super_admin');
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+      }
+    };
+    checkAdminStatus();
+  }, []);
 
   // Check if this component's timer is the active one
   const isThisTimerActive = activeTimer?.ticketId === ticketId;
@@ -84,6 +107,24 @@ export function TimerControl({
     window.location.reload(); // Reload to reset the state
     toast.success("Timer cleared from local storage");
   };
+  
+  const handleClearDatabaseTimer = async () => {
+    if (!isAdmin) {
+      toast.error("Only administrators can clear database timers");
+      return;
+    }
+    
+    try {
+      await clearTimerMutation.mutateAsync(ticketId);
+      // Also clear local storage if it's the same timer
+      if (isThisTimerActive) {
+        localStorage.removeItem('phoneguys_active_timer');
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Error clearing database timer:', error);
+    }
+  };
 
   const formatTime = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -131,16 +172,30 @@ export function TimerControl({
                   <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
                   <span className="text-sm text-destructive">{error}</span>
                 </div>
-                {error.includes('timer') && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleClearTimer}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <XCircle className="h-4 w-4" />
-                  </Button>
-                )}
+                <div className="flex items-center gap-1">
+                  {error.includes('timer') && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleClearTimer}
+                      className="text-destructive hover:text-destructive"
+                      title="Clear local timer"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {error.includes('timer') && isAdmin && ticketData?.timer_is_running && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleClearDatabaseTimer}
+                      className="text-orange-600 hover:text-orange-700"
+                      title="Clear database timer (Admin)"
+                    >
+                      <Shield className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -184,12 +239,12 @@ export function TimerControl({
               <>
                 <Button
                   onClick={handleStart}
-                  disabled={isLoading || isDisabled}
+                  disabled={isLoading || isDisabled || (ticketData?.timer_is_running && !isAdmin)}
                   className="flex-1"
                   variant={isDisabled ? "ghost" : "default"}
                 >
                   <Play className="mr-2 h-4 w-4" />
-                  {hasActiveTimer ? "Switch Timer" : "Start Timer"}
+                  {ticketData?.timer_is_running ? "Timer Already Running" : hasActiveTimer ? "Switch Timer" : "Start Timer"}
                 </Button>
                 {hasActiveTimer && !isDisabled && (
                   <Button
@@ -200,6 +255,17 @@ export function TimerControl({
                     title="Clear orphaned timer"
                   >
                     <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
+                {isAdmin && ticketData?.timer_is_running && !isThisTimerActive && (
+                  <Button
+                    onClick={handleClearDatabaseTimer}
+                    disabled={isLoading || clearTimerMutation.isPending}
+                    variant="outline"
+                    size="icon"
+                    title="Clear database timer (Admin only)"
+                  >
+                    <Shield className="h-4 w-4 text-orange-600" />
                   </Button>
                 )}
               </>

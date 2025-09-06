@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCustomer, useUpdateCustomer, useCustomerDevices } from '@/lib/hooks/use-customers';
 import { useQueryClient } from '@tanstack/react-query';
 import { EditDeviceDialog } from '@/components/customers/edit-device-dialog';
 import { PageContainer } from '@/components/layout/page-container';
+import { DeleteCustomerDialog } from '@/components/customers/delete-customer-dialog';
+import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +27,7 @@ import {
   Trash2,
   Plus,
   Smartphone,
+  Shield,
 } from 'lucide-react';
 import { Customer, RepairTicket } from '@/lib/types/database.types';
 import { toast } from 'sonner';
@@ -47,6 +50,27 @@ export function CustomerDetailClient({ customer: initialCustomer, repairs, custo
   const [deleting, setDeleting] = useState(false);
   const [editingDevice, setEditingDevice] = useState<any>(null);
   const [devices, setDevices] = useState(customerDevices);
+  const [isAdmin, setIsAdmin] = useState(false);
+  
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user && user.email) {
+        // Query by email (more reliable with current seed data structure)
+        const { data: profile } = await supabase
+          .from('users')
+          .select('role')
+          .eq('email', user.email)
+          .single();
+        
+        setIsAdmin(profile?.role === 'admin' || profile?.role === 'super_admin');
+      }
+    };
+    checkAdminStatus();
+  }, []);
   
   // Determine if we should show skeleton
   const showSkeleton = useShowSkeleton(isLoading, isFetching, !!customer);
@@ -244,6 +268,19 @@ export function CustomerDetailClient({ customer: initialCustomer, repairs, custo
                   Call Customer
                 </a>
               </Button>
+              {isAdmin && (
+                <DeleteCustomerDialog
+                  customerId={customerId}
+                  customerName={customer.name}
+                  trigger={
+                    <Button className="w-full justify-start" variant="destructive">
+                      <Shield className="h-4 w-4 mr-2" />
+                      Delete Customer (Admin)
+                    </Button>
+                  }
+                  onSuccess={() => router.push('/customers')}
+                />
+              )}
             </CardContent>
           </Card>
 
@@ -441,8 +478,7 @@ export function CustomerDetailClient({ customer: initialCustomer, repairs, custo
               updateDeviceInList(updatedDevice);
             }
             setEditingDevice(null);
-            queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
-            queryClient.invalidateQueries({ queryKey: ['customer-devices', customerId] });
+            // Real-time will handle the cache update
           }}
         />
       )}

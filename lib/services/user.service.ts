@@ -1,5 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/service';
-import { UserRepository } from '@/lib/repositories/user.repository';
+import { getRepository } from '@/lib/repositories/repository-manager';
 import { User, UserRole } from '@/lib/types/database.types';
 import { inviteUserSchema, InviteUserInput, UpdateUserInput } from '@/lib/validations/user.schema';
 
@@ -8,10 +8,8 @@ import { inviteUserSchema, InviteUserInput, UpdateUserInput } from '@/lib/valida
  * Handles business logic for user invitation, management, and onboarding
  */
 export class UserService {
-  private userRepo: UserRepository;
-
-  constructor() {
-    this.userRepo = new UserRepository(true); // Use service role for admin operations
+  private get userRepo() {
+    return getRepository.users(true); // Use service role for admin operations
   }
 
   /**

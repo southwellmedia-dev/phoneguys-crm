@@ -1,15 +1,20 @@
-import { CustomerRepository } from '../repositories/customer.repository';
-import { RepairTicketRepository } from '../repositories/repair-ticket.repository';
+import { getRepository } from '../repositories/repository-manager';
 import { Customer, CreateCustomerDto, UpdateCustomerDto, RepairTicket } from '../types/database.types';
 import { PaginatedResponse, FilterOperator } from '../types/database.types';
 
 export class CustomerService {
-  private customerRepo: CustomerRepository;
-  private ticketRepo: RepairTicketRepository;
+  private useServiceRole: boolean;
 
   constructor(useServiceRole = false) {
-    this.customerRepo = new CustomerRepository(useServiceRole);
-    this.ticketRepo = new RepairTicketRepository(useServiceRole);
+    this.useServiceRole = useServiceRole;
+  }
+
+  private get customerRepo() {
+    return getRepository.customers(this.useServiceRole);
+  }
+
+  private get ticketRepo() {
+    return getRepository.tickets(this.useServiceRole);
   }
 
   /**

@@ -624,7 +624,9 @@ export function AppointmentDetailEnhanced({
                         });
 
                         if (!response.ok) {
-                          throw new Error("Failed to update assignment");
+                          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                          console.error('Assignment update failed:', response.status, errorData);
+                          throw new Error(errorData.error || "Failed to update assignment");
                         }
 
                         // Update cache

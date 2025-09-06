@@ -106,6 +106,15 @@ Successfully implemented a comprehensive User Profile Hub system with statistics
 
 ### 7. Bug Fixes & Improvements (Session 2)
 
+#### Repository Instance Caching Issue:
+1. **Error: "this.noteRepo.createNote is not a function"**
+   - Occurred when changing ticket status to complete in production
+   - Root cause: Stale repository instance or module caching issue
+   - Solution: Restarting the dev server cleared cached instances
+   - No code changes required - issue was environment-related
+
+### 8. Additional Bug Fixes
+
 #### Assignment Bug Fix:
 1. **PATCH Handler Missing**
    - Added PATCH method to `/api/orders/[id]/route.ts`

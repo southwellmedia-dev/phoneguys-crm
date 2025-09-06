@@ -1,7 +1,5 @@
-import { AppointmentRepository, Appointment } from '@/lib/repositories/appointment.repository';
-import { RepairTicketRepository } from '@/lib/repositories/repair-ticket.repository';
-import { CustomerRepository } from '@/lib/repositories/customer.repository';
-import { CustomerDeviceRepository } from '@/lib/repositories/customer-device.repository';
+import { getRepository } from '@/lib/repositories/repository-manager';
+import { Appointment } from '@/lib/repositories/appointment.repository';
 import { NotificationService } from './notification.service';
 import { createServiceClient } from '@/lib/supabase/service';
 
@@ -51,18 +49,28 @@ export interface UpdateAppointmentDTO {
 }
 
 export class AppointmentService {
-  private appointmentRepo: AppointmentRepository;
-  private ticketRepo: RepairTicketRepository;
-  private customerRepo: CustomerRepository;
-  private customerDeviceRepo: CustomerDeviceRepository;
+  private useServiceRole: boolean;
   private notificationService: NotificationService;
 
   constructor(useServiceRole: boolean = false) {
-    this.appointmentRepo = new AppointmentRepository(useServiceRole);
-    this.ticketRepo = new RepairTicketRepository(useServiceRole);
-    this.customerRepo = new CustomerRepository(useServiceRole);
-    this.customerDeviceRepo = new CustomerDeviceRepository(useServiceRole);
+    this.useServiceRole = useServiceRole;
     this.notificationService = new NotificationService(useServiceRole);
+  }
+
+  private get appointmentRepo() {
+    return getRepository.appointments(this.useServiceRole);
+  }
+
+  private get ticketRepo() {
+    return getRepository.tickets(this.useServiceRole);
+  }
+
+  private get customerRepo() {
+    return getRepository.customers(this.useServiceRole);
+  }
+
+  private get customerDeviceRepo() {
+    return getRepository.customerDevices(this.useServiceRole);
   }
 
   /**

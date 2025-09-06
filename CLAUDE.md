@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 📚 Essential Documentation
+Before starting work, review these critical documents:
+- **[LOCAL_DEVELOPMENT_WORKFLOW.md](./docs/LOCAL_DEVELOPMENT_WORKFLOW.md)** - Complete guide for local development setup
+- **[PROJECT_MASTER.md](./docs/PROJECT_MASTER.md)** - Complete project context and overview
+- **[DEVELOPMENT_GUIDELINES.md](./docs/DEVELOPMENT_GUIDELINES.md)** - Coding standards, patterns, and folder structure
+- **[project-checklist.md](./docs/project-checklist.md)** - Implementation phases and current progress
+
 ## Project Overview
 
 **The Phone Guys CRM** is a comprehensive repair management system for a mobile device repair service. Built with Next.js 15, TypeScript, Supabase, and TanStack Query, it provides real-time collaboration, efficient order tracking, and seamless customer management.
@@ -295,31 +302,82 @@ npm run lint       # Run ESLint
 npx tsc --noEmit   # Type-check without emitting files
 ```
 
-### Supabase Local Development
+### Local Development Setup
+
+#### Environment Configuration
+```bash
+# Switch to local development
+cp .env.local.development .env.local
+
+# Switch to production (for testing only)
+cp .env.local.production .env.local
+```
+
+#### Supabase Local Development
 ```bash
 npx supabase start  # Start local Supabase services
 npx supabase stop   # Stop local Supabase services
 npx supabase status # Check status of local services
-npx supabase db reset # Reset database with seed data
+npx supabase db reset # Reset database with migrations and seed data
 
 # Local URLs
 # App: http://localhost:3000
 # Studio: http://127.0.0.1:54323
 # API: http://127.0.0.1:54321
 # Inbucket (Email): http://127.0.0.1:54324
+# DB: postgresql://postgres:postgres@127.0.0.1:54322/postgres
 ```
 
-### Database Management
+### Database Development Workflow
+
+#### Creating New Features with Database Changes
 ```bash
-# Pull remote schema (be careful with production)
-npx supabase db pull --password "your-password"
+# 1. Create a new migration for your feature
+npx supabase migration new feature_name
 
-# Generate types from database
-npx supabase gen types typescript --local > lib/types/supabase.ts
+# 2. Edit the migration file in supabase/migrations/
+# Add your SQL changes (CREATE TABLE, ALTER TABLE, etc.)
 
-# Run migrations
+# 3. Test locally
+npx supabase db reset  # Rebuilds everything from scratch
+
+# Or apply just your migration
 npx supabase migration up
 ```
+
+#### Deploying to Production
+```bash
+# 1. Ensure you're linked to production
+npx supabase link --project-ref egotypldqzdzjclikmeg
+
+# 2. Push your migrations to production
+npx supabase db push --password "iZPi-8JYjn?0KtvY"
+
+# 3. Deploy code changes
+git push origin main  # Triggers Vercel deployment
+```
+
+### Important Migration Guidelines
+
+#### DO:
+- Create new migration files for new features
+- Test migrations locally first with `npx supabase db reset`
+- Keep migrations small and focused
+- Name migrations descriptively (e.g., `add_invoice_system`)
+- Commit migrations with related code changes
+
+#### DON'T:
+- Modify existing migration files (especially 20250906132220 and 20250906132236)
+- Make direct database changes in production via Studio
+- Use `supabase db pull` after creating local migrations
+- Delete or rename existing migrations
+
+### Current Migration Status
+As of 2025-09-06, the database schema has been consolidated into two migrations:
+- `20250906132220_remote_schema.sql` - Main schema
+- `20250906132236_remote_schema.sql` - Auth schema
+
+All new features should create NEW migration files.
 
 ## Common Patterns
 

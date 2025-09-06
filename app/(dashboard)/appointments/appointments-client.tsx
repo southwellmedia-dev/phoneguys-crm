@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAppointments, useUpdateAppointment } from "@/lib/hooks/use-appointments";
 import { useRealtime } from "@/lib/hooks/use-realtime";
@@ -40,6 +40,8 @@ import {
   ChevronDown,
   Columns,
   Search,
+  Users,
+  UserCheck,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -54,6 +56,8 @@ import { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
 import { SkeletonAppointments } from "@/components/ui/skeleton-appointments";
+import { getCurrentUserInfo } from "@/lib/utils/user-mapping";
+import { createClient } from "@/lib/supabase/client";
 
 interface Appointment {
   id: string;
@@ -71,6 +75,7 @@ interface Appointment {
   source: string | null;
   created_at: string;
   converted_to_ticket_id: string | null;
+  assigned_to?: string | null;
 }
 
 const statusConfig = {
@@ -90,6 +95,8 @@ export function AppointmentsClient({ appointments: initialAppointments }: { appo
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState("");
+  const [showMyAppointments, setShowMyAppointments] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [columnVisibility, setColumnVisibility] = useState({
     appointment_number: true,
     datetime: true,
@@ -102,6 +109,22 @@ export function AppointmentsClient({ appointments: initialAppointments }: { appo
   // Set up real-time subscriptions
   useRealtime(['appointments']);
   
+  // Get current user ID on mount
+  useEffect(() => {
+    async function fetchUserId() {
+      try {
+        const supabase = createClient();
+        const userInfo = await getCurrentUserInfo(supabase);
+        if (userInfo) {
+          setCurrentUserId(userInfo.appUserId);
+        }
+      } catch (error) {
+        console.error('Failed to get user info:', error);
+      }
+    }
+    fetchUserId();
+  }, []);
+  
   // Determine if we should show skeleton
   const showSkeleton = useShowSkeleton(isLoading, isFetching, !!appointments);
 
@@ -111,6 +134,11 @@ export function AppointmentsClient({ appointments: initialAppointments }: { appo
     
     // Start with all appointments
     let filtered = [...appointments];
+    
+    // Apply My Appointments filter
+    if (showMyAppointments && currentUserId) {
+      filtered = filtered.filter(apt => apt.assigned_to === currentUserId);
+    }
     
     // Apply status filter (but not for converted/cancelled tabs which have their own status logic)
     if (statusFilter !== 'all' && selectedTab !== 'converted' && selectedTab !== 'cancelled') {
@@ -177,7 +205,7 @@ export function AppointmentsClient({ appointments: initialAppointments }: { appo
     });
     
     return filtered;
-  }, [appointments, selectedTab, sortOrder, statusFilter, searchQuery]);
+  }, [appointments, selectedTab, sortOrder, statusFilter, searchQuery, showMyAppointments, currentUserId]);
 
   const allColumns: ColumnDef<Appointment>[] = [
     {
@@ -505,6 +533,7 @@ export function AppointmentsClient({ appointments: initialAppointments }: { appo
                     <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       {filteredAppointments.length} {selectedTab === "all" ? "active" : selectedTab} appointments
+                      {showMyAppointments && " (assigned to me)"}
                     </p>
                   </div>
                 </div>
@@ -608,15 +637,29 @@ export function AppointmentsClient({ appointments: initialAppointments }: { appo
                   </TabsList>
                 </Tabs>
                 
-                {/* Search bar */}
-                <div className="relative max-w-xs">
-                  <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search appointments..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8"
-                  />
+                <div className="flex items-center gap-2">
+                  {/* My Appointments toggle */}
+                  <Button
+                    variant={showMyAppointments ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowMyAppointments(!showMyAppointments)}
+                    className="h-9 gap-2"
+                    disabled={!currentUserId}
+                  >
+                    {showMyAppointments ? <UserCheck className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+                    {showMyAppointments ? "My Appointments" : "All Appointments"}
+                  </Button>
+                  
+                  {/* Search bar */}
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search appointments..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 w-[200px]"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

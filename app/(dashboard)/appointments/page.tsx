@@ -24,6 +24,7 @@ async function getAppointments() {
       source: apt.source,
       created_at: apt.created_at,
       converted_to_ticket_id: apt.converted_to_ticket_id,
+      assigned_to: apt.assigned_to,
     }));
   } catch (error) {
     console.error('Error fetching appointments:', error);

@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   RefreshCw,
   Mail,
@@ -46,10 +45,11 @@ import { toast } from 'sonner';
 interface ProfileClientProps {
   userId: string;
   isOwnProfile?: boolean;
+  initialData?: any;
 }
 
-export function ProfileClient({ userId, isOwnProfile = false }: ProfileClientProps) {
-  const { data: profile, isLoading, error } = useUserProfile(userId);
+export function ProfileClient({ userId, isOwnProfile = false, initialData }: ProfileClientProps) {
+  const { data: profile = initialData, isLoading, error } = useUserProfile(userId, initialData);
   const refreshStats = useRefreshStatistics(userId);
   const [activeTab, setActiveTab] = useState('overview');
   const [userRole, setUserRole] = useState<string>('');
@@ -80,20 +80,7 @@ export function ProfileClient({ userId, isOwnProfile = false }: ProfileClientPro
     }
   };
 
-  if (isLoading) {
-    return (
-      <PageContainer
-        title="Loading Profile..."
-        description="Please wait while we load your profile"
-      >
-        <div className="space-y-6">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      </PageContainer>
-    );
-  }
-
+  // Since we have initial data, we should never hit this case
   if (!profile) {
     return (
       <PageContainer

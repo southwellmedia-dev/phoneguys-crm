@@ -432,9 +432,48 @@ All critical bugs were fixed, migrations successfully deployed to production, an
 - ✅ Improved UI organization and consistency
 - ✅ Better user experience with intuitive controls
 
+## 🔧 Session 6: My Appointments Filter Implementation
+
+### Features Added:
+1. **My Appointments Toggle**
+   - Added toggle button to filter appointments by current user
+   - Shows "My Appointments" vs "All Appointments" with clear visual states
+   - Uses UserCheck/Users icons to indicate active filter
+   - Positioned alongside search bar for easy access
+
+2. **User-Specific Filtering**
+   - Integrated with existing appointment assignment system
+   - Fetches current user ID using `getCurrentUserInfo` utility
+   - Filters by `assigned_to` field when toggle is active
+   - Works with all other filters (tabs, status, search) simultaneously
+
+3. **Bug Fixes**
+   - Fixed import path: `@/lib/utils/user` → `@/lib/utils/user-mapping`
+   - Added Supabase client parameter to `getCurrentUserInfo` function
+   - Proper null handling for user info retrieval
+
+### Technical Implementation:
+```typescript
+// Fetch current user ID
+const supabase = createClient();
+const userInfo = await getCurrentUserInfo(supabase);
+setCurrentUserId(userInfo.appUserId);
+
+// Filter appointments
+if (showMyAppointments && currentUserId) {
+  filtered = filtered.filter(apt => apt.assigned_to === currentUserId);
+}
+```
+
+### Results:
+- ✅ Users can quickly filter to see only their assigned appointments
+- ✅ Consistent implementation with "My Tickets" feature
+- ✅ Visual feedback shows when personal filter is active
+- ✅ Seamless integration with existing filter system
+
 **Session Status:** ✅ COMPLETED - Deployed to Production  
 **Quality:** Production-ready with comprehensive testing  
 **Impact:** High - Core features for user management, accountability, and workflow efficiency  
-**Commits:** 6 major commits across 5 sessions
+**Commits:** 7 major commits across 6 sessions
 **Total Migrations:** 11 migrations created and deployed
 **Files Modified:** 30+ files across frontend, backend, and database layers

@@ -11,13 +11,8 @@ export interface UserProfile {
   recentActivity: any[];
 }
 
-export function useUserProfile(userId: string) {
+export function useUserProfile(userId: string, initialData?: UserProfile) {
   const queryClient = useQueryClient();
-
-  // Force cache invalidation for development - remove this later
-  React.useEffect(() => {
-    queryClient.removeQueries({ queryKey: ['user-profile', userId] });
-  }, [queryClient, userId]);
 
   const query = useQuery({
     queryKey: ['user-profile', userId],
@@ -38,8 +33,9 @@ export function useUserProfile(userId: string) {
       console.log('useUserProfile - Performance Metrics:', data.data?.performanceMetrics);
       return data.data as UserProfile;
     },
+    initialData,
     staleTime: 10 * 1000, // 10 seconds - much shorter for real-time feel
-    enabled: !!userId,
+    enabled: !!userId && !initialData, // Don't fetch if we have initial data
   });
 
   // Set up real-time subscription for user statistics

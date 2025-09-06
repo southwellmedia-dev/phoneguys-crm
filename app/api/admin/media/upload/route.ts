@@ -5,8 +5,8 @@ import { DeviceImageService } from '@/lib/services/device-image.service';
 
 export async function POST(request: NextRequest) {
   try {
-    // Require admin permission
-    const authResult = await requirePermission(request, Permission.USER_MANAGE);
+    // Require permission to update tickets (since media is mainly used for device images in tickets)
+    const authResult = await requirePermission(request, Permission.TICKET_UPDATE);
     if (authResult instanceof NextResponse) return authResult;
 
     const formData = await request.formData();

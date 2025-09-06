@@ -317,6 +317,67 @@ export class AppointmentService {
       }
     }
 
+    // Create ticket notes from appointment notes
+    if (appointment.notes || additionalData?.customer_notes || additionalData?.technician_notes) {
+      // Parse notes if they're in JSON format
+      let customerNotes = '';
+      let technicianNotes = '';
+      
+      try {
+        if (appointment.notes && typeof appointment.notes === 'string' && appointment.notes.startsWith('{')) {
+          const parsedNotes = JSON.parse(appointment.notes);
+          customerNotes = parsedNotes.customer_notes || '';
+          technicianNotes = parsedNotes.technician_notes || '';
+        } else {
+          customerNotes = appointment.notes || '';
+        }
+      } catch (e) {
+        customerNotes = appointment.notes || '';
+      }
+      
+      // Override with form data if provided
+      if (additionalData?.customer_notes) {
+        customerNotes = additionalData.customer_notes;
+      }
+      if (additionalData?.technician_notes) {
+        technicianNotes = additionalData.technician_notes;
+      }
+      
+      // Create customer note if exists
+      if (customerNotes) {
+        await this.supabase
+          .from('ticket_notes')
+          .insert({
+            ticket_id: ticket.id,
+            note_type: 'customer',
+            content: customerNotes,
+            is_important: false
+          });
+      }
+      
+      // Create technician note if exists
+      if (technicianNotes) {
+        await this.supabase
+          .from('ticket_notes')
+          .insert({
+            ticket_id: ticket.id,
+            note_type: 'internal',
+            content: technicianNotes,
+            is_important: false
+          });
+      }
+      
+      // Create system note about conversion
+      await this.supabase
+        .from('ticket_notes')
+        .insert({
+          ticket_id: ticket.id,
+          note_type: 'system',
+          content: `Converted from appointment ${appointment.appointment_number}`,
+          is_important: false
+        });
+    }
+
     // Update appointment as converted
     const updatedAppointment = await this.appointmentRepo.convertToTicket(appointmentId, ticket.id);
 

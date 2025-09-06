@@ -104,5 +104,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Recalculate for admin user to fix the average time
-SELECT update_user_statistics('11111111-1111-1111-1111-111111111111');
+-- Recalculate for admin user to fix the average time (if exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM public.users WHERE id = '11111111-1111-1111-1111-111111111111') THEN
+        PERFORM update_user_statistics('11111111-1111-1111-1111-111111111111');
+    END IF;
+END $$;

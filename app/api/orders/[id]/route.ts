@@ -126,6 +126,76 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   }
 }
 
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  try {
+    // Await params in Next.js 15
+    const resolvedParams = await params;
+    
+    // Require authentication and update permission
+    const authResult = await requirePermission(request, Permission.TICKET_UPDATE);
+    if (authResult instanceof NextResponse) return authResult;
+
+    const ticketId = resolvedParams.id;
+    const body = await request.json();
+    
+    // Get repository instance
+    const ticketRepo = getRepository.tickets();
+    
+    // Check if ticket exists
+    const existingTicket = await ticketRepo.findById(ticketId);
+    if (!existingTicket) {
+      return NextResponse.json(
+        { error: 'Repair ticket not found' },
+        { status: 404 }
+      );
+    }
+
+    // Don't allow assignment changes for completed or cancelled tickets
+    if (body.assigned_to !== undefined && 
+        (existingTicket.status === 'completed' || existingTicket.status === 'cancelled')) {
+      return NextResponse.json(
+        { error: 'Cannot change assignment for completed or cancelled tickets' },
+        { status: 400 }
+      );
+    }
+
+    // Check if technician can update this ticket
+    if (authResult.role === 'technician' && !authResult.isManager) {
+      // Technicians can only update tickets assigned to them
+      if (existingTicket.assigned_to !== authResult.userId) {
+        return NextResponse.json(
+          { error: 'You can only update tickets assigned to you' },
+          { status: 403 }
+        );
+      }
+      // Technicians cannot reassign tickets
+      if (body.assigned_to !== undefined && body.assigned_to !== authResult.userId) {
+        return NextResponse.json(
+          { error: 'You do not have permission to reassign tickets' },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Only allow specific fields to be updated via PATCH
+    const allowedFields = ['assigned_to', 'status', 'priority', 'notes'];
+    const updateData: any = {};
+    
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        updateData[field] = body[field];
+      }
+    }
+
+    // Update the ticket
+    const updatedTicket = await ticketRepo.update(ticketId, updateData);
+
+    return successResponse(updatedTicket, 'Repair ticket updated successfully');
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     // Await params in Next.js 15

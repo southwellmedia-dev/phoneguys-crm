@@ -20,10 +20,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
+    // Validate file type (allow images and SVG)
+    if (!file.type.startsWith('image/') && file.type !== 'image/svg+xml') {
       return NextResponse.json(
-        { error: 'File must be an image' },
+        { error: 'File must be an image or SVG' },
         { status: 400 }
       );
     }

@@ -85,7 +85,9 @@ export function MediaGallery({
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    const imageFiles = files.filter(file => 
+      file.type.startsWith('image/') || file.type === 'image/svg+xml'
+    );
     
     if (imageFiles.length !== files.length) {
       toast.error('Some files were not images and were skipped');
@@ -207,7 +209,7 @@ export function MediaGallery({
               <div className="flex items-center gap-4">
                 <Input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.svg,image/svg+xml"
                   multiple
                   onChange={handleFileSelect}
                   className="flex-1"

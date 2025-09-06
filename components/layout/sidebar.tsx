@@ -126,14 +126,16 @@ export function Sidebar({ user }: SidebarProps) {
         {/* Logo Section - Enhanced - Matching header height (h-16) */}
         <div className="h-16 px-6 flex items-center border-b border-white/10 dark:border-border/50 bg-gradient-to-r from-transparent via-white/5 to-transparent dark:from-transparent dark:via-muted/20 dark:to-transparent">
           <Link href="/" className="flex items-center space-x-3 group">
-            <div className="w-10 h-10 bg-white/20 dark:bg-gradient-primary rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 backdrop-blur-sm">
-              <span className="text-white dark:text-primary-foreground font-bold text-xl">
-                TPG
-              </span>
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 overflow-hidden">
+              <img
+                src="https://egotypldqzdzjclikmeg.supabase.co/storage/v1/object/public/device-images/phone-guys-lg.jpg"
+                alt="The Phone Guys"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div>
               <h1 className="text-lg font-bold text-white dark:text-foreground">The Phone Guys</h1>
-              <p className="text-xs text-white/70 dark:text-muted-foreground">CRM System</p>
+              <p className="text-xs text-white/70 dark:text-muted-foreground">CRM & Ticketing Platform</p>
             </div>
           </Link>
         </div>

@@ -297,9 +297,19 @@ export function useUploadMedia() {
       if (!response.ok) throw new Error('Failed to upload media');
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (response) => {
       toast.success('Media uploaded successfully');
-      // Real-time will handle the cache update
+      // Update cache directly since media gallery doesn't have real-time subscriptions
+      queryClient.setQueryData(['admin', 'media-gallery'], (old: any[] = []) => {
+        // Add the new image to the beginning of the array
+        const newImage = {
+          name: response.data.name,
+          url: response.data.url,
+          size: response.data.size,
+          created_at: new Date().toISOString()
+        };
+        return [newImage, ...old];
+      });
     },
     onError: () => {
       toast.error('Failed to upload media');
@@ -313,16 +323,20 @@ export function useDeleteMedia() {
   return useMutation({
     mutationFn: async (filename: string) => {
       const response = await fetch('/api/admin/media/delete', {
-        method: 'POST',
+        method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename }),
+        body: JSON.stringify({ fileName: filename }),
       });
       if (!response.ok) throw new Error('Failed to delete media');
       return response.json();
     },
     onSuccess: (data, filename) => {
       toast.success('Media deleted successfully');
-      // Real-time will handle the cache update
+      // Update cache directly since media gallery doesn't have real-time subscriptions
+      queryClient.setQueryData(['admin', 'media-gallery'], (old: any[] = []) => {
+        // Remove the deleted image from the array
+        return old.filter(img => img.name !== filename);
+      });
     },
     onError: () => {
       toast.error('Failed to delete media');

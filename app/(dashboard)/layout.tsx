@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/sidebar";
-import { HeaderWrapper } from "@/components/layout/header-wrapper";
+import { HeaderWrapperPremium } from "@/components/layout/header-wrapper-premium";
 import { HeaderProvider } from "@/lib/contexts/header-context";
 import { UserRepository } from "@/lib/repositories/user.repository";
 
@@ -46,8 +46,8 @@ export default async function DashboardLayout({
 
         {/* Main Content Area - Scrollable */}
         <div className="flex-1 flex flex-col h-screen">
-          {/* Top Header with dynamic content */}
-          <HeaderWrapper />
+          {/* Premium Header with enhanced features - h-20 to match sidebar */}
+          <HeaderWrapperPremium />
 
           {/* Main Content - Scrollable with light blue background in light mode */}
           <main className="flex-1 bg-primary/[0.03] dark:bg-muted/30 overflow-y-auto">

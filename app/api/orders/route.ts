@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '50');
+    const limit = parseInt(searchParams.get('limit') || '0');
+    const pageSize = limit > 0 ? limit : parseInt(searchParams.get('pageSize') || '50');
     const status = searchParams.get('status');
     const priority = searchParams.get('priority');
     const customerId = searchParams.get('customerId');
@@ -51,8 +52,17 @@ export async function GET(request: NextRequest) {
       const end = start + pageSize;
       const paginatedData = ticketsWithCustomers.slice(start, end);
       
+      // Transform tickets to match the Order interface expected by the UI
+      const transformedData = paginatedData.map((ticket: any) => ({
+        ...ticket,
+        customer_name: ticket.customers?.name || ticket.customers?.full_name || "Unknown Customer",
+        customer_phone: ticket.customers?.phone || "",
+        device_brand: ticket.device?.manufacturer?.name || ticket.device_brand || "",
+        device_model: ticket.device?.model_name || ticket.device_model || ""
+      }));
+      
       return paginatedResponse(
-        paginatedData,
+        transformedData,
         page,
         pageSize,
         ticketsWithCustomers.length
@@ -75,26 +85,67 @@ export async function GET(request: NextRequest) {
     }
     
     // For technicians (non-managers), only show their assigned tickets by default
-    if (authResult.role === 'technician' && !authResult.isManager) {
+    // BUT if this is just a simple limit request (like for recent activity), show all tickets
+    const isRecentActivityRequest = limit > 0 && Object.keys(filters).length === 0;
+    
+    if (authResult.role === 'technician' && !authResult.isManager && !isRecentActivityRequest) {
       filters.assigned_to = authResult.userId;
     }
 
     console.log('API: Final filters:', filters);
     console.log('API: Current user:', authResult.userId, 'Role:', authResult.role);
     
-    // Get tickets with pagination
-    const result = await ticketRepo.findPaginated(
-      Object.keys(filters).length > 0 ? filters : undefined,
-      { page, pageSize, sortBy, sortOrder }
-    );
+    // Get tickets with customer relationships
+    const allTickets = await ticketRepo.findAllWithCustomers();
     
-    console.log('API: Found tickets:', result.data?.length || 0);
+    console.log('API: Found raw tickets:', allTickets.length);
+    
+    // Apply filters manually since findAllWithCustomers doesn't support filtering
+    let filteredTickets = allTickets;
+    
+    if (Object.keys(filters).length > 0) {
+      filteredTickets = allTickets.filter(ticket => {
+        if (filters.status && ticket.status !== filters.status) return false;
+        if (filters.priority && ticket.priority !== filters.priority) return false;
+        if (filters.customer_id && ticket.customer_id !== filters.customer_id) return false;
+        if (filters.assigned_to && ticket.assigned_to !== filters.assigned_to) return false;
+        return true;
+      });
+    }
+    
+    // Sort tickets
+    filteredTickets.sort((a, b) => {
+      const aValue = a[sortBy as keyof typeof a];
+      const bValue = b[sortBy as keyof typeof b];
+      
+      if (sortOrder === 'desc') {
+        return bValue > aValue ? 1 : -1;
+      } else {
+        return aValue > bValue ? 1 : -1;
+      }
+    });
+    
+    // Apply pagination
+    const total = filteredTickets.length;
+    const start = (page - 1) * pageSize;
+    const paginatedTickets = filteredTickets.slice(start, start + pageSize);
+    
+    console.log('API: After filtering and pagination:', paginatedTickets.length);
+
+    // Transform tickets to match the Order interface expected by the UI
+    const transformedTickets = paginatedTickets.map((ticket: any) => ({
+      ...ticket,
+      customer_name: ticket.customers?.name || ticket.customers?.full_name || "Unknown Customer",
+      customer_phone: ticket.customers?.phone || "",
+      device_brand: ticket.device?.manufacturer?.name || ticket.device_brand || "",
+      device_model: ticket.device?.model_name || ticket.device_model || ""
+    }));
 
     return paginatedResponse(
-      result.data,
-      result.page,
-      result.pageSize,
-      result.total
+      transformedTickets,
+      page,
+      pageSize,
+      total
     );
   } catch (error) {
     return handleApiError(error);

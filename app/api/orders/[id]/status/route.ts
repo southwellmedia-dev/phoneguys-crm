@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepairOrderService } from '@/lib/services/repair-order.service';
 import { NotificationService } from '@/lib/services/notification.service';
-import { requirePermission, handleApiError, successResponse } from '@/lib/auth/helpers';
+import { requirePermission, handleApiError, successResponse, requireAuth } from '@/lib/auth/helpers';
 import { Permission } from '@/lib/services/authorization.service';
 
 interface RouteParams {
@@ -74,4 +74,32 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   return updateStatus(request, params);
+}
+
+export async function GET(request: NextRequest, { params }: RouteParams) {
+  try {
+    const resolvedParams = await params;
+    
+    // Require authentication
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) return authResult;
+
+    const ticketId = resolvedParams.id;
+    const repairService = new RepairOrderService();
+
+    // Get the ticket to fetch its current status
+    const ticket = await repairService.getRepairOrderWithDetails(ticketId);
+    
+    if (!ticket) {
+      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ 
+      status: ticket.status,
+      id: ticket.id,
+      updated_at: ticket.updated_at 
+    });
+  } catch (error) {
+    return handleApiError(error);
+  }
 }

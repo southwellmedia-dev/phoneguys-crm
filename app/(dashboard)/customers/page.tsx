@@ -1,7 +1,6 @@
-import { CustomersTable } from "./customers-table";
+import { CustomersTableLive } from "@/components/premium/connected/customers/customers-table-live";
 import { PageContainer } from "@/components/layout/page-container";
 import { Plus, Download } from "lucide-react";
-import { CustomerRepository } from "@/lib/repositories/customer.repository";
 
 export default async function CustomersPage() {
   const headerActions = [
@@ -19,17 +18,13 @@ export default async function CustomersPage() {
     }
   ];
 
-  // Get customers data
-  const customerRepo = new CustomerRepository();
-  const customers = await customerRepo.findAllWithRepairCount();
-
   return (
     <PageContainer
       title="Customers"
       description="Manage customer information and view repair history"
       actions={headerActions}
     >
-      <CustomersTable initialCustomers={customers} />
+      <CustomersTableLive />
     </PageContainer>
   );
 }

@@ -134,58 +134,107 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/appointments - Check appointment status (optional endpoint for checking status)
+// GET /api/appointments - Check appointment status or fetch appointments
 export async function GET(request: NextRequest) {
   try {
-    // Validate API key
-    if (!validateApiKey(request)) {
-      return NextResponse.json<ApiResponse>({
-        success: false,
-        error: 'Unauthorized',
-        message: 'Invalid or missing API key'
-      }, { status: 401 });
+    // Check if this is an internal request (with auth cookies) or external (with API key)
+    const hasApiKey = request.headers.get('x-api-key');
+    const isExternalRequest = hasApiKey !== null;
+    
+    if (isExternalRequest) {
+      // External API request - validate API key
+      if (!validateApiKey(request)) {
+        return NextResponse.json<ApiResponse>({
+          success: false,
+          error: 'Unauthorized',
+          message: 'Invalid or missing API key'
+        }, { status: 401 });
+      }
+    } else {
+      // Internal request - require authentication
+      const { requireAuth, handleApiError } = await import('@/lib/auth/helpers');
+      const authResult = await requireAuth(request);
+      if (authResult instanceof NextResponse) return authResult;
     }
 
-    // Get appointment number from query params
+    // Get query parameters
     const { searchParams } = new URL(request.url);
     const appointmentNumber = searchParams.get('appointment_number');
+    const limit = parseInt(searchParams.get('limit') || '0');
 
-    if (!appointmentNumber) {
-      return NextResponse.json<ApiResponse>({
-        success: false,
-        error: 'Bad request',
-        message: 'Appointment number is required'
-      }, { status: 400 });
-    }
-
-    // Import repository to check appointment status
+    // Import repository
     const { AppointmentRepository } = await import('@/lib/repositories/appointment.repository');
     const appointmentRepo = new AppointmentRepository(true);
 
-    const appointment = await appointmentRepo.findByAppointmentNumber(appointmentNumber);
-
-    if (!appointment) {
-      return NextResponse.json<ApiResponse>({
-        success: false,
-        error: 'Not found',
-        message: 'Appointment not found'
-      }, { status: 404 });
-    }
-
-    // Return appointment status
-    return NextResponse.json<ApiResponse>({
-      success: true,
-      data: {
-        appointment_number: appointment.appointment_number,
-        status: appointment.status,
-        scheduled_date: appointment.scheduled_date,
-        scheduled_time: appointment.scheduled_time,
-        customer_name: appointment.customers?.name,
-        device: appointment.devices ? `${appointment.devices.manufacturer?.name} ${appointment.devices.model_name}` : null,
-        issues: appointment.issues,
-        converted_to_ticket_id: appointment.converted_to_ticket_id
+    if (isExternalRequest) {
+      // External API: Require appointment number for status check
+      if (!appointmentNumber) {
+        return NextResponse.json<ApiResponse>({
+          success: false,
+          error: 'Bad request',
+          message: 'Appointment number is required'
+        }, { status: 400 });
       }
-    });
+
+      const appointment = await appointmentRepo.findByAppointmentNumber(appointmentNumber);
+
+      if (!appointment) {
+        return NextResponse.json<ApiResponse>({
+          success: false,
+          error: 'Not found',
+          message: 'Appointment not found'
+        }, { status: 404 });
+      }
+
+      // Return appointment status
+      return NextResponse.json<ApiResponse>({
+        success: true,
+        data: {
+          appointment_number: appointment.appointment_number,
+          status: appointment.status,
+          scheduled_date: appointment.scheduled_date,
+          scheduled_time: appointment.scheduled_time,
+          customer_name: appointment.customers?.name,
+          device: appointment.devices ? `${appointment.devices.manufacturer?.name} ${appointment.devices.model_name}` : null,
+          issues: appointment.issues,
+          converted_to_ticket_id: appointment.converted_to_ticket_id
+        }
+      });
+    } else {
+      // Internal request: Fetch appointments for dashboard
+      const appointments = await appointmentRepo.findAllWithDetails();
+      
+      // Sort by date (most recent first)
+      appointments.sort((a: any, b: any) => {
+        const dateA = new Date(`${a.scheduled_date} ${a.scheduled_time}`);
+        const dateB = new Date(`${b.scheduled_date} ${b.scheduled_time}`);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      // Apply limit if specified
+      const limitedAppointments = limit > 0 ? appointments.slice(0, limit) : appointments;
+
+      // Transform data for internal use
+      const transformedAppointments = limitedAppointments.map((apt: any) => ({
+        id: apt.id,
+        appointment_number: apt.appointment_number,
+        status: apt.status,
+        scheduled_date: apt.scheduled_date,
+        scheduled_time: apt.scheduled_time,
+        appointment_date: `${apt.scheduled_date} ${apt.scheduled_time}`,
+        customer_name: apt.customers?.name || apt.customers?.full_name || 'Unknown',
+        customers: apt.customers,
+        services: apt.services || [],
+        issues: apt.issues,
+        created_at: apt.created_at,
+        updated_at: apt.updated_at
+      }));
+
+      return NextResponse.json({
+        success: true,
+        data: transformedAppointments
+      });
+    }
 
   } catch (error) {
     console.error('Error in GET /api/appointments:', error);

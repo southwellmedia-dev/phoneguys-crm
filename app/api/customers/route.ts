@@ -22,30 +22,41 @@ export async function GET(request: NextRequest) {
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '50');
+    const limit = parseInt(searchParams.get('limit') || '0');
+    const pageSize = limit > 0 ? limit : parseInt(searchParams.get('pageSize') || '50');
     const search = searchParams.get('search');
 
-    // Create service instance
-    const customerService = new CustomerService();
+    // Get repository directly for better control
+    const { CustomerRepository } = await import('@/lib/repositories/customer.repository');
+    const customerRepo = new CustomerRepository();
 
     // If search term provided, use search functionality
     if (search && search.length >= 2) {
-      const customers = await customerService.searchCustomers(search);
-      return successResponse(customers);
+      // For search, get all customers with repair counts then filter
+      const allCustomers = await customerRepo.findAllWithRepairCount();
+      
+      const searchLower = search.toLowerCase();
+      const filteredCustomers = allCustomers.filter(customer => 
+        customer.name?.toLowerCase().includes(searchLower) ||
+        customer.email?.toLowerCase().includes(searchLower) ||
+        customer.phone?.toLowerCase().includes(searchLower)
+      );
+      
+      return successResponse(filteredCustomers);
     }
 
-    // Otherwise get paginated list
-    const result = await customerService.getCustomers(
-      undefined,
-      page,
-      pageSize
-    );
+    // Get all customers with repair counts
+    const allCustomers = await customerRepo.findAllWithRepairCount();
+    
+    // Apply pagination
+    const start = (page - 1) * pageSize;
+    const paginatedCustomers = allCustomers.slice(start, start + pageSize);
 
     return paginatedResponse(
-      result.data,
-      result.page,
-      result.pageSize,
-      result.total
+      paginatedCustomers,
+      page,
+      pageSize,
+      allCustomers.length
     );
   } catch (error) {
     return handleApiError(error);

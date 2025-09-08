@@ -20,6 +20,7 @@ import {
   LogOut,
   User,
   ChevronUp,
+  Palette,
 } from "lucide-react";
 import { useTimer } from "@/lib/contexts/timer-context";
 import { StopTimerDialog } from "@/components/orders/stop-timer-dialog";
@@ -49,6 +50,7 @@ const adminNavigation = [
   { name: "Devices", href: "/admin/devices", icon: Smartphone },
   { name: "Services", href: "/admin/services", icon: Wrench },
   { name: "Media Gallery", href: "/admin/media", icon: Image },
+  { name: "Component Showcase", href: "/showcase", icon: Palette },
   { name: "Reports", href: "/reports", icon: FileText, disabled: true },
   { name: "Settings", href: "/settings", icon: Settings, disabled: true },
 ];
@@ -123,8 +125,8 @@ export function Sidebar({ user }: SidebarProps) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/20 pointer-events-none dark:from-primary/5 dark:via-transparent dark:to-accent/5" />
       
       <div className="relative flex flex-col h-full overflow-hidden">
-        {/* Logo Section - Enhanced - Matching header height (h-28) */}
-        <div className="h-28 px-4 py-4 flex items-center border-b border-white/10 dark:border-border/50 bg-gradient-to-r from-transparent via-white/5 to-transparent dark:from-transparent dark:via-muted/20 dark:to-transparent">
+        {/* Logo Section - Enhanced - Matching header height (h-20) */}
+        <div className="h-20 px-4 py-3 flex items-center border-b border-white/10 dark:border-border/50 bg-gradient-to-r from-transparent via-white/5 to-transparent dark:from-transparent dark:via-muted/20 dark:to-transparent">
           <Link href="/" className="group w-full h-full">
             <img
               src="https://egotypldqzdzjclikmeg.supabase.co/storage/v1/object/public/device-images/phoneguys-logo.png"

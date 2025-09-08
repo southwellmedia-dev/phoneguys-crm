@@ -1,5 +1,5 @@
 import { AppointmentRepository } from "@/lib/repositories/appointment.repository";
-import { AppointmentsClient } from "./appointments-client";
+import { AppointmentsClientPremium } from "./appointments-client-premium";
 
 async function getAppointments() {
   try {
@@ -35,5 +35,5 @@ async function getAppointments() {
 export default async function AppointmentsPage() {
   const appointments = await getAppointments();
   
-  return <AppointmentsClient appointments={appointments} />;
+  return <AppointmentsClientPremium appointments={appointments} />;
 }

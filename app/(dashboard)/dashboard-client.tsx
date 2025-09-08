@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { PageContainer } from "@/components/layout/page-container";
-import { MetricCard } from "@/components/dashboard/metric-card";
-import { RecentOrders } from "@/components/dashboard/recent-orders";
+import { MetricCardLive, StatCardLive } from "@/components/premium/connected/dashboard";
+import { ActionCard } from "@/components/premium/ui/cards/action-card";
+import { ButtonPremium } from "@/components/premium/ui/buttons/button-premium";
+import { RecentActivityLive } from "@/components/premium/connected/dashboard/recent-activity-live";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -19,6 +21,7 @@ import {
   Plus,
   UserPlus,
   FileText,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import { useDashboard } from "@/lib/hooks/use-dashboard";
@@ -37,6 +40,8 @@ interface DashboardClientProps {
     avgRepairTimeHours: number;
     todayRevenue: number;
     recentOrders: any[];
+    recentAppointments?: any[];
+    recentCustomers?: any[];
   };
 }
 
@@ -45,6 +50,8 @@ export function DashboardClient({ metrics: initialMetrics }: DashboardClientProp
   
   // Set up real-time subscriptions for all entities
   useRealtime(['all']);
+  
+  // Note: Sparkline generation is now handled by MetricCardLive components
   
   // Transform initial metrics to match the dashboard data structure
   const initialData = {
@@ -78,6 +85,8 @@ export function DashboardClient({ metrics: initialMetrics }: DashboardClientProp
     avgRepairTimeHours: dashboardData.stats?.averageRepairTime || initialMetrics.avgRepairTimeHours,
     todayRevenue: dashboardData.stats?.totalRevenue || initialMetrics.todayRevenue,
     recentOrders: dashboardData.recentTickets || initialMetrics.recentOrders,
+    recentAppointments: initialMetrics.recentAppointments,
+    recentCustomers: initialMetrics.recentCustomers,
   };
 
   const handleRefresh = async () => {
@@ -90,7 +99,7 @@ export function DashboardClient({ metrics: initialMetrics }: DashboardClientProp
     {
       label: isRefreshing ? "Refreshing..." : "Refresh",
       icon: <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />,
-      variant: "outline" as const,
+      variant: "default" as const,
       onClick: handleRefresh,
       disabled: isRefreshing,
     },
@@ -107,133 +116,134 @@ export function DashboardClient({ metrics: initialMetrics }: DashboardClientProp
       actions={headerActions}
     >
         <div className="space-y-6">
-        {/* Metrics Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            title="New Tickets"
-            value={metrics.todayOrders}
-            description="Tickets awaiting assignment"
-            icon={Package}
-            trend={{ value: 12, isPositive: true }}
-          />
-          <MetricCard
-            title="In Progress"
-            value={metrics.inProgressOrders}
-            description="Currently being repaired"
-            icon={Clock}
-            className="border-cyan-500/20"
-          />
-          <MetricCard
-            title="Completed"
-            value={metrics.completedToday}
-            description="Successfully repaired"
-            icon={CheckCircle}
-            className="border-green-500/20"
-          />
-          <MetricCard
-            title="On Hold"
-            value={metrics.onHoldOrders}
-            description="Waiting for parts/customer"
-            icon={AlertCircle}
-            className="border-yellow-500/20"
-          />
+        {/* Masonry-style Metrics Grid - Modern asymmetric layout */}
+        <div className="grid gap-4 lg:grid-cols-6 lg:grid-rows-3">
+          {/* Large primary metric - spans 2 cols, 2 rows - SOLID CYAN */}
+          <div className="lg:col-span-2 lg:row-span-2">
+            <MetricCardLive
+              metric="new_tickets"
+              title="New Tickets Today"
+              fallbackSubtitle="Awaiting assignment"
+              icon={<Package />}
+              variant="inverted-primary"
+              showSparkline
+              size="lg"
+              interactive
+              className="h-full"
+            />
+          </div>
+
+          {/* Today's Appointments - spans 2 cols, tall */}
+          <div className="lg:col-span-2 lg:row-span-2">
+            <MetricCardLive
+              metric="total_appointments"
+              title="Today's Appointments"
+              fallbackSubtitle="Scheduled visits"
+              icon={<Calendar />}
+              variant="primary"
+              showSparkline
+              size="lg"
+              interactive
+              className="h-full"
+            />
+          </div>
+
+          {/* In Progress - wide */}
+          <div className="lg:col-span-2">
+            <StatCardLive
+              metric="in_progress"
+              icon={<Clock />}
+              variant="warning"
+              size="md"
+            />
+          </div>
+
+          {/* Completed Today */}
+          <div className="lg:col-span-2">
+            <StatCardLive
+              metric="completed_today"
+              icon={<CheckCircle />}
+              variant="success"
+              size="md"
+            />
+          </div>
+
+          {/* Total Customers - spans 2 cols */}
+          <div className="lg:col-span-2">
+            <StatCardLive
+              metric="total_customers"
+              icon={<Users />}
+              variant="accent-primary"
+              size="md"
+            />
+          </div>
+
+          {/* Total Repairs - wide bottom card */}
+          <div className="lg:col-span-2">
+            <StatCardLive
+              metric="total_repairs"
+              icon={<Wrench />}
+              variant="default"
+              size="md"
+            />
+          </div>
+
+          {/* On Hold - spans 2 cols to match height */}
+          <div className="lg:col-span-2">
+            <StatCardLive
+              metric="on_hold"
+              icon={<AlertCircle />}
+              variant="default"
+              size="md"
+            />
+          </div>
         </div>
 
-        {/* Secondary Metrics */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            title="Total Tickets"
-            value={metrics.totalOrders}
-            description="All time repairs"
-            icon={Wrench}
-          />
-          <MetricCard
-            title="Total Customers"
-            value={metrics.totalCustomers}
-            description="Registered customers"
-            icon={Users}
-          />
-          <MetricCard
-            title="Avg. Repair Time"
-            value={metrics.avgRepairTimeHours > 0 ? `${metrics.avgRepairTimeHours} hrs` : "No data"}
-            description="Average completion time"
-            icon={TrendingUp}
-          />
-          <MetricCard
-            title="Revenue Today"
-            value={metrics.todayRevenue > 0 ? `$${metrics.todayRevenue.toFixed(2)}` : "$0.00"}
-            description="Total earnings"
-            icon={DollarSign}
-          />
-        </div>
+        {/* Recent Activity with Tabs - Using premium table */}
+        <RecentActivityLive 
+          title="Recent Activity"
+          subtitle="Live updates across your system"
+          limit={10}
+          showTabs
+          showViewAll
+        />
 
-        {/* Recent Orders Table */}
-        <RecentOrders orders={metrics.recentOrders} />
-
-        {/* Quick Actions - Modern Card Grid */}
+        {/* Quick Actions - Consistent styling */}
         <div className="grid gap-4 lg:grid-cols-3">
-          <Link 
-            href="/orders/new"
-            className="group relative overflow-hidden rounded-xl border bg-gradient-to-br from-card to-card/80 p-6 transition-all duration-300 hover:shadow-elevation-2 hover:-translate-y-1"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-3 rounded-xl bg-gradient-primary shadow-glow-sm">
-                  <Plus className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">
-                  Quick
-                </span>
-              </div>
-              <h3 className="font-bold text-lg mb-1">Create New Ticket</h3>
-              <p className="text-sm text-muted-foreground">
-                Start a new repair ticket for walk-in customers
-              </p>
-            </div>
-          </Link>
-
-          <Link 
-            href="/customers/new"
-            className="group relative overflow-hidden rounded-xl border bg-gradient-to-br from-card to-card/80 p-6 transition-all duration-300 hover:shadow-elevation-2 hover:-translate-y-1"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-accent/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-accent to-accent/80 shadow-glow-sm">
-                  <UserPlus className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xs font-medium text-accent bg-accent/10 px-2 py-1 rounded-full">
-                  New
-                </span>
-              </div>
-              <h3 className="font-bold text-lg mb-1">Add Customer</h3>
-              <p className="text-sm text-muted-foreground">
-                Register a new customer profile
-              </p>
-            </div>
-          </Link>
-
-          <Link 
-            href="/reports"
-            className="group relative overflow-hidden rounded-xl border bg-gradient-to-br from-card to-card/80 p-6 transition-all duration-300 hover:shadow-elevation-2 hover:-translate-y-1"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-3 rounded-xl bg-gradient-success shadow-glow-sm">
-                  <FileText className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">
-                  Reports
-                </span>
-              </div>
-              <h3 className="font-bold text-lg mb-1">Analytics</h3>
-              <p className="text-sm text-muted-foreground">
-                View insights and generate reports
-              </p>
-            </div>
-          </Link>
+          <ActionCard
+            title="New Repair Ticket"
+            description="Create a walk-in repair order"
+            icon={<Plus />}
+            variant="default"
+            badge="Quick"
+            onClick={() => window.location.href = '/orders/new'}
+            stats={{
+              label: "Today",
+              value: metrics.todayOrders
+            }}
+          />
+          <ActionCard
+            title="Add Customer"
+            description="Register new customer"
+            icon={<UserPlus />}
+            variant="default"
+            onClick={() => window.location.href = '/customers/new'}
+            stats={{
+              label: "Total",
+              value: metrics.totalCustomers
+            }}
+          />
+          <ActionCard
+            title="Reports"
+            description="View analytics dashboard"
+            icon={<FileText />}
+            variant="default"
+            onClick={() => window.location.href = '/reports'}
+            stats={{
+              label: "Revenue",
+              value: `$${metrics.todayRevenue.toFixed(0)}`
+            }}
+          />
         </div>
 
         {/* System Status - Modern Glass Card */}

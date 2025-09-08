@@ -42,3 +42,9 @@ export {
   CustomerStatusLive,
   type StatusBadgeLiveProps
 } from './badges/status-badge-live';
+
+// Appointments Components
+export * from './appointments';
+
+// Tickets Components
+export * from './tickets';

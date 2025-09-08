@@ -211,26 +211,25 @@ export const MetricCard = React.forwardRef<HTMLDivElement, MetricCardProps>(
           className
         )}
         onClick={onClick}
-        {...props}
       >
         
         <div className="relative space-y-4">
           {/* Header */}
           <div className="flex items-start justify-between">
             <div className="space-y-0.5">
-              <p className={cn(
+              <div className={cn(
                 "text-xs font-medium",
                 variant?.startsWith("inverted-") ? "text-white/70" : "text-muted-foreground"
               )}>
                 {title}
-              </p>
+              </div>
               {subtitle && (
-                <p className={cn(
+                <div className={cn(
                   "text-xs",
                   variant?.startsWith("inverted-") ? "text-white/60" : "text-muted-foreground/60"
                 )}>
                   {subtitle}
-                </p>
+                </div>
               )}
             </div>
             {Icon && (

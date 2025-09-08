@@ -53,6 +53,12 @@ export interface AppointmentsTableLiveProps {
   showMyAppointments?: boolean;
   /** Current user ID for filtering */
   currentUserId?: string | null;
+  /** Filter by urgency */
+  urgencyFilter?: string;
+  /** Filter by source */
+  sourceFilter?: string;
+  /** Filter by time range */
+  timeRangeFilter?: string;
   /** Number of items to show */
   limit?: number;
   /** Custom className */
@@ -132,6 +138,9 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
   searchQuery = '',
   showMyAppointments = false,
   currentUserId = null,
+  urgencyFilter = 'all',
+  sourceFilter = 'all',
+  timeRangeFilter = 'all',
   limit,
   className,
   onStatusUpdate,
@@ -141,7 +150,6 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
   const queryClient = useQueryClient();
   const [isMounted, setIsMounted] = React.useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = React.useState(false);
-  const [isFirstLoad, setIsFirstLoad] = React.useState(true);
 
   React.useEffect(() => {
     setIsMounted(true);
@@ -161,7 +169,6 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
   React.useEffect(() => {
     if (isSuccess && !hasLoadedOnce) {
       setHasLoadedOnce(true);
-      setIsFirstLoad(false);
     }
   }, [isSuccess, hasLoadedOnce]);
 
@@ -228,6 +235,33 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
         break;
     }
 
+    // Apply urgency filter
+    if (urgencyFilter !== 'all') {
+      filtered = filtered.filter(apt => apt.urgency?.toLowerCase() === urgencyFilter.toLowerCase());
+    }
+
+    // Apply source filter
+    if (sourceFilter !== 'all') {
+      filtered = filtered.filter(apt => apt.source?.toLowerCase() === sourceFilter.toLowerCase());
+    }
+
+    // Apply time range filter
+    if (timeRangeFilter !== 'all') {
+      filtered = filtered.filter(apt => {
+        const [hours] = apt.scheduled_time.split(':').map(Number);
+        switch (timeRangeFilter) {
+          case 'morning':
+            return hours >= 9 && hours < 12;
+          case 'afternoon':
+            return hours >= 12 && hours < 17;
+          case 'evening':
+            return hours >= 17 && hours < 21;
+          default:
+            return true;
+        }
+      });
+    }
+
     // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter(apt =>
@@ -244,7 +278,7 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
     }
 
     return filtered;
-  }, [appointments, statusFilter, dateFilter, searchQuery, showMyAppointments, currentUserId, limit]);
+  }, [appointments, statusFilter, dateFilter, searchQuery, showMyAppointments, currentUserId, urgencyFilter, sourceFilter, timeRangeFilter, limit]);
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
     try {
@@ -272,8 +306,8 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
     }
   };
 
-  // Show skeleton during initial load or when fetching (but not when we have data)
-  const showSkeleton = !hasLoadedOnce || (isLoading && appointments.length === 0) || (isFetching && isFirstLoad);
+  // Show skeleton until we have a definitive answer (following hydration strategy)
+  const showSkeleton = !hasLoadedOnce || isLoading || isFetching;
 
   if (error && !showSkeleton) {
     return (
@@ -349,12 +383,12 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => router.push(`/appointments/${apt.id}`)}
               >
-                <TablePremiumCell className="font-medium">
+                <TablePremiumCell className="font-medium text-sm">
                   {apt.appointment_number}
                 </TablePremiumCell>
                 <TablePremiumCell>
                   <div className="space-y-1">
-                    <div className="font-medium">{dateStr}</div>
+                    <div className="font-medium text-sm">{dateStr}</div>
                     <div className="text-sm text-muted-foreground">
                       {apt.scheduled_time} ({apt.duration_minutes} min)
                     </div>
@@ -362,7 +396,7 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
                 </TablePremiumCell>
                 <TablePremiumCell>
                   <div className="space-y-1">
-                    <div className="font-medium">{apt.customer_name}</div>
+                    <div className="font-medium text-sm">{apt.customer_name}</div>
                     {apt.customer_phone && (
                       <div className="text-sm text-muted-foreground">{apt.customer_phone}</div>
                     )}
@@ -370,7 +404,7 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
                 </TablePremiumCell>
                 <TablePremiumCell>
                   <div>
-                    <div>{apt.device}</div>
+                    <div className="text-sm">{apt.device}</div>
                     {apt.issues.length > 0 && (
                       <div className="text-sm text-muted-foreground">
                         {apt.issues.map(issue => issue.replace('_', ' ')).join(', ')}
@@ -380,9 +414,9 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
                 </TablePremiumCell>
                 <TablePremiumCell>
                   <StatusBadge
-                    type="appointment"
                     status={apt.status}
                     variant="soft"
+                    size="xs"
                   />
                 </TablePremiumCell>
                 <TablePremiumCell className="text-right" onClick={(e) => e.stopPropagation()}>

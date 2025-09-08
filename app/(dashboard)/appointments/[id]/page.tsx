@@ -1,6 +1,6 @@
 import { AppointmentRepository } from "@/lib/repositories/appointment.repository";
 import { UserRepository } from "@/lib/repositories/user.repository";
-import { AppointmentDetailEnhanced } from "./appointment-detail-enhanced";
+import { AppointmentDetailPremium } from "./appointment-detail-premium";
 import { createServiceClient } from "@/lib/supabase/service";
 import { notFound } from "next/navigation";
 
@@ -25,6 +25,8 @@ async function getDevices() {
     .select(`
       id,
       model_name,
+      image_url,
+      thumbnail_url,
       manufacturer:manufacturers(name)
     `)
     .eq('is_active', true)
@@ -50,6 +52,8 @@ async function getCustomerDevices(customerId: string | null) {
       devices:device_id (
         id,
         model_name,
+        image_url,
+        thumbnail_url,
         manufacturer:manufacturers(name)
       )
     `)
@@ -89,7 +93,7 @@ export default async function AppointmentDetailPage({ params }: PageProps) {
   ]);
   
   return (
-    <AppointmentDetailEnhanced 
+    <AppointmentDetailPremium 
       appointment={fullAppointment}
       appointmentId={id}
       availableServices={services}

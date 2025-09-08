@@ -24,6 +24,7 @@ import { TabNav } from '@/components/premium/ui/navigation/tab-nav';
 import { TablePremiumLive, type TableColumn } from '../data-display/table-premium-live';
 import { StatusBadgeLive } from '../badges/status-badge-live';
 import { SkeletonTable } from '@/components/premium/ui/feedback/skeleton-premium';
+import { Pills } from '../../ui/pills/pill';
 import { useActivityFeed, type ActivityFilters } from '@/lib/hooks/connected/use-activity-feed';
 import { useTickets } from '@/lib/hooks/use-tickets';
 import { useQuery } from '@tanstack/react-query';
@@ -247,22 +248,17 @@ export const RecentActivityLive = React.forwardRef<HTMLDivElement, RecentActivit
             key: 'services',
             label: 'Services',
             render: (value) => (
-              <div className="flex flex-wrap gap-1">
-                {value && value.length > 0 ? (
-                  value.map((service: any, idx: number) => (
-                    <span 
-                      key={idx}
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
-                    >
-                      {service.name || service}
-                    </span>
-                  ))
-                ) : (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                    General Repair
-                  </span>
-                )}
-              </div>
+              <Pills 
+                items={value && value.length > 0 
+                  ? value.map((service: any) => ({ 
+                      text: service.name || service, 
+                      type: 'service' as const 
+                    }))
+                  : [{ text: 'General Repair', type: 'service' as const }]
+                }
+                maxVisible={2}
+                type="service"
+              />
             )
           },
           {

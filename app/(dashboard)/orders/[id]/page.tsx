@@ -4,7 +4,7 @@ import { CustomerDeviceRepository } from "@/lib/repositories/customer-device.rep
 import { AppointmentRepository } from "@/lib/repositories/appointment.repository";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { OrderDetailClient } from "./order-detail-client";
+import { TicketDetailPremium } from "./order-detail-premium";
 import { createClient } from "@/lib/supabase/server";
 
 async function getOrder(id: string) {
@@ -201,7 +201,7 @@ export default async function OrderDetailPage({
   }
 
   return (
-    <OrderDetailClient 
+    <TicketDetailPremium 
       order={order} 
       orderId={resolvedParams.id} 
       totalTimeMinutes={totalTimeMinutes}

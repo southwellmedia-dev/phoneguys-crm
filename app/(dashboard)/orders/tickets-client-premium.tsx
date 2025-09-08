@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageContainer } from "@/components/layout/page-container";
-import { AppointmentsTableLive, AppointmentStatsLive } from "@/components/premium/connected/appointments";
+import { TicketsTableLive, TicketStatsLive } from "@/components/premium/connected/tickets";
 import { ButtonPremium } from "@/components/premium/ui/buttons/button-premium";
 import { TabNav } from "@/components/premium/ui/navigation/tab-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,11 +19,15 @@ import {
 import {
   RefreshCw,
   Plus,
-  Calendar,
+  Package,
   Clock,
   Search,
   Users,
   UserCheck,
+  Download,
+  AlertCircle,
+  CheckCircle2,
+  PauseCircle,
   Filter,
   X,
 } from "lucide-react";
@@ -32,41 +36,38 @@ import { getCurrentUserInfo } from "@/lib/utils/user-mapping";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
-interface Appointment {
+interface Ticket {
   id: string;
-  appointment_number: string;
+  ticket_number: string;
+  customer_id: string;
   customer_name: string;
-  customer_email: string;
   customer_phone: string;
-  device: string;
-  scheduled_date: string;
-  scheduled_time: string;
-  duration_minutes: number;
-  status: 'scheduled' | 'confirmed' | 'arrived' | 'no_show' | 'cancelled' | 'converted';
-  issues: string[];
-  urgency: string | null;
-  source: string | null;
+  device_brand: string;
+  device_model: string;
+  repair_issues: string[];
+  status: 'new' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
   created_at: string;
-  converted_to_ticket_id: string | null;
-  assigned_to?: string | null;
+  updated_at: string;
+  timer_total_minutes: number;
+  assigned_to: string | null;
 }
 
-export function AppointmentsClientPremium({ appointments: initialAppointments }: { appointments: Appointment[] }) {
+export function TicketsClientPremium({ tickets: initialTickets }: { tickets: Ticket[] }) {
   const router = useRouter();
-  const [selectedTab, setSelectedTab] = useState("upcoming");
+  const [selectedTab, setSelectedTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showMyAppointments, setShowMyAppointments] = useState(false);
+  const [showMyTickets, setShowMyTickets] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Additional filter states
-  const [urgencyFilter, setUrgencyFilter] = useState<string>("all");
-  const [sourceFilter, setSourceFilter] = useState<string>("all");
-  const [timeRangeFilter, setTimeRangeFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [deviceBrandFilter, setDeviceBrandFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
 
   // Set up real-time subscriptions
-  useRealtime(['appointments']);
+  useRealtime(['tickets']);
 
   // Get current user ID on mount
   useEffect(() => {
@@ -86,39 +87,38 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    // The AppointmentsTableLive component will handle its own data fetching
+    // The TicketsTableLive component will handle its own data fetching
     setTimeout(() => setIsRefreshing(false), 1000);
-    toast.success("Appointments refreshed");
+    toast.success("Tickets refreshed");
   };
 
-  const handleConvertToTicket = async (appointmentId: string) => {
-    toast.success("Converting appointment to ticket...");
-    router.push(`/appointments/${appointmentId}`);
+  const handleExport = () => {
+    toast.info("Export functionality coming soon");
   };
 
-  const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
-    toast.success(`Appointment status updated to ${newStatus}`);
+  const handleStatusUpdate = async (ticketId: string, newStatus: string) => {
+    toast.success(`Ticket status updated to ${newStatus}`);
   };
 
   // Filter management functions
   const clearAllFilters = () => {
-    setSelectedTab("upcoming");
+    setSelectedTab("all");
     setSearchQuery("");
-    setShowMyAppointments(false);
-    setUrgencyFilter("all");
-    setSourceFilter("all");
-    setTimeRangeFilter("all");
+    setShowMyTickets(false);
+    setPriorityFilter("all");
+    setAssigneeFilter("all");
+    setDeviceBrandFilter("all");
     toast.success("All filters cleared");
   };
 
   const getActiveFilterCount = () => {
     let count = 0;
-    if (selectedTab !== "upcoming") count++;
+    if (selectedTab !== "all") count++;
     if (searchQuery) count++;
-    if (showMyAppointments) count++;
-    if (urgencyFilter !== "all") count++;
-    if (sourceFilter !== "all") count++;
-    if (timeRangeFilter !== "all") count++;
+    if (showMyTickets) count++;
+    if (priorityFilter !== "all") count++;
+    if (assigneeFilter !== "all") count++;
+    if (deviceBrandFilter !== "all") count++;
     return count;
   };
 
@@ -140,8 +140,14 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
       badge: hasActiveFilters ? getActiveFilterCount() : undefined,
     },
     {
-      label: "New Appointment",
-      href: "/appointments/new",
+      label: "Export",
+      icon: <Download className="h-4 w-4" />,
+      variant: "outline" as const,
+      onClick: handleExport,
+    },
+    {
+      label: "New Ticket",
+      href: "/orders/new",
       icon: <Plus className="h-4 w-4" />,
       variant: "default" as const,
     },
@@ -149,50 +155,37 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
 
   // Tab configurations
   const tabs = [
-    { id: 'upcoming', label: 'Upcoming', icon: <Calendar className="h-4 w-4" /> },
-    { id: 'today', label: 'Today', icon: <Clock className="h-4 w-4" /> },
-    { id: 'past', label: 'Past' },
-    { id: 'converted', label: 'Converted' },
-    { id: 'cancelled', label: 'Cancelled' },
-    { id: 'all', label: 'All Active' },
+    { id: 'all', label: 'All Active', icon: <Package className="h-4 w-4" /> },
+    { id: 'new', label: 'New', icon: <AlertCircle className="h-4 w-4" /> },
+    { id: 'in_progress', label: 'In Progress', icon: <Clock className="h-4 w-4" /> },
+    { id: 'on_hold', label: 'On Hold', icon: <PauseCircle className="h-4 w-4" /> },
+    { id: 'completed', label: 'Completed', icon: <CheckCircle2 className="h-4 w-4" /> },
   ];
 
-  // Map selected tab to date filter for the table
-  const getDateFilter = () => {
-    switch (selectedTab) {
-      case 'today': return 'today';
-      case 'upcoming': return 'upcoming';
-      case 'past': return 'past';
-      case 'converted': 
-      case 'cancelled':
-      case 'all':
-      default: return 'all';
-    }
-  };
-
   // Map selected tab to status filter for the table
-  const getStatusFilterForTable = () => {
-    if (selectedTab === 'converted') return 'converted';
-    if (selectedTab === 'cancelled') return 'cancelled';
-    return 'all';
+  const getStatusFilter = () => {
+    if (selectedTab === 'all') return 'all';
+    return selectedTab as any;
   };
 
   return (
     <PageContainer
-      title="Appointments"
-      description="Manage customer appointments and bookings"
+      title="Tickets"
+      description="Manage repair tickets and track their progress"
       actions={headerActions}
     >
       <div className="space-y-6">
         {/* Stats Cards - Using Premium Connected Components */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <AppointmentStatsLive metric="today" />
-          <AppointmentStatsLive metric="pending" />
-          <AppointmentStatsLive metric="confirmed" />
-          <AppointmentStatsLive metric="converted" />
+        <div className="grid gap-4 md:grid-cols-6">
+          <TicketStatsLive metric="total" />
+          <TicketStatsLive metric="new" />
+          <TicketStatsLive metric="in_progress" />
+          <TicketStatsLive metric="on_hold" />
+          <TicketStatsLive metric="completed" />
+          <TicketStatsLive metric="today" />
         </div>
 
-        {/* Appointments List Card with Premium Design */}
+        {/* Tickets List Card with Premium Design */}
         <Card className="relative overflow-hidden">
           {/* Gradient accent */}
           <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-2xl" />
@@ -204,17 +197,17 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
                 <div className="flex items-center space-x-3">
                   <div className="relative">
                     <div className="p-2 rounded-lg bg-primary/10">
-                      <Calendar className="h-4 w-4 text-primary" />
+                      <Package className="h-4 w-4 text-primary" />
                     </div>
                     <div className="absolute -bottom-1 -right-1 h-2 w-2 bg-green-500 rounded-full border-2 border-card" />
                   </div>
                   <div>
                     <CardTitle className="text-lg font-semibold">
-                      Appointment Schedule
+                      Repair Tickets
                     </CardTitle>
                     <p className="text-sm text-muted-foreground mt-0.5">
-                      Real-time appointment management
-                      {showMyAppointments && " • Showing your appointments"}
+                      Real-time ticket management
+                      {showMyTickets && " • Showing your tickets"}
                     </p>
                   </div>
                 </div>
@@ -231,23 +224,23 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
                 />
                 
                 <div className="flex items-center gap-2">
-                  {/* My Appointments toggle */}
+                  {/* My Tickets toggle */}
                   <ButtonPremium
-                    variant={showMyAppointments ? "gradient" : "outline"}
+                    variant={showMyTickets ? "gradient" : "outline"}
                     size="sm"
-                    onClick={() => setShowMyAppointments(!showMyAppointments)}
+                    onClick={() => setShowMyTickets(!showMyTickets)}
                     className="h-9 gap-2"
                     disabled={!currentUserId}
                   >
-                    {showMyAppointments ? <UserCheck className="h-4 w-4" /> : <Users className="h-4 w-4" />}
-                    {showMyAppointments ? "My Appointments" : "All Appointments"}
+                    {showMyTickets ? <UserCheck className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+                    {showMyTickets ? "My Tickets" : "All Tickets"}
                   </ButtonPremium>
                   
                   {/* Search bar */}
                   <div className="relative">
                     <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      placeholder="Search appointments..."
+                      placeholder="Search tickets..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-8 w-[200px] h-9"
@@ -275,15 +268,15 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Urgency Filter */}
+                    {/* Priority Filter */}
                     <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Urgency</label>
-                      <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
+                      <label className="text-xs font-medium text-muted-foreground">Priority</label>
+                      <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                         <SelectTrigger className="h-9">
-                          <SelectValue placeholder="All urgency levels" />
+                          <SelectValue placeholder="All priorities" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Urgency</SelectItem>
+                          <SelectItem value="all">All Priorities</SelectItem>
                           <SelectItem value="urgent">Urgent</SelectItem>
                           <SelectItem value="high">High</SelectItem>
                           <SelectItem value="medium">Medium</SelectItem>
@@ -292,36 +285,35 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
                       </Select>
                     </div>
 
-                    {/* Source Filter */}
+                    {/* Assignee Filter */}
                     <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Source</label>
-                      <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                      <label className="text-xs font-medium text-muted-foreground">Assignee</label>
+                      <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
                         <SelectTrigger className="h-9">
-                          <SelectValue placeholder="All sources" />
+                          <SelectValue placeholder="All assignees" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Sources</SelectItem>
-                          <SelectItem value="website">Website</SelectItem>
-                          <SelectItem value="phone">Phone Call</SelectItem>
-                          <SelectItem value="walk-in">Walk-in</SelectItem>
-                          <SelectItem value="referral">Referral</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="all">All Assignees</SelectItem>
+                          <SelectItem value="unassigned">Unassigned</SelectItem>
+                          <SelectItem value="assigned">Assigned Only</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                    {/* Time Range Filter */}
+                    {/* Device Brand Filter */}
                     <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Time Range</label>
-                      <Select value={timeRangeFilter} onValueChange={setTimeRangeFilter}>
+                      <label className="text-xs font-medium text-muted-foreground">Device Brand</label>
+                      <Select value={deviceBrandFilter} onValueChange={setDeviceBrandFilter}>
                         <SelectTrigger className="h-9">
-                          <SelectValue placeholder="All times" />
+                          <SelectValue placeholder="All brands" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Times</SelectItem>
-                          <SelectItem value="morning">Morning (9-12)</SelectItem>
-                          <SelectItem value="afternoon">Afternoon (12-17)</SelectItem>
-                          <SelectItem value="evening">Evening (17-21)</SelectItem>
+                          <SelectItem value="all">All Brands</SelectItem>
+                          <SelectItem value="apple">Apple</SelectItem>
+                          <SelectItem value="samsung">Samsung</SelectItem>
+                          <SelectItem value="google">Google</SelectItem>
+                          <SelectItem value="oneplus">OnePlus</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -331,12 +323,12 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
                   {hasActiveFilters && (
                     <div className="flex flex-wrap gap-2">
                       <span className="text-xs text-muted-foreground">Active filters:</span>
-                      {selectedTab !== "upcoming" && (
+                      {selectedTab !== "all" && (
                         <Badge variant="secondary" className="text-xs">
-                          View: {tabs.find(t => t.id === selectedTab)?.label}
+                          Status: {tabs.find(t => t.id === selectedTab)?.label}
                           <X
                             className="h-3 w-3 ml-1 cursor-pointer hover:text-destructive"
-                            onClick={() => setSelectedTab("upcoming")}
+                            onClick={() => setSelectedTab("all")}
                           />
                         </Badge>
                       )}
@@ -349,39 +341,39 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
                           />
                         </Badge>
                       )}
-                      {showMyAppointments && (
+                      {showMyTickets && (
                         <Badge variant="secondary" className="text-xs">
-                          My Appointments Only
+                          My Tickets Only
                           <X
                             className="h-3 w-3 ml-1 cursor-pointer hover:text-destructive"
-                            onClick={() => setShowMyAppointments(false)}
+                            onClick={() => setShowMyTickets(false)}
                           />
                         </Badge>
                       )}
-                      {urgencyFilter !== "all" && (
+                      {priorityFilter !== "all" && (
                         <Badge variant="secondary" className="text-xs">
-                          Urgency: {urgencyFilter}
+                          Priority: {priorityFilter}
                           <X
                             className="h-3 w-3 ml-1 cursor-pointer hover:text-destructive"
-                            onClick={() => setUrgencyFilter("all")}
+                            onClick={() => setPriorityFilter("all")}
                           />
                         </Badge>
                       )}
-                      {sourceFilter !== "all" && (
+                      {assigneeFilter !== "all" && (
                         <Badge variant="secondary" className="text-xs">
-                          Source: {sourceFilter}
+                          Assignee: {assigneeFilter}
                           <X
                             className="h-3 w-3 ml-1 cursor-pointer hover:text-destructive"
-                            onClick={() => setSourceFilter("all")}
+                            onClick={() => setAssigneeFilter("all")}
                           />
                         </Badge>
                       )}
-                      {timeRangeFilter !== "all" && (
+                      {deviceBrandFilter !== "all" && (
                         <Badge variant="secondary" className="text-xs">
-                          Time: {timeRangeFilter}
+                          Brand: {deviceBrandFilter}
                           <X
                             className="h-3 w-3 ml-1 cursor-pointer hover:text-destructive"
-                            onClick={() => setTimeRangeFilter("all")}
+                            onClick={() => setDeviceBrandFilter("all")}
                           />
                         </Badge>
                       )}
@@ -393,18 +385,16 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
           </CardHeader>
           
           <CardContent className="pt-0">
-            <AppointmentsTableLive
-              initialData={initialAppointments}
-              statusFilter={getStatusFilterForTable()}
-              dateFilter={getDateFilter()}
+            <TicketsTableLive
+              initialData={initialTickets}
+              statusFilter={getStatusFilter()}
               searchQuery={searchQuery}
-              showMyAppointments={showMyAppointments}
+              showMyTickets={showMyTickets}
               currentUserId={currentUserId}
-              urgencyFilter={urgencyFilter}
-              sourceFilter={sourceFilter}
-              timeRangeFilter={timeRangeFilter}
+              priorityFilter={priorityFilter}
+              assigneeFilter={assigneeFilter}
+              deviceBrandFilter={deviceBrandFilter}
               onStatusUpdate={handleStatusUpdate}
-              onConvert={handleConvertToTicket}
             />
           </CardContent>
         </Card>

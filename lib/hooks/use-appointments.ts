@@ -1,7 +1,9 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { useRealtime } from './use-realtime';
 
 export interface Appointment {
   id: string;
@@ -24,7 +26,14 @@ export function useAppointments(filters?: {
   status?: string;
   customerId?: string;
 }, initialData?: any[]) {
-  return useQuery({
+  const [isMounted, setIsMounted] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const query = useQuery({
     queryKey: ['appointments', filters],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -36,15 +45,37 @@ export function useAppointments(filters?: {
       if (!response.ok) throw new Error('Failed to fetch appointments');
       return response.json() as Promise<Appointment[]>;
     },
-    initialData,
-    enabled: !initialData, // Only fetch if no initial data
+    enabled: isMounted, // 🔑 KEY: Only fetch after mount
     refetchOnWindowFocus: false,
     staleTime: 1000 * 60 * 5, // 5 minutes
+    placeholderData: initialData, // 🔑 KEY: Provide structure
+    initialData: initialData && initialData.length > 0 ? initialData : undefined
   });
+
+  // 🔑 KEY: Track when we've successfully loaded data at least once
+  useEffect(() => {
+    if (query.isSuccess && !hasLoadedOnce) {
+      setHasLoadedOnce(true);
+    }
+  }, [query.isSuccess, hasLoadedOnce]);
+
+  return {
+    ...query,
+    // 🔑 KEY: Show skeleton until we have a definitive answer
+    showSkeleton: !hasLoadedOnce || query.isLoading || query.isFetching,
+    hasLoadedOnce
+  };
 }
 
 export function useAppointment(id?: string, initialData?: any) {
-  return useQuery({
+  const [isMounted, setIsMounted] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const query = useQuery({
     queryKey: ['appointment', id],
     queryFn: async () => {
       if (!id) throw new Error('Appointment ID is required');
@@ -52,11 +83,26 @@ export function useAppointment(id?: string, initialData?: any) {
       if (!response.ok) throw new Error('Failed to fetch appointment');
       return response.json() as Promise<Appointment>;
     },
-    initialData,
-    enabled: !!id && !initialData, // Only fetch if no initial data provided
+    enabled: isMounted && !!id, // 🔑 KEY: Only fetch after mount
     refetchOnWindowFocus: false,
     staleTime: 1000 * 60 * 5, // 5 minutes
+    placeholderData: initialData, // 🔑 KEY: Provide structure
+    initialData: initialData ? initialData : undefined
   });
+
+  // 🔑 KEY: Track when we've successfully loaded data at least once
+  useEffect(() => {
+    if (query.isSuccess && !hasLoadedOnce) {
+      setHasLoadedOnce(true);
+    }
+  }, [query.isSuccess, hasLoadedOnce]);
+
+  return {
+    ...query,
+    // 🔑 KEY: Show skeleton until we have a definitive answer
+    showSkeleton: !hasLoadedOnce || query.isLoading || query.isFetching,
+    hasLoadedOnce
+  };
 }
 
 export function useCreateAppointment() {

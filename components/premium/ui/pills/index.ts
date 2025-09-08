@@ -1,0 +1,1 @@
+export { Pill, Pills, type PillProps, type PillsProps } from './pill';

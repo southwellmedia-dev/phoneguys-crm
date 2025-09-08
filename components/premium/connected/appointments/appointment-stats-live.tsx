@@ -213,10 +213,8 @@ export const AppointmentStatsLive: React.FC<AppointmentStatsLiveProps> = ({
           data?.subtitle
         )}
         trend={!showSkeleton && data?.trend ? data.trend : undefined}
-        trendType={!showSkeleton && data?.trendType ? data.trendType : undefined}
         icon={config.icon}
         variant={variant || config.variant}
-        showSparkline={false}
       />
     </div>
   );

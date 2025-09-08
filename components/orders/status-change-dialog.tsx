@@ -186,7 +186,7 @@ export function StatusChangeDialog({
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Order:</span>
               <span className="font-medium">
-                {ticketNumber || `#${ticketId.slice(-8)}`}
+                {ticketNumber || (ticketId ? `#${ticketId.slice(-8)}` : 'Unknown')}
               </span>
             </div>
             {customerName && (

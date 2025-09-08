@@ -53,7 +53,6 @@ import { useRouter } from "next/navigation";
 import { useTicket, useUpdateTicketStatus } from "@/lib/hooks/use-tickets";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRealtime } from "@/lib/hooks/use-realtime";
-import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
 import { SkeletonOrderDetail } from "@/components/ui/skeleton-order-detail";
 import { cn } from "@/lib/utils";
 
@@ -92,7 +91,7 @@ export function OrderDetailClient({
 }: OrderDetailClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: order = initialOrder, isLoading, isFetching } = useTicket(orderId, initialOrder);
+  const { data: order = initialOrder, isLoading, isFetching, showSkeleton: ticketSkeleton } = useTicket(orderId, initialOrder);
   const updateStatusMutation = useUpdateTicketStatus();
   
   // Set up real-time subscriptions for tickets
@@ -104,8 +103,8 @@ export function OrderDetailClient({
     0
   ) || order?.timer_total_minutes || order?.total_time_minutes || initialTotalTimeMinutes || 0;
   
-  // Determine if we should show skeleton
-  const showSkeleton = useShowSkeleton(isLoading, isFetching, !!order);
+  // Use proper hydration strategy skeleton
+  const showSkeleton = ticketSkeleton;
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
   const [showAddDeviceDialog, setShowAddDeviceDialog] = useState(false);

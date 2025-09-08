@@ -1,10 +1,12 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { RepairTicketWithRelations } from '@/lib/types/repair-ticket';
 import { Order } from '@/components/orders/orders-columns';
 import { RepairStatus } from '@/components/orders/status-badge';
 import { toast } from 'sonner';
+import { useRealtime } from './use-realtime';
 
 const API_BASE = '/api/orders';
 
@@ -14,7 +16,15 @@ export function useTickets(filters?: {
   customerId?: string;
   assignedTo?: string;
 }, initialData?: Order[]) {
-  return useQuery({
+  const [isMounted, setIsMounted] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const query = useQuery({
     queryKey: ['tickets', filters],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -55,18 +65,42 @@ export function useTickets(filters?: {
       
       return orders;
     },
-    initialData,
-    // Enable fetching when:
-    // 1. No initial data (first load from API)
-    // 2. OR we have filters (need to fetch filtered data)
-    enabled: !initialData || !!filters,
+    enabled: isMounted, // 🔑 KEY: Only fetch after mount
     refetchOnWindowFocus: false,
     staleTime: filters ? 0 : 1000 * 60 * 5, // No caching when filtering
+    placeholderData: initialData, // 🔑 KEY: Provide structure
+    initialData: initialData && initialData.length > 0 ? initialData : undefined
   });
+
+  // 🔑 KEY: Track when we've successfully loaded data at least once
+  useEffect(() => {
+    if (query.isSuccess && !hasLoadedOnce) {
+      setHasLoadedOnce(true);
+    }
+  }, [query.isSuccess, hasLoadedOnce]);
+
+  // Use the real-time service for tickets subscription
+  // The RealtimeService handles all real-time updates through its singleton pattern
+  useRealtime(['tickets']);
+
+  return {
+    ...query,
+    // 🔑 KEY: Show skeleton until we have a definitive answer
+    showSkeleton: !hasLoadedOnce || query.isLoading || query.isFetching,
+    hasLoadedOnce
+  };
 }
 
 export function useTicket(id?: string, initialData?: RepairTicketWithRelations) {
-  return useQuery({
+  const [isMounted, setIsMounted] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const query = useQuery({
     queryKey: ['ticket', id],
     queryFn: async () => {
       if (!id) throw new Error('Ticket ID is required');
@@ -74,11 +108,29 @@ export function useTicket(id?: string, initialData?: RepairTicketWithRelations) 
       if (!response.ok) throw new Error('Failed to fetch ticket');
       return response.json() as Promise<RepairTicketWithRelations>;
     },
-    initialData,
-    enabled: !!id && !initialData, // Only fetch if no initial data provided
+    enabled: isMounted && !!id, // 🔑 KEY: Only fetch after mount
     refetchOnWindowFocus: false,
     staleTime: 1000 * 60 * 5, // 5 minutes
+    placeholderData: initialData, // 🔑 KEY: Provide structure
+    initialData: initialData ? initialData : undefined
   });
+
+  // 🔑 KEY: Track when we've successfully loaded data at least once
+  useEffect(() => {
+    if (query.isSuccess && !hasLoadedOnce) {
+      setHasLoadedOnce(true);
+    }
+  }, [query.isSuccess, hasLoadedOnce]);
+
+  // The RealtimeService already handles individual ticket updates
+  // through the main tickets subscription
+
+  return {
+    ...query,
+    // 🔑 KEY: Show skeleton until we have a definitive answer
+    showSkeleton: !hasLoadedOnce || query.isLoading || query.isFetching,
+    hasLoadedOnce
+  };
 }
 
 export function useUpdateTicketStatus() {

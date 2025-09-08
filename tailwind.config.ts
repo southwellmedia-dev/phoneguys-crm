@@ -66,6 +66,12 @@ export default {
         'gradient-info': 'linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 89% 58%) 100%)',
         'gradient-dark': 'linear-gradient(135deg, hsl(240 10% 3.9%) 0%, hsl(240 10% 13.9%) 100%)',
         'gradient-mesh': 'radial-gradient(at 40% 20%, hsl(var(--primary) / 0.1) 0%, transparent 50%), radial-gradient(at 80% 0%, hsl(var(--secondary) / 0.15) 0%, transparent 50%), radial-gradient(at 10% 50%, hsl(var(--accent) / 0.1) 0%, transparent 80%)',
+        // Premium gradients
+        'gradient-brand': 'linear-gradient(135deg, hsl(var(--gradient-brand-from)) 0%, hsl(var(--gradient-brand-to)) 100%)',
+        'gradient-subtle': 'linear-gradient(180deg, hsl(var(--gradient-subtle-from)) 0%, hsl(var(--gradient-subtle-to)) 100%)',
+        'gradient-glass': 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+        'gradient-shine': 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.7) 50%, transparent 60%)',
+        'gradient-glow': 'radial-gradient(circle at center, hsl(var(--primary) / 0.15) 0%, transparent 70%)',
       },
       borderRadius: {
         lg: "var(--radius)",

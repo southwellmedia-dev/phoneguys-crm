@@ -1,73 +1,114 @@
-import { RepairTicketRepository } from "@/lib/repositories/repair-ticket.repository";
-import { CustomerRepository } from "@/lib/repositories/customer.repository";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles, ArrowRight } from "lucide-react";
 import { DashboardClient } from "./dashboard-client";
-import { RepairStatus } from "@/components/orders/status-badge";
 
-async function getDashboardMetrics() {
-  const ticketRepo = new RepairTicketRepository(true); // Use service role for full access
-  const customerRepo = new CustomerRepository(true);
+// Temporary component to let users choose between old and new dashboard
+export default function DashboardPage() {
+  const router = useRouter();
 
-  // Get all tickets with customer data and all customers
-  const [allTickets, allCustomers] = await Promise.all([
-    ticketRepo.findAllWithCustomers(),
-    customerRepo.findAll()
-  ]);
+  return (
+    <div className="p-6">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold mb-4">Choose Your Dashboard Experience</h1>
+          <p className="text-muted-foreground">
+            We've created a new premium dashboard with real-time connected components
+          </p>
+        </div>
 
-  // Get recent tickets (already sorted by created_at from the query)
-  const recentTickets = allTickets.slice(0, 5);
+        {/* Options */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* New Premium Dashboard */}
+          <div className="relative overflow-hidden rounded-xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-background p-6 hover:border-primary/40 transition-colors">
+            <div className="absolute top-4 right-4">
+              <Badge variant="solid" color="cyan" size="sm">
+                <Sparkles className="h-3 w-3 mr-1" />
+                NEW
+              </Badge>
+            </div>
+            
+            <div className="mb-6">
+              <h2 className="text-xl font-bold mb-2">Premium Dashboard</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Modern layout with integrated header, real-time connected components, and premium design system
+              </p>
+              
+              <ul className="text-sm space-y-1">
+                <li className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                  Real-time data with business rule styling
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                  Role-based dashboard variants
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                  Integrated header with actions
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                  Premium visual hierarchy
+                </li>
+              </ul>
+            </div>
+            
+            <Button 
+              className="w-full" 
+              variant="gradient"
+              onClick={() => router.push('/premium-dashboard')}
+            >
+              Try Premium Dashboard
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
 
-  // Calculate metrics from the data
-  const totalOrders = allTickets.length;
-  const todayOrders = allTickets.filter(t => t.status === 'new').length;
-  const inProgressOrders = allTickets.filter(t => t.status === 'in_progress').length;
-  const completedOrders = allTickets.filter(t => t.status === 'completed').length;
-  const onHoldOrders = allTickets.filter(t => t.status === 'on_hold').length;
-  const totalCustomers = allCustomers.length;
+          {/* Legacy Dashboard */}
+          <div className="rounded-xl border bg-background p-6">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold mb-2">Legacy Dashboard</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Current dashboard with existing header system and static components
+              </p>
+              
+              <ul className="text-sm space-y-1">
+                <li className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+                  Familiar interface
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+                  Existing header system
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+                  Manual refresh required
+                </li>
+              </ul>
+            </div>
+            
+            <Button 
+              className="w-full" 
+              variant="outline"
+              onClick={() => window.location.href = '/legacy-dashboard'}
+            >
+              Use Legacy Dashboard
+            </Button>
+          </div>
+        </div>
 
-  // Calculate average repair time from completed tickets
-  const completedTicketsWithTime = allTickets.filter(t => 
-    t.status === 'completed' && t.total_time_minutes && t.total_time_minutes > 0
+        <div className="mt-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            The premium dashboard will eventually replace the legacy version
+          </p>
+        </div>
+      </div>
+    </div>
   );
-  const avgRepairTime = completedTicketsWithTime.length > 0
-    ? completedTicketsWithTime.reduce((acc, ticket) => acc + (ticket.total_time_minutes || 0), 0) / completedTicketsWithTime.length
-    : 0;
-
-  // Calculate today's revenue from completed tickets with actual cost
-  const todayRevenue = allTickets
-    .filter(t => t.status === 'completed' && t.actual_cost)
-    .reduce((acc, ticket) => acc + (ticket.actual_cost || 0), 0);
-
-  // Format recent orders for display with all required fields
-  const formattedOrders = recentTickets.map(ticket => ({
-    id: ticket.id,
-    ticket_number: ticket.ticket_number,
-    customer_id: ticket.customer_id,
-    customer_name: ticket.customers?.name || "Unknown Customer",
-    customer_phone: ticket.customers?.phone || "",
-    device_brand: ticket.device_brand || "",
-    device_model: ticket.device_model || "",
-    repair_issues: ticket.repair_issues || [],
-    status: ticket.status as RepairStatus,
-    created_at: ticket.created_at,
-    updated_at: ticket.updated_at,
-    timer_total_minutes: ticket.total_time_minutes || 0,
-  }));
-
-  return {
-    totalOrders,
-    todayOrders,
-    inProgressOrders,
-    completedToday: completedOrders,
-    onHoldOrders,
-    totalCustomers,
-    avgRepairTimeHours: Math.round((avgRepairTime / 60) * 10) / 10,
-    todayRevenue,
-    recentOrders: formattedOrders,
-  };
-}
-
-export default async function DashboardPage() {
-  const metrics = await getDashboardMetrics();
-
-  return <DashboardClient metrics={metrics} />;
 }

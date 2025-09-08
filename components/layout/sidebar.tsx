@@ -20,6 +20,7 @@ import {
   LogOut,
   User,
   ChevronUp,
+  Palette,
 } from "lucide-react";
 import { useTimer } from "@/lib/contexts/timer-context";
 import { StopTimerDialog } from "@/components/orders/stop-timer-dialog";
@@ -49,6 +50,7 @@ const adminNavigation = [
   { name: "Devices", href: "/admin/devices", icon: Smartphone },
   { name: "Services", href: "/admin/services", icon: Wrench },
   { name: "Media Gallery", href: "/admin/media", icon: Image },
+  { name: "Design System", href: "/design-system", icon: Palette },
   { name: "Reports", href: "/reports", icon: FileText, disabled: true },
   { name: "Settings", href: "/settings", icon: Settings, disabled: true },
 ];

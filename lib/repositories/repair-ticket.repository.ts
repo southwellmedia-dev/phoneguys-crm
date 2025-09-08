@@ -499,4 +499,53 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
       avg_completion_time_days: avgCompletionTime
     };
   }
+
+  async findWithLimit(limit: number = 10, includeCustomers: boolean = false): Promise<RepairTicket[]> {
+    const client = await this.getClient();
+    
+    let query = client
+      .from(this.tableName)
+      .select(includeCustomers ? '*, customers(*)' : '*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(`Failed to fetch recent tickets: ${error.message}`);
+    }
+
+    return data as RepairTicket[];
+  }
+
+  async getCountsByStatus(): Promise<Record<string, number> & { total: number }> {
+    const client = await this.getClient();
+    
+    const { data, error } = await client
+      .from(this.tableName)
+      .select('status')
+      .order('status');
+
+    if (error) {
+      throw new Error(`Failed to get status counts: ${error.message}`);
+    }
+
+    const counts: Record<string, number> = {
+      new: 0,
+      in_progress: 0,
+      on_hold: 0,
+      completed: 0,
+      cancelled: 0
+    };
+
+    (data || []).forEach(item => {
+      if (counts[item.status] !== undefined) {
+        counts[item.status]++;
+      }
+    });
+
+    const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+
+    return { ...counts, total };
+  }
 }

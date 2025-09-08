@@ -135,6 +135,22 @@ export class CustomerRepository extends BaseRepository<Customer> {
     return (data as any[]).map(({ repair_tickets, ...customer }) => customer) as Customer[];
   }
 
+  async findRecent(limit: number = 10): Promise<Customer[]> {
+    const client = await this.getClient();
+    
+    const { data, error } = await client
+      .from(this.tableName)
+      .select('*, repair_tickets(id)')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      throw new Error(`Failed to fetch recent customers: ${error.message}`);
+    }
+
+    return data as Customer[];
+  }
+
   async countActiveCustomers(): Promise<number> {
     const client = await this.getClient();
     const { count, error } = await client

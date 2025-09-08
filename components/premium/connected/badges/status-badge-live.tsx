@@ -107,7 +107,12 @@ export const StatusBadgeLive = React.forwardRef<HTMLSpanElement, StatusBadgeLive
             throw new Error(`Unsupported resource type: ${resourceType}`);
         }
 
-        const response = await fetch(endpoint);
+        const response = await fetch(endpoint, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
         if (!response.ok) {
           throw new Error(`Failed to fetch ${resourceType} status`);
         }
@@ -115,7 +120,8 @@ export const StatusBadgeLive = React.forwardRef<HTMLSpanElement, StatusBadgeLive
         const result = await response.json();
         return result[statusField] || result.status;
       },
-      enabled: isMounted && !!resourceId,
+      // Only fetch if we don't have a fallback status
+      enabled: isMounted && !!resourceId && !fallbackStatus,
       staleTime: 30 * 1000, // 30 seconds - status updates should be quick
       refetchOnWindowFocus: false,
       retry: 1, // Don't retry too much for status checks
@@ -131,10 +137,15 @@ export const StatusBadgeLive = React.forwardRef<HTMLSpanElement, StatusBadgeLive
       );
     }
 
-    // Use fallback status on error or while loading
-    const displayStatus = error || isLoading 
+    // Use fallback status if provided, otherwise use fetched data
+    const displayStatus = fallbackStatus 
       ? fallbackStatus 
-      : mapDatabaseStatus(resourceType, data);
+      : (error || isLoading ? undefined : mapDatabaseStatus(resourceType, data));
+
+    // Don't render if we have no status to display
+    if (!displayStatus) {
+      return null;
+    }
 
     return (
       <StatusBadge

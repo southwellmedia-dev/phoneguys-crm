@@ -129,21 +129,21 @@ export const StatCard = React.forwardRef<HTMLDivElement, StatCardProps>(
       >
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <p className={cn(
+            <div className={cn(
               "text-xs font-medium",
               variant?.startsWith("inverted-") ? "text-white/70" : "text-muted-foreground"
             )}>
               {label}
-            </p>
+            </div>
             <div className="flex items-baseline gap-2">
-              <p className={cn(
+              <div className={cn(
                 "font-semibold",
                 size === "sm" && "text-lg",
                 size === "md" && "text-xl",
                 size === "lg" && "text-2xl",
               )}>
                 {value}
-              </p>
+              </div>
               {trend !== undefined && (
                 <div className={cn(
                   "inline-flex items-center gap-0.5 text-xs font-medium",
@@ -165,12 +165,12 @@ export const StatCard = React.forwardRef<HTMLDivElement, StatCardProps>(
               )}
             </div>
             {trendLabel && (
-              <p className={cn(
+              <div className={cn(
                 "text-xs",
                 variant?.startsWith("inverted-") ? "text-white/60" : "text-muted-foreground"
               )}>
                 {trendLabel}
-              </p>
+              </div>
             )}
           </div>
           {Icon && (

@@ -348,4 +348,29 @@ export class AppointmentRepository extends BaseRepository<Appointment> {
     
     return conflicts;
   }
+
+  async findRecent(limit: number = 10): Promise<Appointment[]> {
+    const client = await this.getClient();
+    
+    const { data, error } = await client
+      .from(this.tableName)
+      .select(`
+        *,
+        customers (
+          id,
+          name,
+          email,
+          phone
+        )
+      `)
+      .order('scheduled_date', { ascending: false })
+      .order('scheduled_time', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      throw new Error(`Failed to fetch recent appointments: ${error.message}`);
+    }
+
+    return data as Appointment[];
+  }
 }

@@ -79,18 +79,27 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const resolvedParams = await params;
-    
-    // Require authentication
-    const authResult = await requireAuth(request);
-    if (authResult instanceof NextResponse) return authResult;
-
     const ticketId = resolvedParams.id;
-    const repairService = new RepairOrderService();
 
-    // Get the ticket to fetch its current status
-    const ticket = await repairService.getRepairOrderWithDetails(ticketId);
+    // Use Supabase directly for a simple status fetch
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = await createClient();
     
-    if (!ticket) {
+    // Check if user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    // Get the ticket status
+    const { data: ticket, error } = await supabase
+      .from('repair_tickets')
+      .select('id, status, updated_at')
+      .eq('id', ticketId)
+      .single();
+    
+    if (error || !ticket) {
+      console.error('Error fetching ticket:', error);
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
     }
 
@@ -100,6 +109,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       updated_at: ticket.updated_at 
     });
   } catch (error) {
-    return handleApiError(error);
+    console.error('Error in status GET route:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

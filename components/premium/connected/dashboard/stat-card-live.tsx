@@ -169,32 +169,9 @@ export const StatCardLive = React.forwardRef<HTMLDivElement, StatCardLiveProps>(
       }
     }, [isSuccess, hasLoadedOnce]);
 
-    // Set up real-time subscription
-    React.useEffect(() => {
-      if (!isMounted) return;
-
-      const supabase = createClient();
-      const channel = supabase.channel(`stat-${metric}`);
-
-      // Subscribe to relevant table based on metric
-      const table = metric === 'total_customers' ? 'customers' : 'repair_tickets';
-      
-      channel
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: table
-        }, async () => {
-          // Refetch the metric data when changes occur
-          const newData = await fetchMetric(metric);
-          queryClient.setQueryData(['dashboard-stat', metric], newData);
-        })
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }, [isMounted, metric, queryClient]);
+    // Use shared real-time subscription instead of creating individual ones
+    // The RealtimeService handles this centrally
+    useRealtime(['tickets', 'customers']);
 
     const showSkeleton = !hasLoadedOnce || isLoading;
 
@@ -220,23 +197,41 @@ export const StatCardLive = React.forwardRef<HTMLDivElement, StatCardLiveProps>(
       );
     }
 
+    // If showing skeleton, render a skeleton version of the card
+    if (showSkeleton) {
+      return (
+        <div
+          ref={ref}
+          className={cn(
+            "rounded-lg border bg-background p-4",
+            className
+          )}
+        >
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <SkeletonPremium className="h-4 w-24" />
+              <div className="flex items-baseline gap-2">
+                <SkeletonPremium className="h-8 w-16" />
+              </div>
+              <SkeletonPremium className="h-3 w-20" />
+            </div>
+            {props.icon && (
+              <SkeletonPremium className="h-8 w-8 rounded-md" />
+            )}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <StatCard
         ref={ref}
         {...props}
         className={className}
         label={label || defaultLabels[metric]}
-        value={showSkeleton ? (
-          <SkeletonPremium className="h-8 w-16" />
-        ) : (
-          data?.value.toLocaleString() || '0'
-        )}
-        trend={showSkeleton ? undefined : data?.trend}
-        trendLabel={showSkeleton ? (
-          <SkeletonPremium className="h-3 w-20" />
-        ) : (
-          data?.trendLabel
-        )}
+        value={data?.value.toLocaleString() || '0'}
+        trend={data?.trend}
+        trendLabel={data?.trendLabel}
       />
     );
   }

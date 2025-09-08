@@ -1,23 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { Sidebar } from "@/components/layout/sidebar";
-import { DetailPageLayout } from "@/components/premium/layout/detail-page-layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { PhoneDetailCard } from "@/components/premium/cards/phone-detail-card";
-import { ActivityTimeline } from "@/components/premium/activity/activity-timeline";
-import { TimeEntries } from "@/components/premium/time/time-entries";
-import { PremiumTabs } from "@/components/premium/navigation/premium-tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "next/navigation";
+import { PremiumTabs, TabPanel } from "@/components/premium/navigation/premium-tabs";
+import { 
+  ConnectedOrderHeader,
+  ConnectedDeviceCard,
+  ConnectedServicesCard,
+  ConnectedTimeTracker,
+  ConnectedActivityFeed
+} from "@/components/premium/connected";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useTicket, useUpdateTicketStatus } from "@/lib/hooks/use-tickets";
+import { useRealtime } from "@/lib/hooks/use-realtime";
+import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { 
-  Clock, 
-  User, 
-  Calendar,
+import { cn } from "@/lib/utils";
+import {
+  Clock,
+  User,
   Phone,
   Mail,
   MapPin,
@@ -26,469 +31,411 @@ import {
   CheckCircle,
   XCircle,
   Timer,
-  Play,
-  Pause,
-  MessageSquare,
+  Activity,
+  Camera,
   FileText,
   DollarSign,
-  Wrench,
-  Camera,
   Edit,
-  Save,
-  X
+  MoreHorizontal,
+  Printer,
+  RotateCcw,
+  ArrowLeft,
+  Calendar,
+  TrendingUp,
+  Shield,
+  Zap,
+  ChevronRight
 } from "lucide-react";
+import Link from "next/link";
 
 interface PremiumTicketDetailClientProps {
   ticket: any;
-  user: any;
-  userRole: string;
+  ticketId: string;
+  totalTimeMinutes: number;
+  isAdmin?: boolean;
+  currentUserId?: string;
+  matchingCustomerDevice?: any;
+  appointmentData?: any;
+  technicians?: Array<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  }>;
 }
 
-const statusConfig = {
-  pending: { color: "amber", icon: AlertCircle, label: "Pending" },
-  in_progress: { color: "cyan", icon: Clock, label: "In Progress" },
-  completed: { color: "green", icon: CheckCircle, label: "Completed" },
-  cancelled: { color: "gray", icon: XCircle, label: "Cancelled" }
-};
-
-export function PremiumTicketDetailClient({ ticket, user, userRole }: PremiumTicketDetailClientProps) {
+export function PremiumTicketDetailClient({
+  ticket: initialTicket,
+  ticketId,
+  totalTimeMinutes: initialTotalTimeMinutes,
+  isAdmin = false,
+  currentUserId = "",
+  matchingCustomerDevice,
+  appointmentData,
+  technicians = []
+}: PremiumTicketDetailClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("details");
-  const [isEditing, setIsEditing] = useState(false);
-  const [notes, setNotes] = useState("");
+  const { data: order = initialTicket, isLoading, isFetching } = useTicket(ticketId, initialTicket);
+  const updateStatusMutation = useUpdateTicketStatus();
+  
+  // Set up real-time subscriptions
+  useRealtime(['tickets']);
+  
+  // State
+  const [activeTab, setActiveTab] = useState("overview");
+  const [showStatusDialog, setShowStatusDialog] = useState(false);
+  
+  // Determine if we should show skeleton
+  const showSkeleton = useShowSkeleton(isLoading, isFetching, !!order);
 
-  const statusInfo = statusConfig[ticket.status as keyof typeof statusConfig] || statusConfig.pending;
-  const StatusIcon = statusInfo.icon;
+  // Calculate total time from order data
+  const totalTimeMinutes = order?.time_entries?.reduce(
+    (acc: number, entry: any) => acc + (entry.duration_minutes || 0),
+    0
+  ) || order?.timer_total_minutes || order?.total_time_minutes || initialTotalTimeMinutes || 0;
 
-  // Format time
-  const formatTime = (minutes: number) => {
-    if (!minutes) return "0m";
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  // Handle status change
+  const handleStatusChange = (newStatus: string) => {
+    updateStatusMutation.mutate({ id: ticketId, status: newStatus });
   };
 
-  // Timer mutation
-  const toggleTimer = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/tickets/${ticket.id}/timer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: ticket.timer_running ? 'stop' : 'start' 
-        })
+  // Handle reopen
+  const handleReopen = async () => {
+    try {
+      const response = await fetch(`/api/orders/${ticketId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "in_progress",
+          reason: "Order reopened",
+        }),
       });
-      
-      if (!response.ok) throw new Error('Failed to toggle timer');
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ticket', ticket.id] });
-      toast.success(ticket.timer_running ? 'Timer stopped' : 'Timer started');
-      router.refresh();
-    },
-    onError: () => {
-      toast.error('Failed to toggle timer');
-    }
-  });
 
-  // Status update mutation
-  const updateStatus = useMutation({
-    mutationFn: async (newStatus: string) => {
-      const response = await fetch(`/api/tickets/${ticket.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
-      
-      if (!response.ok) throw new Error('Failed to update status');
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ticket', ticket.id] });
-      toast.success('Status updated');
-      router.refresh();
-    },
-    onError: () => {
-      toast.error('Failed to update status');
-    }
-  });
+      if (!response.ok) {
+        throw new Error("Failed to reopen order");
+      }
 
-  // Add note mutation
-  const addNote = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/tickets/${ticket.id}/notes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: notes })
-      });
-      
-      if (!response.ok) throw new Error('Failed to add note');
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ticket', ticket.id] });
-      toast.success('Note added');
-      setNotes("");
-      router.refresh();
-    },
-    onError: () => {
-      toast.error('Failed to add note');
+      toast.success("Order reopened successfully");
+      queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
+    } catch (error) {
+      toast.error("Failed to reopen order");
     }
-  });
+  };
 
-  // Header actions
-  const headerActions = [
-    {
-      label: ticket.timer_running ? "Stop Timer" : "Start Timer",
-      icon: ticket.timer_running ? <Pause className="h-4 w-4 mr-1" /> : <Play className="h-4 w-4 mr-1" />,
-      variant: ticket.timer_running ? "outline" : "gradient" as const,
-      color: "green" as const,
-      onClick: () => toggleTimer.mutate()
-    },
-    {
-      label: isEditing ? "Save" : "Edit",
-      icon: isEditing ? <Save className="h-4 w-4 mr-1" /> : <Edit className="h-4 w-4 mr-1" />,
-      variant: "outline" as const,
-      onClick: () => setIsEditing(!isEditing)
-    }
-  ];
-
-  const moreActions = [
-    {
-      label: "Print Invoice",
-      icon: <FileText className="h-4 w-4 mr-2" />,
-      onClick: () => window.print()
-    },
-    {
-      label: "Send SMS",
-      icon: <MessageSquare className="h-4 w-4 mr-2" />,
-      onClick: () => toast.info("SMS feature coming soon")
-    },
-    {
-      label: "Mark as Completed",
-      icon: <CheckCircle className="h-4 w-4 mr-2" />,
-      onClick: () => updateStatus.mutate("completed"),
-      disabled: ticket.status === "completed"
-    },
-    {
-      label: "Cancel Ticket",
-      icon: <XCircle className="h-4 w-4 mr-2" />,
-      onClick: () => updateStatus.mutate("cancelled"),
-      disabled: ticket.status === "cancelled",
-      destructive: true
-    }
-  ];
-
-  // Tabs for content sections
+  // Tab configuration
   const tabs = [
-    { id: "details", label: "Details", icon: <Package className="h-4 w-4" /> },
-    { id: "activity", label: "Activity", icon: <Clock className="h-4 w-4" /> },
-    { id: "time", label: "Time Tracking", icon: <Timer className="h-4 w-4" /> },
+    { id: "overview", label: "Overview", icon: <Package className="h-4 w-4" /> },
+    { id: "activity", label: "Activity", icon: <Activity className="h-4 w-4" />, badge: order.ticket_notes?.length > 0 ? String(order.ticket_notes.length) : undefined },
+    { id: "time", label: "Time Tracking", icon: <Timer className="h-4 w-4" />, badge: order.time_entries?.length > 0 ? String(order.time_entries.length) : undefined },
     { id: "photos", label: "Photos", icon: <Camera className="h-4 w-4" /> },
     { id: "invoice", label: "Invoice", icon: <DollarSign className="h-4 w-4" /> }
   ];
 
-  // Mock activity data
-  const activityItems = [
-    {
-      id: "1",
-      user: ticket.created_by_name || "System",
-      action: "created the ticket",
-      timestamp: new Date(ticket.created_at),
-      type: "create" as const
-    },
-    ...(ticket.notes || []).map((note: any, idx: number) => ({
-      id: `note-${idx}`,
-      user: note.created_by_name || "Technician",
-      action: note.content,
-      timestamp: new Date(note.created_at),
-      type: "comment" as const
-    })),
-    ...(ticket.timer_running ? [{
-      id: "timer",
-      user: user?.name || "Current User",
-      action: "Timer is running",
-      timestamp: new Date(),
-      type: "timer" as const
-    }] : [])
-  ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  // Loading skeleton
+  if (showSkeleton) {
+    return (
+      <div className="h-full flex flex-col bg-background">
+        <div className="flex-1 p-6 space-y-6">
+          <Skeleton className="h-12 w-64" />
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </div>
+    );
+  }
 
-  // Mock time entries
-  const timeEntries = ticket.time_entries || [
-    {
-      id: "1",
-      date: new Date().toISOString(),
-      technician: user?.name || "John Doe",
-      duration: ticket.total_time_minutes || 0,
-      description: "Repair work",
-      status: ticket.timer_running ? "active" : "completed"
-    }
-  ];
-
-  // Render content based on active tab
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case "activity":
-        return (
-          <div className="space-y-6">
-            <ActivityTimeline items={activityItems} />
-            
-            {/* Add Note Section */}
-            <Card variant="outlined">
-              <CardHeader>
-                <CardTitle className="text-base">Add Note</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  placeholder="Enter your notes here..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="mb-3"
-                  rows={3}
-                />
-                <Button 
-                  onClick={() => addNote.mutate()}
-                  disabled={!notes.trim()}
-                  variant="gradient"
-                  color="cyan"
-                  size="sm"
-                >
-                  <MessageSquare className="h-4 w-4 mr-1" />
-                  Add Note
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        );
-
-      case "time":
-        return (
-          <TimeEntries 
-            entries={timeEntries}
-            onAddEntry={() => toast.info("Add time entry coming soon")}
-          />
-        );
-
-      case "photos":
-        return (
-          <Card variant="outlined">
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <Camera className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-              <p>No photos uploaded yet</p>
-              <Button variant="outline" size="sm" className="mt-3">
-                Upload Photos
-              </Button>
-            </CardContent>
-          </Card>
-        );
-
-      case "invoice":
-        return (
-          <Card variant="outlined">
-            <CardHeader>
-              <CardTitle>Invoice Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-sm">Diagnostic Fee</span>
-                  <span className="font-medium">$25.00</span>
-                </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-sm">Labor ({formatTime(ticket.total_time_minutes)})</span>
-                  <span className="font-medium">$75.00</span>
-                </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-sm">Parts</span>
-                  <span className="font-medium">$0.00</span>
-                </div>
-                <div className="flex justify-between py-3 text-lg font-semibold">
-                  <span>Total</span>
-                  <span>$100.00</span>
-                </div>
+  // Customer info widget
+  const CustomerWidget = (
+    <Card className="overflow-hidden bg-gradient-to-br from-background via-background to-primary/5">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <User className="h-4 w-4" />
+          Customer Information
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {order.customers ? (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <span className="text-sm font-bold text-primary">
+                  {order.customers.name?.[0]?.toUpperCase() || "?"}
+                </span>
               </div>
-              <div className="mt-6 flex gap-2">
-                <Button variant="gradient" color="green" size="sm">
-                  <DollarSign className="h-4 w-4 mr-1" />
-                  Process Payment
-                </Button>
-                <Button variant="outline" size="sm">
-                  <FileText className="h-4 w-4 mr-1" />
-                  Print Invoice
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        );
-
-      default: // details
-        return (
-          <div className="space-y-6">
-            {/* Repair Information */}
-            <Card variant="elevated">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wrench className="h-5 w-5" />
-                  Repair Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Issue Description</p>
-                    <p className="font-medium">{ticket.problem_description || "No description"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Service Type</p>
-                    <p className="font-medium">{ticket.service_type || "General Repair"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Priority</p>
-                    <Badge variant="soft" color={ticket.priority === "high" ? "red" : ticket.priority === "medium" ? "amber" : "green"}>
-                      {ticket.priority || "normal"}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Assigned To</p>
-                    <p className="font-medium">{ticket.assigned_to_name || "Unassigned"}</p>
-                  </div>
-                </div>
-
-                {ticket.internal_notes && (
-                  <div className="pt-4 border-t">
-                    <p className="text-sm text-muted-foreground mb-1">Internal Notes</p>
-                    <p className="text-sm">{ticket.internal_notes}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Parts & Services */}
-            <Card variant="outlined">
-              <CardHeader>
-                <CardTitle className="text-base">Parts & Services</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">No parts added yet</p>
-              </CardContent>
-            </Card>
-          </div>
-        );
-    }
-  };
-
-  // Sidebar content
-  const sidebarContent = (
-    <>
-      {/* Customer Info */}
-      <Card variant="gradient">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Customer
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div>
-            <p className="font-medium">{ticket.customer?.name || "Unknown"}</p>
-            {ticket.customer?.phone && (
-              <div className="flex items-center gap-2 mt-1">
-                <Phone className="h-3 w-3 text-muted-foreground" />
-                <span className="text-sm">{ticket.customer.phone}</span>
-              </div>
-            )}
-            {ticket.customer?.email && (
-              <div className="flex items-center gap-2 mt-1">
-                <Mail className="h-3 w-3 text-muted-foreground" />
-                <span className="text-sm">{ticket.customer.email}</span>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Device Info */}
-      <PhoneDetailCard
-        device={{
-          brand: ticket.device?.brand || "Unknown",
-          model: ticket.device?.model || "Unknown",
-          storage: ticket.storage_size || "Unknown",
-          color: ticket.device_color || "Unknown",
-          imei: ticket.imei,
-          serialNumber: ticket.serial_number
-        }}
-        variant="elevated"
-      />
-
-      {/* Quick Stats */}
-      <Card variant="glass">
-        <CardHeader>
-          <CardTitle className="text-base">Quick Stats</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">Total Time</span>
-            <Badge variant="soft" color="purple">
-              {formatTime(ticket.total_time_minutes)}
-            </Badge>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">Created</span>
-            <span className="text-sm">
-              {new Date(ticket.created_at).toLocaleDateString()}
-            </span>
-          </div>
-          {ticket.timer_running && (
-            <div className="pt-3 border-t">
-              <div className="flex items-center gap-2 text-green-600">
-                <Timer className="h-4 w-4 animate-pulse" />
-                <span className="text-sm font-medium">Timer Running</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold truncate">{order.customers.name}</p>
+                <p className="text-xs text-muted-foreground">Customer #{order.customer_id?.slice(-6)}</p>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </>
+
+            <div className="space-y-2">
+              {order.customers.email && (
+                <a 
+                  href={`mailto:${order.customers.email}`}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  <span className="truncate">{order.customers.email}</span>
+                </a>
+              )}
+              {order.customers.phone && (
+                <a 
+                  href={`tel:${order.customers.phone}`}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                  <span>{order.customers.phone}</span>
+                </a>
+              )}
+              {order.customers.address && (
+                <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5 mt-0.5" />
+                  <span className="text-xs">{order.customers.address}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button size="sm" variant="outline" className="flex-1">
+                <Phone className="h-3.5 w-3.5" />
+              </Button>
+              <Button size="sm" variant="outline" className="flex-1">
+                <Mail className="h-3.5 w-3.5" />
+              </Button>
+              <Button 
+                size="sm" 
+                variant="default" 
+                className="flex-1"
+                onClick={() => router.push(`/customers/${order.customer_id}`)}
+              >
+                View
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-4 text-muted-foreground text-sm">
+            No customer information available
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  // Quick Stats Widget
+  const QuickStatsWidget = (
+    <Card>
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <TrendingUp className="h-4 w-4" />
+          Quick Stats
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Created</span>
+          <span className="text-sm font-medium">
+            {new Date(order.created_at).toLocaleDateString()}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Last Updated</span>
+          <span className="text-sm font-medium">
+            {new Date(order.updated_at).toLocaleDateString()}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Assigned To</span>
+          <span className="text-sm font-medium">
+            {order.users?.full_name || order.users?.email || "Unassigned"}
+          </span>
+        </div>
+        {order.priority && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Priority</span>
+            <Badge 
+              variant={order.priority === "high" ? "destructive" : order.priority === "medium" ? "default" : "secondary"}
+              className="text-xs"
+            >
+              {order.priority}
+            </Badge>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 
   return (
-    <div className="h-screen flex overflow-hidden bg-background">
-      <Sidebar user={user} />
-      
-      <div className="flex-1 overflow-hidden">
-        <DetailPageLayout
-          backHref="/orders"
-          backLabel="Back to Tickets"
-          title={`Ticket #${ticket.ticket_number}`}
-          subtitle={`${ticket.device_info} - ${ticket.customer?.name || "Unknown Customer"}`}
-          status={{
-            label: statusInfo.label,
-            color: statusInfo.color as any,
-            variant: "soft"
-          }}
-          badges={[
-            ...(ticket.timer_running ? [{
-              label: "Timer Active",
-              color: "green" as const,
-              variant: "solid" as const
-            }] : [])
-          ]}
-          actions={headerActions}
-          moreActions={moreActions}
-          sidebar={sidebarContent}
-        >
+    <div className="h-full flex flex-col bg-background overflow-hidden">
+      {/* Premium Header Section - Matching sidebar logo height (h-28) */}
+      <div className="h-28 border-b bg-gradient-to-b from-primary/5 via-primary/2 to-transparent flex items-center">
+        <div className="max-w-[1600px] mx-auto w-full px-4 lg:px-6">
+          {/* Header without Back Button and Status */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {order.ticket_number}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {order.customers?.name || "Unknown Customer"} • Created {new Date(order.created_at).toLocaleDateString()}
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <Link href="/orders">
+                <Button variant="outline" size="default" className="gap-2">
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Orders
+                </Button>
+              </Link>
+              <Button variant="outline" size="default" onClick={() => router.push(`/orders/${ticketId}/edit`)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+              <Button variant="outline" size="default">
+                <Printer className="h-4 w-4 mr-2" />
+                Print
+              </Button>
+              {(order.status === "cancelled" || order.status === "completed") && (
+                <Button variant="default" size="default" onClick={handleReopen}>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reopen
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area - Scrollable */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-[1600px] mx-auto px-4 lg:px-6 py-6 space-y-6">
+          {/* Order Header Metrics */}
+          <ConnectedOrderHeader order={order} />
+
+          {/* Tabs Navigation */}
           <PremiumTabs
             tabs={tabs}
             activeTab={activeTab}
             onTabChange={setActiveTab}
-            variant="default"
-            className="mb-6"
+            variant="gradient"
+            size="md"
           />
-          
-          {renderTabContent()}
-        </DetailPageLayout>
+
+          {/* Tab Content with Sidebar */}
+          <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+            {/* Main Content */}
+            <div className="min-h-[400px]">
+              {/* Overview Tab */}
+              <TabPanel value="overview" activeValue={activeTab}>
+                <div className="space-y-6">
+                  <ConnectedDeviceCard 
+                    order={order}
+                    matchingCustomerDevice={matchingCustomerDevice}
+                    onAddToProfile={() => console.log("Add to profile")}
+                  />
+                  <ConnectedServicesCard 
+                    services={order.ticket_services || []}
+                  />
+                </div>
+              </TabPanel>
+
+              {/* Activity Tab */}
+              <TabPanel value="activity" activeValue={activeTab}>
+                <ConnectedActivityFeed
+                  ticketId={ticketId}
+                  notes={order.ticket_notes}
+                  showAddNote={order.status !== "completed" && order.status !== "cancelled"}
+                />
+              </TabPanel>
+
+              {/* Time Tracking Tab */}
+              <TabPanel value="time" activeValue={activeTab}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Time Tracking Details</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Timer className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Detailed time tracking information will be shown here</p>
+                      <p className="text-sm mt-2">Total Time: {Math.floor(totalTimeMinutes / 60)}h {totalTimeMinutes % 60}m</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabPanel>
+
+              {/* Photos Tab */}
+              <TabPanel value="photos" activeValue={activeTab}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Photos & Documentation</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Camera className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Photos and documentation will be shown here</p>
+                      <Button variant="outline" className="mt-4">
+                        <Camera className="h-4 w-4 mr-2" />
+                        Upload Photos
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabPanel>
+
+              {/* Invoice Tab */}
+              <TabPanel value="invoice" activeValue={activeTab}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Invoice & Payment</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-12 text-muted-foreground">
+                      <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Invoice and payment details will be shown here</p>
+                      <div className="mt-4 space-y-2">
+                        <p className="text-2xl font-bold text-foreground">
+                          ${order.ticket_services?.reduce(
+                            (sum: number, ts: any) =>
+                              sum + (ts.unit_price || ts.service?.base_price || 0) * (ts.quantity || 1),
+                            0
+                          ).toFixed(2) || "0.00"}
+                        </p>
+                        <p className="text-sm">Total Amount Due</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabPanel>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Timer Widget */}
+              <ConnectedTimeTracker
+                ticketId={ticketId}
+                ticketNumber={order.ticket_number}
+                customerName={order.customers?.name}
+                timeEntries={order.time_entries}
+                timerRunning={order.timer_running}
+                timerStartTime={order.timer_start_time}
+                totalMinutes={totalTimeMinutes}
+                isDisabled={order.status === "completed" || order.status === "cancelled"}
+                disabledReason={
+                  order.status === "completed" ? "Order is completed" :
+                  order.status === "cancelled" ? "Order is cancelled" : undefined
+                }
+              />
+              
+              {/* Customer Widget */}
+              {CustomerWidget}
+              
+              {/* Quick Stats Widget */}
+              {QuickStatsWidget}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

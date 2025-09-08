@@ -8,3 +8,10 @@ export { DashboardGrid } from './dashboard-grid';
 // Complete layout components
 export { ConnectedDashboard } from './connected-dashboard';
 export { DashboardExample } from './dashboard-example';
+
+// Connected Components for Order Details
+export { ConnectedOrderHeader } from './connected-order-header';
+export { ConnectedDeviceCard } from './connected-device-card';
+export { ConnectedServicesCard } from './connected-services-card';
+export { ConnectedTimeTracker } from './connected-time-tracker';
+export { ConnectedActivityFeed } from './connected-activity-feed';

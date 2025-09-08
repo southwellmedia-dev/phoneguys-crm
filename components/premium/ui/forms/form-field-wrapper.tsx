@@ -37,7 +37,7 @@ export interface FormFieldWrapperProps {
   children: React.ReactNode;
 }
 
-export const FormFieldWrapper = React.forwardRef<HTMLDivElement, FormFieldWrapperProps>(
+const FormFieldWrapper = React.forwardRef<HTMLDivElement, FormFieldWrapperProps>(
   ({
     label,
     description,
@@ -188,7 +188,7 @@ export interface FormSectionProps {
   children: React.ReactNode;
 }
 
-export const FormSection = React.forwardRef<HTMLDivElement, FormSectionProps>(
+const FormSection = React.forwardRef<HTMLDivElement, FormSectionProps>(
   ({
     title,
     description,
@@ -273,7 +273,7 @@ export interface FormGridProps {
   children: React.ReactNode;
 }
 
-export const FormGrid = React.forwardRef<HTMLDivElement, FormGridProps>(
+const FormGrid = React.forwardRef<HTMLDivElement, FormGridProps>(
   ({
     columns = 2,
     gap = 'md',

@@ -16,12 +16,96 @@ export class CustomerRepository extends BaseRepository<Customer> {
 
   async searchCustomers(filters: CustomerFilters): Promise<Customer[]> {
     const client = await this.getClient();
-    let query = client.from(this.tableName).select('*');
-
+    
     if (filters.search) {
-      query = query.or(`name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`);
+      // Split search query into individual words
+      const searchTerms = filters.search.trim().split(/\s+/).filter(term => term.length > 0);
+      
+      if (searchTerms.length === 0) {
+        return [];
+      }
+      
+      // For single word, use the original logic
+      if (searchTerms.length === 1) {
+        let query = client.from(this.tableName).select('*');
+        query = query.or(`name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`);
+        
+        if (filters.email) {
+          query = query.eq('email', filters.email);
+        }
+        if (filters.phone) {
+          query = query.eq('phone', filters.phone);
+        }
+        
+        const { data, error } = await query.order('name');
+        if (error) {
+          throw new Error(`Failed to search customers: ${error.message}`);
+        }
+        return data as Customer[];
+      }
+      
+      // For multiple words, fetch all customers and filter in memory
+      // This is necessary because Supabase doesn't support complex AND/OR combinations well
+      let query = client.from(this.tableName).select('*');
+      
+      // Build an OR query for all search terms
+      const orConditions = searchTerms.map(term => 
+        `name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`
+      ).join(',');
+      
+      query = query.or(orConditions);
+      
+      if (filters.email) {
+        query = query.eq('email', filters.email);
+      }
+      if (filters.phone) {
+        query = query.eq('phone', filters.phone);
+      }
+      
+      const { data, error } = await query;
+      if (error) {
+        throw new Error(`Failed to search customers: ${error.message}`);
+      }
+      
+      if (!data) return [];
+      
+      // Score and filter results based on how many search terms match
+      const scoredResults = data.map(customer => {
+        let score = 0;
+        const customerText = `${customer.name} ${customer.email} ${customer.phone || ''}`.toLowerCase();
+        
+        // Count how many search terms appear in the customer data
+        for (const term of searchTerms) {
+          if (customerText.includes(term.toLowerCase())) {
+            score++;
+          }
+        }
+        
+        return { customer, score };
+      });
+      
+      // Filter out results that don't match enough search terms
+      // Require all terms to match for best results
+      const filteredResults = scoredResults
+        .filter(result => result.score === searchTerms.length)
+        .sort((a, b) => b.score - a.score || a.customer.name.localeCompare(b.customer.name))
+        .map(result => result.customer);
+      
+      // If no results with all terms, try with at least 50% of terms
+      if (filteredResults.length === 0 && searchTerms.length > 2) {
+        const minScore = Math.ceil(searchTerms.length / 2);
+        return scoredResults
+          .filter(result => result.score >= minScore)
+          .sort((a, b) => b.score - a.score || a.customer.name.localeCompare(b.customer.name))
+          .map(result => result.customer);
+      }
+      
+      return filteredResults;
     }
 
+    // If no search term, handle other filters
+    let query = client.from(this.tableName).select('*');
+    
     if (filters.email) {
       query = query.eq('email', filters.email);
     }

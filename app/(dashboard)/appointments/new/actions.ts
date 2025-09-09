@@ -60,6 +60,11 @@ export async function createAppointment(data: CreateAppointmentData) {
     // Determine initial status based on auto_confirm flag
     const initialStatus = data.auto_confirm ? 'arrived' : (data.status || 'scheduled');
     
+    // Format notes as JSON structure to match update format
+    const notesData = data.internal_notes ? 
+      JSON.stringify({ customer_notes: data.internal_notes }) : 
+      null;
+    
     const appointment = await appointmentService.createAppointment({
       customer,
       device,
@@ -70,7 +75,7 @@ export async function createAppointment(data: CreateAppointmentData) {
       duration_minutes: data.duration_minutes,
       issues: data.issues,
       description: data.issue_description,
-      notes: data.internal_notes,
+      notes: notesData,
       urgency: data.urgency,
       source: data.source as any,
       assigned_to: data.assigned_to,

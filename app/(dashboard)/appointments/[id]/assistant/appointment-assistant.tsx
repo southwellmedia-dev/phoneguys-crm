@@ -60,11 +60,20 @@ export function AppointmentAssistant({
   const [isSaving, setIsSaving] = useState(false);
   const [showConversionModal, setShowConversionModal] = useState(false);
   
-  // Parse existing notes
-  const parsedNotes = appointment.notes ? 
-    (typeof appointment.notes === 'string' ? 
-      JSON.parse(appointment.notes) : appointment.notes) 
-    : {};
+  // Parse existing notes safely
+  let parsedNotes = {};
+  if (appointment.notes) {
+    if (typeof appointment.notes === 'string') {
+      try {
+        parsedNotes = JSON.parse(appointment.notes);
+      } catch (e) {
+        // If parsing fails, treat it as a plain string note
+        parsedNotes = { customer_notes: appointment.notes };
+      }
+    } else {
+      parsedNotes = appointment.notes;
+    }
+  }
 
   // State management with refs for persistence
   const [selectedServices, setSelectedServices] = useState<string[]>(

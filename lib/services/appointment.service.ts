@@ -9,6 +9,10 @@ export interface CreateAppointmentDTO {
     name?: string;
     email?: string;
     phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
   };
   device?: {
     id?: string;
@@ -34,6 +38,8 @@ export interface CreateAppointmentDTO {
   source?: 'website' | 'phone' | 'walk-in' | 'email';
   notes?: string;
   assigned_to?: string;
+  status?: 'scheduled' | 'confirmed' | 'arrived';
+  auto_confirm?: boolean;
 }
 
 export interface UpdateAppointmentDTO {
@@ -81,30 +87,52 @@ export class AppointmentService {
     let customerId: string | null = null;
     let customerDeviceId: string | null = data.customer_device_id || null;
 
+    console.log('Creating appointment with data:', {
+      hasCustomer: !!data.customer,
+      hasDevice: !!data.device,
+      deviceId: data.device?.id,
+      hasDeviceDetails: !!data.device_details,
+      customerDeviceId: data.customer_device_id
+    });
+
     // Handle customer creation or lookup
     if (data.customer) {
       if (data.customer.id) {
         customerId = data.customer.id;
+        console.log('Using existing customer:', customerId);
       } else if (data.customer.email) {
         // Check if customer exists
         const existingCustomer = await this.customerRepo.findByEmail(data.customer.email);
         
         if (existingCustomer) {
           customerId = existingCustomer.id;
+          console.log('Found existing customer by email:', customerId);
         } else {
           // Create new customer
           const newCustomer = await this.customerRepo.create({
             name: data.customer.name!,
             email: data.customer.email,
             phone: data.customer.phone,
+            address: data.customer.address,
+            city: data.customer.city,
+            state: data.customer.state,
+            zip: data.customer.zip,
           });
           customerId = newCustomer.id;
+          console.log('Created new customer:', customerId);
         }
       }
     }
 
-    // Create customer device if we have device details and a customer
-    if (customerId && data.device?.id && !customerDeviceId && data.device_details) {
+    // Create customer device if we have a device and customer
+    console.log('Checking to create customer device:', {
+      customerId,
+      deviceId: data.device?.id,
+      customerDeviceId,
+      hasDeviceDetails: !!data.device_details
+    });
+    
+    if (customerId && data.device?.id && !customerDeviceId) {
       try {
         // Check if this device already exists for this customer
         const existingDevices = await this.customerDeviceRepo.findByCustomer(customerId);
@@ -116,16 +144,17 @@ export class AppointmentService {
 
         if (existingDevice) {
           customerDeviceId = existingDevice.id;
+          console.log('Found existing customer device:', existingDevice.id);
         } else {
           // Create new customer device
           const newCustomerDevice = await this.customerDeviceRepo.create({
             customer_id: customerId,
             device_id: data.device.id,
-            serial_number: data.device_details.serial_number || null,
-            imei: data.device_details.imei || null,
-            color: data.device_details.color || null,
-            storage_size: data.device_details.storage_size || null,
-            condition: data.device_details.condition || 'good',
+            serial_number: data.device_details?.serial_number || null,
+            imei: data.device_details?.imei || null,
+            color: data.device_details?.color || null,
+            storage_size: data.device_details?.storage_size || null,
+            condition: data.device_details?.condition || 'good',
             is_primary: false,
             is_active: true,
           });
@@ -149,8 +178,11 @@ export class AppointmentService {
       throw new Error(`Time slot conflict with appointment ${conflicts[0].appointment_number}`);
     }
 
-    // Create the appointment with customer_device_id if available
-    const appointment = await this.appointmentRepo.create({
+    // Determine initial status and timestamps based on auto_confirm
+    const appointmentStatus = data.status || 'scheduled';
+    const now = new Date().toISOString();
+    
+    const appointmentData: any = {
       customer_id: customerId,
       device_id: data.device?.id || null,
       customer_device_id: customerDeviceId,
@@ -165,8 +197,26 @@ export class AppointmentService {
       source: data.source || 'website',
       notes: data.notes || null,
       assigned_to: data.assigned_to || null,
-      status: 'scheduled',
-    } as any);
+      status: appointmentStatus,
+    };
+    
+    // If auto-confirming, set the appropriate timestamps
+    if (data.auto_confirm) {
+      if (appointmentStatus === 'arrived') {
+        // Walk-in: both confirmed and arrived
+        appointmentData.confirmed_at = now;
+        appointmentData.arrived_at = now;
+        appointmentData.confirmation_notes = 'Auto-confirmed: Walk-in customer';
+        appointmentData.check_in_notes = 'Auto-checked in: Walk-in customer';
+      } else if (appointmentStatus === 'confirmed') {
+        // Phone appointment: just confirmed
+        appointmentData.confirmed_at = now;
+        appointmentData.confirmation_notes = 'Auto-confirmed: Phone appointment';
+      }
+    }
+    
+    // Create the appointment with customer_device_id if available
+    const appointment = await this.appointmentRepo.create(appointmentData);
 
     // Send confirmation email
     if (customerId && data.customer?.email) {

@@ -121,7 +121,30 @@ export function useCreateCustomer() {
     },
     onSuccess: (data) => {
       toast.success('Customer created successfully');
-      // Real-time will handle the cache update
+      
+      // Immediately add to cache for instant feedback
+      queryClient.setQueriesData(
+        { queryKey: ['customers'], exact: false },
+        (old: any) => {
+          // Handle both array and wrapped responses
+          if (Array.isArray(old)) {
+            return [data, ...old];
+          } else if (old?.data && Array.isArray(old.data)) {
+            return {
+              ...old,
+              data: [data, ...old.data]
+            };
+          }
+          return old;
+        }
+      );
+      
+      // Set individual customer data
+      if (data.id) {
+        queryClient.setQueryData(['customer', data.id], data);
+      }
+      
+      // Real-time will handle any further updates
     },
     onError: () => {
       toast.error('Failed to create customer');
@@ -337,7 +360,7 @@ export function useDeleteCustomer() {
   
   return useMutation({
     mutationFn: async (customerId: string) => {
-      const response = await fetch(`${API_BASE}/${customerId}`, {
+      const response = await fetch(`${API_BASE}/${customerId}/cascade-delete`, {
         method: 'DELETE',
       });
       if (!response.ok) throw new Error('Failed to delete customer');

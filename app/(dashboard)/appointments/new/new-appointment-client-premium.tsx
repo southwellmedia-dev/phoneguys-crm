@@ -106,7 +106,11 @@ export function NewAppointmentClientPremium({ customers, devices, technicians = 
   const [newCustomer, setNewCustomer] = useState({
     name: "",
     email: "",
-    phone: ""
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    zip: ""
   });
   const [isNewCustomer, setIsNewCustomer] = useState(true);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
@@ -129,6 +133,8 @@ export function NewAppointmentClientPremium({ customers, devices, technicians = 
   const [notes, setNotes] = useState("");
   const [urgency, setUrgency] = useState<"scheduled" | "emergency" | "walk-in">("scheduled");
   const [assignedTo, setAssignedTo] = useState("");
+  const [autoConfirmWalkIn, setAutoConfirmWalkIn] = useState(true); // Default to true for walk-ins
+  const [autoConfirmScheduled, setAutoConfirmScheduled] = useState(false); // For phone appointments
 
   // Validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -228,6 +234,17 @@ export function NewAppointmentClientPremium({ customers, devices, technicians = 
     setIsLoading(true);
 
     try {
+      // Determine status based on urgency and auto-confirm settings
+      const shouldAutoConfirmWalkIn = urgency === 'walk-in' && autoConfirmWalkIn;
+      const shouldAutoConfirmScheduled = urgency === 'scheduled' && autoConfirmScheduled;
+      
+      let appointmentStatus = 'scheduled';
+      if (shouldAutoConfirmWalkIn) {
+        appointmentStatus = 'arrived'; // Walk-in goes straight to arrived
+      } else if (shouldAutoConfirmScheduled) {
+        appointmentStatus = 'confirmed'; // Phone appointment just confirmed, not arrived
+      }
+      
       const appointmentData = {
         customer_id: isNewCustomer ? null : selectedCustomerId,
         new_customer: isNewCustomer ? newCustomer : null,
@@ -247,9 +264,10 @@ export function NewAppointmentClientPremium({ customers, devices, technicians = 
         issue_description: description || null,
         internal_notes: notes || null,
         urgency,
-        source: "walk-in",
-        status: "scheduled",
-        assigned_to: assignedTo || null
+        source: urgency === 'walk-in' ? 'walk-in' : 'phone', // Walk-in or phone based on urgency
+        status: appointmentStatus,
+        assigned_to: assignedTo || null,
+        auto_confirm: shouldAutoConfirmWalkIn || shouldAutoConfirmScheduled // Pass this flag to the backend
       };
 
       const result = await createAppointment(appointmentData);
@@ -259,7 +277,13 @@ export function NewAppointmentClientPremium({ customers, devices, technicians = 
       }
 
       toast.success("Appointment created successfully!");
-      router.push('/appointments');
+      
+      // Redirect to assistant if walk-in auto-confirmed, otherwise to appointments list
+      if (shouldAutoConfirmWalkIn && result.appointmentId) {
+        router.push(`/appointments/${result.appointmentId}/assistant`);
+      } else {
+        router.push('/appointments');
+      }
     } catch (error) {
       console.error('Error creating appointment:', error);
       toast.error(error instanceof Error ? error.message : "Failed to create appointment");
@@ -427,6 +451,56 @@ export function NewAppointmentClientPremium({ customers, devices, technicians = 
                     />
                   </FormFieldWrapper>
                 </FormGrid>
+
+                {/* Optional Address Fields */}
+                <div className="mt-4 space-y-4">
+                  <div className="text-sm text-gray-500">Address Information (Optional)</div>
+                  
+                  <FormFieldWrapper
+                    label="Street Address"
+                    description="Customer's street address"
+                  >
+                    <InputPremium
+                      value={newCustomer.address}
+                      onChange={(e) => setNewCustomer({...newCustomer, address: e.target.value})}
+                      placeholder="123 Main Street"
+                    />
+                  </FormFieldWrapper>
+
+                  <FormGrid columns={3}>
+                    <FormFieldWrapper
+                      label="City"
+                    >
+                      <InputPremium
+                        value={newCustomer.city}
+                        onChange={(e) => setNewCustomer({...newCustomer, city: e.target.value})}
+                        placeholder="San Francisco"
+                      />
+                    </FormFieldWrapper>
+
+                    <FormFieldWrapper
+                      label="State"
+                    >
+                      <InputPremium
+                        value={newCustomer.state}
+                        onChange={(e) => setNewCustomer({...newCustomer, state: e.target.value})}
+                        placeholder="CA"
+                        maxLength={2}
+                      />
+                    </FormFieldWrapper>
+
+                    <FormFieldWrapper
+                      label="ZIP Code"
+                    >
+                      <InputPremium
+                        value={newCustomer.zip}
+                        onChange={(e) => setNewCustomer({...newCustomer, zip: e.target.value})}
+                        placeholder="94102"
+                        maxLength={10}
+                      />
+                    </FormFieldWrapper>
+                  </FormGrid>
+                </div>
               </TabsContent>
             </Tabs>
           </GlassCardContent>
@@ -527,6 +601,30 @@ export function NewAppointmentClientPremium({ customers, devices, technicians = 
                 />
               </FormFieldWrapper>
             </FormGrid>
+
+            {urgency === 'walk-in' && (
+              <div className="mt-4 p-4 border border-cyan-200 bg-cyan-50/50 rounded-lg">
+                <CheckboxPremium
+                  id="auto-confirm-walkin"
+                  checked={autoConfirmWalkIn}
+                  onChange={(e) => setAutoConfirmWalkIn(e.target.checked)}
+                  label="Auto-confirm and go to Assistant"
+                  description="Customer is here - skip confirmation and check-in steps"
+                />
+              </div>
+            )}
+
+            {urgency === 'scheduled' && (
+              <div className="mt-4 p-4 border border-green-200 bg-green-50/50 rounded-lg">
+                <CheckboxPremium
+                  id="auto-confirm-scheduled"
+                  checked={autoConfirmScheduled}
+                  onChange={(e) => setAutoConfirmScheduled(e.target.checked)}
+                  label="Auto-confirm appointment"
+                  description="Customer confirmed on phone - mark as confirmed"
+                />
+              </div>
+            )}
 
             {technicians.length > 0 && (
               <FormFieldWrapper

@@ -6,7 +6,15 @@ import { revalidatePath } from "next/cache";
 
 interface CreateAppointmentData {
   customer_id?: string | null;
-  new_customer?: { name: string; email: string; phone?: string } | null;
+  new_customer?: { 
+    name: string; 
+    email: string; 
+    phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+  } | null;
   device_id?: string;
   customer_device_id?: string;
   device_details?: {
@@ -26,6 +34,7 @@ interface CreateAppointmentData {
   source: string;
   status?: string;
   assigned_to?: string;
+  auto_confirm?: boolean;
 }
 
 export async function createAppointment(data: CreateAppointmentData) {
@@ -48,6 +57,9 @@ export async function createAppointment(data: CreateAppointmentData) {
       };
     }
     
+    // Determine initial status based on auto_confirm flag
+    const initialStatus = data.auto_confirm ? 'arrived' : (data.status || 'scheduled');
+    
     const appointment = await appointmentService.createAppointment({
       customer,
       device,
@@ -61,7 +73,9 @@ export async function createAppointment(data: CreateAppointmentData) {
       notes: data.internal_notes,
       urgency: data.urgency,
       source: data.source as any,
-      assigned_to: data.assigned_to
+      assigned_to: data.assigned_to,
+      status: initialStatus,
+      auto_confirm: data.auto_confirm
     });
     
     revalidatePath('/appointments');

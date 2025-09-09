@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useDeleteCustomer } from '@/lib/hooks/use-customers';
 
 interface DeletePreview {
   customer: {
@@ -65,8 +66,8 @@ export function DeleteCustomerDialog({
   onSuccess
 }: DeleteCustomerDialogProps) {
   const router = useRouter();
+  const deleteCustomer = useDeleteCustomer();
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [preview, setPreview] = useState<DeletePreview | null>(null);
   const [confirmationText, setConfirmationText] = useState('');
@@ -95,32 +96,23 @@ export function DeleteCustomerDialog({
       return;
     }
 
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/customers/${customerId}/cascade-delete`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to delete customer');
+    // Use the mutation hook which will handle optimistic updates
+    deleteCustomer.mutate(customerId, {
+      onSuccess: () => {
+        setOpen(false);
+        
+        // Navigate to customers list or call success callback
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push('/customers');
+        }
+      },
+      onError: (error: any) => {
+        // Error toast is already handled by the hook
+        console.error('Delete error:', error);
       }
-
-      const result = await response.json();
-      toast.success(result.message || 'Customer deleted successfully');
-      setOpen(false);
-      
-      // Navigate to customers list or call success callback
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        router.push('/customers');
-      }
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to delete customer');
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   return (
@@ -275,7 +267,7 @@ export function DeleteCustomerDialog({
                 onChange={(e) => setConfirmationText(e.target.value)}
                 placeholder="Type DELETE to confirm"
                 className="w-full px-3 py-2 border rounded-md text-sm"
-                disabled={loading}
+                disabled={deleteCustomer.isPending}
               />
             </div>
           </div>
@@ -285,16 +277,16 @@ export function DeleteCustomerDialog({
           <Button
             variant="outline"
             onClick={() => setOpen(false)}
-            disabled={loading}
+            disabled={deleteCustomer.isPending}
           >
             Cancel
           </Button>
           <Button
             variant="destructive"
             onClick={handleDelete}
-            disabled={loading || loadingPreview || confirmationText !== 'DELETE'}
+            disabled={deleteCustomer.isPending || loadingPreview || confirmationText !== 'DELETE'}
           >
-            {loading ? (
+            {deleteCustomer.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Deleting...

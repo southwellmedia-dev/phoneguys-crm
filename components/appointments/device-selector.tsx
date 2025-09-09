@@ -14,16 +14,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Smartphone, 
-  Shuffle, 
-  Package, 
+import {
+  Smartphone,
+  Shuffle,
+  Package,
   Plus,
   Check,
-  AlertCircle
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
 interface Device {
   id: string;
   model_name: string;
@@ -41,7 +40,7 @@ interface CustomerDevice {
   storage_size?: string;
   condition?: string;
   nickname?: string;
-  device?: Device;  // Can come as 'device' from some queries
+  device?: Device; // Can come as 'device' from some queries
   devices?: Device; // Can come as 'devices' from other queries (when using device_id alias)
 }
 
@@ -50,12 +49,12 @@ interface DeviceSelectorProps {
   devices: Device[];
   selectedDeviceId?: string;
   onDeviceChange: (deviceId: string) => void;
-  
+
   // Customer devices
   customerDevices?: CustomerDevice[];
   selectedCustomerDeviceId?: string;
   onCustomerDeviceChange?: (customerDeviceId: string) => void;
-  
+
   // Device details
   serialNumber: string;
   onSerialNumberChange: (value: string) => void;
@@ -67,10 +66,10 @@ interface DeviceSelectorProps {
   onStorageSizeChange: (value: string) => void;
   condition: string;
   onConditionChange: (value: string) => void;
-  
+
   // Edit mode
   isEditing?: boolean;
-  
+
   // Test mode (for generating test data)
   testMode?: boolean;
 }
@@ -95,17 +94,19 @@ export function DeviceSelector({
   isEditing = true,
   testMode = true, // Enable test mode by default for now
 }: DeviceSelectorProps) {
-  const [deviceSource, setDeviceSource] = React.useState<'new' | 'existing'>(
-    customerDevices.length > 0 && selectedCustomerDeviceId ? 'existing' : 'new'
+  const [deviceSource, setDeviceSource] = React.useState<"new" | "existing">(
+    customerDevices.length > 0 && selectedCustomerDeviceId ? "existing" : "new"
   );
 
   // Prepare device options for combobox
-  const deviceOptions: ComboboxOption[] = React.useMemo(() => 
-    devices.map(device => ({
-      value: device.id,
-      label: device.model_name,
-      sublabel: device.manufacturer?.name
-    })), [devices]
+  const deviceOptions: ComboboxOption[] = React.useMemo(
+    () =>
+      devices.map((device) => ({
+        value: device.id,
+        label: device.model_name,
+        sublabel: device.manufacturer?.name,
+      })),
+    [devices]
   );
 
   // Generate test serial number
@@ -119,36 +120,49 @@ export function DeviceSelector({
   const generateTestIMEI = () => {
     // Generate a valid-looking IMEI (15 digits)
     const tac = "35698907"; // Type Allocation Code (8 digits)
-    const serial = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    const serial = Math.floor(Math.random() * 1000000)
+      .toString()
+      .padStart(6, "0");
     const checkDigit = Math.floor(Math.random() * 10).toString();
     return `${tac}${serial}${checkDigit}`;
   };
 
   // Handle customer device selection
   const handleCustomerDeviceSelect = (customerDeviceId: string) => {
-    const customerDevice = customerDevices.find(cd => cd.id === customerDeviceId);
+    const customerDevice = customerDevices.find(
+      (cd) => cd.id === customerDeviceId
+    );
     if (customerDevice) {
       // IMPORTANT: Set the device_id from the customer device
       if (customerDevice.device_id) {
-        console.log('Setting device_id from customer device:', customerDevice.device_id);
+        console.log(
+          "Setting device_id from customer device:",
+          customerDevice.device_id
+        );
         onDeviceChange(customerDevice.device_id);
       } else if (customerDevice.devices?.id) {
         // Handle 'devices' property (from device_id alias)
-        console.log('Setting device_id from devices property:', customerDevice.devices.id);
+        console.log(
+          "Setting device_id from devices property:",
+          customerDevice.devices.id
+        );
         onDeviceChange(customerDevice.devices.id);
       } else if (customerDevice.device?.id) {
         // Handle 'device' property
-        console.log('Setting device_id from device property:', customerDevice.device.id);
+        console.log(
+          "Setting device_id from device property:",
+          customerDevice.device.id
+        );
         onDeviceChange(customerDevice.device.id);
       }
-      
+
       // Set all the device details
-      onSerialNumberChange(customerDevice.serial_number || '');
-      onImeiChange(customerDevice.imei || '');
-      onColorChange(customerDevice.color || '');
-      onStorageSizeChange(customerDevice.storage_size || '');
-      onConditionChange(customerDevice.condition || 'good');
-      
+      onSerialNumberChange(customerDevice.serial_number || "");
+      onImeiChange(customerDevice.imei || "");
+      onColorChange(customerDevice.color || "");
+      onStorageSizeChange(customerDevice.storage_size || "");
+      onConditionChange(customerDevice.condition || "good");
+
       if (onCustomerDeviceChange) {
         onCustomerDeviceChange(customerDeviceId);
       }
@@ -161,7 +175,11 @@ export function DeviceSelector({
         <CardTitle className="flex items-center gap-2">
           <Smartphone className="h-5 w-5" />
           Device Information
-          {isEditing && <Badge variant="secondary" className="ml-2 text-xs">Editable</Badge>}
+          {isEditing && (
+            <Badge variant="secondary" className="ml-2 text-xs">
+              Editable
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -172,9 +190,9 @@ export function DeviceSelector({
             <div className="flex gap-2">
               <Button
                 type="button"
-                variant={deviceSource === 'existing' ? 'default' : 'outline'}
+                variant={deviceSource === "existing" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setDeviceSource('existing')}
+                onClick={() => setDeviceSource("existing")}
                 className="flex-1"
               >
                 <Package className="mr-2 h-4 w-4" />
@@ -182,9 +200,9 @@ export function DeviceSelector({
               </Button>
               <Button
                 type="button"
-                variant={deviceSource === 'new' ? 'default' : 'outline'}
+                variant={deviceSource === "new" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setDeviceSource('new')}
+                onClick={() => setDeviceSource("new")}
                 className="flex-1"
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -195,7 +213,7 @@ export function DeviceSelector({
         )}
 
         {/* Existing Device Selection */}
-        {deviceSource === 'existing' && customerDevices.length > 0 && (
+        {deviceSource === "existing" && customerDevices.length > 0 && (
           <div className="space-y-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
             <Label>Select Customer Device</Label>
             <div className="space-y-2">
@@ -213,15 +231,22 @@ export function DeviceSelector({
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <div className="font-medium">
-                        {cd.nickname || cd.devices?.model_name || cd.device?.model_name || 'Unknown Device'}
+                        {cd.nickname ||
+                          cd.devices?.model_name ||
+                          cd.device?.model_name ||
+                          "Unknown Device"}
                       </div>
-                      {(cd.devices?.manufacturer?.name || cd.device?.manufacturer?.name) && (
+                      {(cd.devices?.manufacturer?.name ||
+                        cd.device?.manufacturer?.name) && (
                         <div className="text-sm text-muted-foreground">
-                          {cd.devices?.manufacturer?.name || cd.device?.manufacturer?.name}
+                          {cd.devices?.manufacturer?.name ||
+                            cd.device?.manufacturer?.name}
                         </div>
                       )}
                       <div className="flex gap-2 text-xs text-muted-foreground">
-                        {cd.serial_number && <span>SN: {cd.serial_number}</span>}
+                        {cd.serial_number && (
+                          <span>SN: {cd.serial_number}</span>
+                        )}
                         {cd.color && <span>• {cd.color}</span>}
                         {cd.storage_size && <span>• {cd.storage_size}</span>}
                       </div>
@@ -235,20 +260,22 @@ export function DeviceSelector({
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <AlertCircle className="h-3 w-3" />
-              <span>Device details will be auto-filled from customer profile</span>
+              <span>
+                Device details will be auto-filled from customer profile
+              </span>
             </div>
           </div>
         )}
 
         {/* New Device Entry */}
-        {deviceSource === 'new' && (
+        {deviceSource === "new" && (
           <>
             <div className="space-y-2">
               <Label>Device Model</Label>
               {isEditing ? (
                 <Combobox
                   options={deviceOptions}
-                  value={selectedDeviceId || ''}
+                  value={selectedDeviceId || ""}
                   onValueChange={onDeviceChange}
                   placeholder="Search and select device model..."
                   searchPlaceholder="Type to search devices..."
@@ -258,27 +285,39 @@ export function DeviceSelector({
                 <p className="font-medium mt-1">
                   {(() => {
                     // First try to get device name from selected customer device
-                    if (selectedCustomerDeviceId && customerDevices.length > 0) {
-                      const customerDevice = customerDevices.find(cd => cd.id === selectedCustomerDeviceId);
+                    if (
+                      selectedCustomerDeviceId &&
+                      customerDevices.length > 0
+                    ) {
+                      const customerDevice = customerDevices.find(
+                        (cd) => cd.id === selectedCustomerDeviceId
+                      );
                       if (customerDevice) {
                         // Try different property paths for the device name
-                        const deviceName = customerDevice.nickname || 
-                                         customerDevice.devices?.model_name || 
-                                         customerDevice.device?.model_name ||
-                                         'Device information not available';
-                        const manufacturer = customerDevice.devices?.manufacturer?.name || 
-                                           customerDevice.device?.manufacturer?.name || '';
-                        return manufacturer ? `${manufacturer} ${deviceName}` : deviceName;
+                        const deviceName =
+                          customerDevice.nickname ||
+                          customerDevice.devices?.model_name ||
+                          customerDevice.device?.model_name ||
+                          "Device information not available";
+                        const manufacturer =
+                          customerDevice.devices?.manufacturer?.name ||
+                          customerDevice.device?.manufacturer?.name ||
+                          "";
+                        return manufacturer
+                          ? `${manufacturer} ${deviceName}`
+                          : deviceName;
                       }
                     }
                     // Otherwise, try to find in the devices list
-                    const device = devices.find(d => d.id === selectedDeviceId);
+                    const device = devices.find(
+                      (d) => d.id === selectedDeviceId
+                    );
                     if (device) {
-                      return device.manufacturer?.name 
+                      return device.manufacturer?.name
                         ? `${device.manufacturer.name} ${device.model_name}`
                         : device.model_name;
                     }
-                    return 'Not specified';
+                    return "Not specified";
                   })()}
                 </p>
               )}
@@ -293,7 +332,9 @@ export function DeviceSelector({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => onSerialNumberChange(generateTestSerialNumber())}
+                      onClick={() =>
+                        onSerialNumberChange(generateTestSerialNumber())
+                      }
                       className="h-6 px-2 text-xs"
                     >
                       <Shuffle className="mr-1 h-3 w-3" />
@@ -302,16 +343,18 @@ export function DeviceSelector({
                   )}
                 </div>
                 {isEditing ? (
-                  <Input 
+                  <Input
                     value={serialNumber}
                     onChange={(e) => onSerialNumberChange(e.target.value)}
                     placeholder="Enter serial number"
                   />
                 ) : (
-                  <p className="font-medium mt-1">{serialNumber || 'Not provided'}</p>
+                  <p className="font-medium mt-1">
+                    {serialNumber || "Not provided"}
+                  </p>
                 )}
               </div>
-              
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>IMEI</Label>
@@ -329,33 +372,33 @@ export function DeviceSelector({
                   )}
                 </div>
                 {isEditing ? (
-                  <Input 
+                  <Input
                     value={imei}
                     onChange={(e) => onImeiChange(e.target.value)}
                     placeholder="Enter IMEI"
                   />
                 ) : (
-                  <p className="font-medium mt-1">{imei || 'Not provided'}</p>
+                  <p className="font-medium mt-1">{imei || "Not provided"}</p>
                 )}
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Color</Label>
                 {isEditing ? (
-                  <Input 
+                  <Input
                     value={color}
                     onChange={(e) => onColorChange(e.target.value)}
                     placeholder="Enter color"
                   />
                 ) : (
-                  <p className="font-medium mt-1">{color || 'Not specified'}</p>
+                  <p className="font-medium mt-1">{color || "Not specified"}</p>
                 )}
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Storage Size</Label>
                 {isEditing ? (
-                  <Select 
+                  <Select
                     value={storageSize}
                     onValueChange={onStorageSizeChange}
                   >
@@ -374,21 +417,20 @@ export function DeviceSelector({
                     </SelectContent>
                   </Select>
                 ) : (
-                  <p className="font-medium mt-1">{storageSize || 'Not specified'}</p>
+                  <p className="font-medium mt-1">
+                    {storageSize || "Not specified"}
+                  </p>
                 )}
               </div>
             </div>
           </>
         )}
-        
+
         {/* Device Condition (always shown) */}
         <div className="space-y-2">
           <Label>Device Condition</Label>
           {isEditing ? (
-            <Select 
-              value={condition}
-              onValueChange={onConditionChange}
-            >
+            <Select value={condition} onValueChange={onConditionChange}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -410,7 +452,9 @@ export function DeviceSelector({
           <div className="p-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
             <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400">
               <AlertCircle className="h-3 w-3" />
-              <span>Test mode enabled - Random test data generators available</span>
+              <span>
+                Test mode enabled - Random test data generators available
+              </span>
             </div>
           </div>
         )}

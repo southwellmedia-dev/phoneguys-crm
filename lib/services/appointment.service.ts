@@ -12,7 +12,7 @@ export interface CreateAppointmentDTO {
     address?: string;
     city?: string;
     state?: string;
-    zip?: string;
+    zip_code?: string;
   };
   device?: {
     id?: string;
@@ -116,7 +116,7 @@ export class AppointmentService {
             address: data.customer.address,
             city: data.customer.city,
             state: data.customer.state,
-            zip: data.customer.zip,
+            zip_code: data.customer.zip_code,
           });
           customerId = newCustomer.id;
           console.log('Created new customer:', customerId);
@@ -129,13 +129,17 @@ export class AppointmentService {
       customerId,
       deviceId: data.device?.id,
       customerDeviceId,
-      hasDeviceDetails: !!data.device_details
+      hasDeviceDetails: !!data.device_details,
+      deviceDetailsContent: data.device_details
     });
     
+    // Always create customer_device when we have a customer, device, and device details
     if (customerId && data.device?.id && !customerDeviceId) {
       try {
         // Check if this device already exists for this customer
         const existingDevices = await this.customerDeviceRepo.findByCustomer(customerId);
+        console.log(`Found ${existingDevices.length} existing devices for customer ${customerId}`);
+        
         const existingDevice = existingDevices.find((d: any) => 
           d.device_id === data.device.id || 
           (data.device_details?.serial_number && d.serial_number === data.device_details.serial_number) ||
@@ -146,7 +150,17 @@ export class AppointmentService {
           customerDeviceId = existingDevice.id;
           console.log('Found existing customer device:', existingDevice.id);
         } else {
-          // Create new customer device
+          // Create new customer device - this is critical for new customers
+          console.log('Creating new customer device with:', {
+            customer_id: customerId,
+            device_id: data.device.id,
+            serial_number: data.device_details?.serial_number,
+            imei: data.device_details?.imei,
+            color: data.device_details?.color,
+            storage_size: data.device_details?.storage_size,
+            condition: data.device_details?.condition || 'good'
+          });
+          
           const newCustomerDevice = await this.customerDeviceRepo.create({
             customer_id: customerId,
             device_id: data.device.id,
@@ -159,12 +173,15 @@ export class AppointmentService {
             is_active: true,
           });
           customerDeviceId = newCustomerDevice.id;
-          console.log('Created customer device:', newCustomerDevice.id);
+          console.log('Successfully created customer device:', newCustomerDevice.id);
         }
       } catch (error) {
         console.error('Error creating customer device:', error);
-        // Continue without customer device if creation fails
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        // Continue without customer device if creation fails, but log the issue
       }
+    } else if (customerId && !data.device?.id && !customerDeviceId) {
+      console.warn('Customer exists but no device selected - customer_device will not be created');
     }
 
     // Check for scheduling conflicts

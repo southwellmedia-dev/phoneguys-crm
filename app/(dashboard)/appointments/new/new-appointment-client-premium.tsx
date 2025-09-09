@@ -110,7 +110,7 @@ export function NewAppointmentClientPremium({ customers, devices, technicians = 
     address: "",
     city: "",
     state: "",
-    zip: ""
+    zip_code: ""
   });
   const [isNewCustomer, setIsNewCustomer] = useState(true);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
@@ -493,8 +493,8 @@ export function NewAppointmentClientPremium({ customers, devices, technicians = 
                       label="ZIP Code"
                     >
                       <InputPremium
-                        value={newCustomer.zip}
-                        onChange={(e) => setNewCustomer({...newCustomer, zip: e.target.value})}
+                        value={newCustomer.zip_code}
+                        onChange={(e) => setNewCustomer({...newCustomer, zip_code: e.target.value})}
                         placeholder="94102"
                         maxLength={10}
                       />

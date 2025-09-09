@@ -73,14 +73,19 @@ export function AppointmentAssistant({
     technicianNotes: parsedNotes.technician_notes || '',
     additionalIssues: parsedNotes.additional_issues || ''
   });
+  // Initialize with customer device if it exists
+  const initialCustomerDevice = appointment.customer_device_id ? 
+    customerDevices.find(d => d.id === appointment.customer_device_id) || appointment.customer_devices
+    : null;
+    
   const [selectedCustomerDeviceId, setSelectedCustomerDeviceId] = useState(appointment.customer_device_id || null);
   const [deviceData, setDeviceData] = useState({
-    id: appointment.device_id,
-    serialNumber: appointment.customer_devices?.serial_number || '',
-    imei: appointment.customer_devices?.imei || '',
-    color: appointment.customer_devices?.color || '',
-    storageSize: appointment.customer_devices?.storage_size || '',
-    condition: appointment.customer_devices?.condition || 'good'
+    id: appointment.device_id || initialCustomerDevice?.device_id || '',
+    serialNumber: initialCustomerDevice?.serial_number || appointment.customer_devices?.serial_number || '',
+    imei: initialCustomerDevice?.imei || appointment.customer_devices?.imei || '',
+    color: initialCustomerDevice?.color || appointment.customer_devices?.color || '',
+    storageSize: initialCustomerDevice?.storage_size || appointment.customer_devices?.storage_size || '',
+    condition: initialCustomerDevice?.condition || appointment.customer_devices?.condition || 'good'
   });
 
   // Use ref to track state for reliable saves
@@ -128,6 +133,7 @@ export function AppointmentAssistant({
       
       const formData = {
         device_id: currentState.deviceData.id,
+        customer_device_id: currentState.selectedCustomerDeviceId,
         selected_services: currentState.selectedServices,
         service_ids: currentState.selectedServices,
         estimated_cost: currentState.estimatedCost,
@@ -157,8 +163,19 @@ export function AppointmentAssistant({
       // First save current state
       await handleSave();
       
-      // Then convert to ticket
-      const result = await convertAppointmentToTicket(appointment.id);
+      // Prepare additional data for conversion
+      const currentState = stateRef.current;
+      const additionalData = {
+        ...data,
+        device_id: currentState.deviceData.id,
+        customer_device_id: currentState.selectedCustomerDeviceId,
+        selected_services: currentState.selectedServices,
+        estimated_cost: currentState.estimatedCost,
+        notes: currentState.notes
+      };
+      
+      // Then convert to ticket with additional data
+      const result = await convertAppointmentToTicket(appointment.id, additionalData);
       
       if (result.success && result.ticket) {
         toast.success('Appointment converted to ticket successfully');

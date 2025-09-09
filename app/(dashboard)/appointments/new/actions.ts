@@ -13,7 +13,7 @@ interface CreateAppointmentData {
     address?: string;
     city?: string;
     state?: string;
-    zip?: string;
+    zip_code?: string;
   } | null;
   device_id?: string;
   customer_device_id?: string;

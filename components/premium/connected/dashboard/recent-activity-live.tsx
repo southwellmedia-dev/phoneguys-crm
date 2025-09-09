@@ -36,8 +36,10 @@ import {
   ArrowRight,
   Phone,
   Eye,
-  Edit
+  Edit,
+  Filter
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -92,12 +94,40 @@ export const RecentActivityLive = React.forwardRef<HTMLDivElement, RecentActivit
       return defaultTab;
     });
 
+    // Filter states
+    const [hideCompletedTickets, setHideCompletedTickets] = useState(() => {
+      if (typeof window !== 'undefined') {
+        return localStorage.getItem('recentActivity.hideCompletedTickets') === 'true';
+      }
+      return false;
+    });
+
+    const [hideConvertedAppointments, setHideConvertedAppointments] = useState(() => {
+      if (typeof window !== 'undefined') {
+        return localStorage.getItem('recentActivity.hideConvertedAppointments') === 'true';
+      }
+      return false;
+    });
+
     // Save activeTab to localStorage when it changes
     React.useEffect(() => {
       if (typeof window !== 'undefined' && showTabs) {
         localStorage.setItem('recentActivity.activeTab', activeTab);
       }
     }, [activeTab, showTabs]);
+
+    // Save filter preferences
+    React.useEffect(() => {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('recentActivity.hideCompletedTickets', hideCompletedTickets.toString());
+      }
+    }, [hideCompletedTickets]);
+
+    React.useEffect(() => {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('recentActivity.hideConvertedAppointments', hideConvertedAppointments.toString());
+      }
+    }, [hideConvertedAppointments]);
 
     // Fetch data for tab counts
     const { data: ordersData } = useQuery({
@@ -133,13 +163,30 @@ export const RecentActivityLive = React.forwardRef<HTMLDivElement, RecentActivit
       staleTime: 2 * 60 * 1000,
     });
 
+    // Apply filters to data
+    const filteredOrdersData = useMemo(() => {
+      if (!ordersData) return [];
+      if (hideCompletedTickets) {
+        return ordersData.filter((order: any) => order.status !== 'completed');
+      }
+      return ordersData;
+    }, [ordersData, hideCompletedTickets]);
+
+    const filteredAppointmentsData = useMemo(() => {
+      if (!appointmentsData) return [];
+      if (hideConvertedAppointments) {
+        return appointmentsData.filter((apt: any) => apt.status !== 'converted');
+      }
+      return appointmentsData;
+    }, [appointmentsData, hideConvertedAppointments]);
+
     // Define tab configurations
     const tabs: TabConfig[] = useMemo(() => [
       {
         id: 'orders',
         label: 'Tickets',
         icon: <Package className="h-3.5 w-3.5" />,
-        count: ordersData?.length || 0,
+        count: filteredOrdersData?.length || 0,
         endpoint: '/api/orders',
         queryKey: ['orders-activity'],
         basePath: '/orders',
@@ -211,7 +258,7 @@ export const RecentActivityLive = React.forwardRef<HTMLDivElement, RecentActivit
         id: 'appointments',
         label: 'Appointments',
         icon: <Calendar className="h-3.5 w-3.5" />,
-        count: appointmentsData?.length || 0,
+        count: filteredAppointmentsData?.length || 0,
         endpoint: '/api/appointments',
         queryKey: ['appointments-activity'],
         basePath: '/appointments',
@@ -317,7 +364,7 @@ export const RecentActivityLive = React.forwardRef<HTMLDivElement, RecentActivit
           }
         ]
       }
-    ], [ordersData, appointmentsData, customersData]);
+    ], [filteredOrdersData, filteredAppointmentsData, customersData]);
 
     // Helper function to map ticket status
     const mapTicketStatus = (status: string) => {
@@ -348,15 +395,37 @@ export const RecentActivityLive = React.forwardRef<HTMLDivElement, RecentActivit
                 </p>
               </div>
             </div>
-            {showViewAll && (
-              <Link 
-                href={`/${activeTab}`}
-                className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-              >
-                View all
-                <ArrowRight className="h-3 w-3" />
-              </Link>
-            )}
+            <div className="flex items-center gap-4">
+              {activeTab === 'orders' && (
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                  <Checkbox
+                    checked={hideCompletedTickets}
+                    onCheckedChange={(checked) => setHideCompletedTickets(!!checked)}
+                    className="h-4 w-4"
+                  />
+                  Hide Completed
+                </label>
+              )}
+              {activeTab === 'appointments' && (
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                  <Checkbox
+                    checked={hideConvertedAppointments}
+                    onCheckedChange={(checked) => setHideConvertedAppointments(!!checked)}
+                    className="h-4 w-4"
+                  />
+                  Hide Converted
+                </label>
+              )}
+              {showViewAll && (
+                <Link 
+                  href={`/${activeTab}`}
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+                >
+                  View all
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -377,9 +446,20 @@ export const RecentActivityLive = React.forwardRef<HTMLDivElement, RecentActivit
 
           <TablePremiumLive
             endpoint={activeTabConfig.endpoint}
-            queryKey={[...activeTabConfig.queryKey, { limit }]}
+            queryKey={[
+              ...activeTabConfig.queryKey, 
+              { 
+                limit,
+                ...(activeTab === 'orders' && hideCompletedTickets ? { excludeStatus: 'completed' } : {}),
+                ...(activeTab === 'appointments' && hideConvertedAppointments ? { excludeStatus: 'converted' } : {})
+              }
+            ]}
             columns={activeTabConfig.columns}
-            filters={{ limit }}
+            filters={{ 
+              limit,
+              ...(activeTab === 'orders' && hideCompletedTickets ? { excludeStatus: 'completed' } : {}),
+              ...(activeTab === 'appointments' && hideConvertedAppointments ? { excludeStatus: 'converted' } : {})
+            }}
             clickable
             basePath={activeTabConfig.basePath}
             emptyState={{

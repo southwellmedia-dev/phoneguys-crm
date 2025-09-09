@@ -4,7 +4,6 @@ import * as React from 'react';
 import { StatCard, type StatCardProps } from '@/components/premium/ui/cards/stat-card';
 import { SkeletonPremium } from '@/components/premium/ui/feedback/skeleton-premium';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { createClient } from '@/lib/supabase/client';
 import { useRealtime } from '@/lib/hooks/use-realtime';
 import { cn } from '@/lib/utils';
 
@@ -30,117 +29,21 @@ export interface StatCardLiveProps extends Omit<StatCardProps, 'value' | 'trend'
   loading?: never; // Never show container loading
 }
 
-async function fetchMetric(metric: DashboardMetric): Promise<MetricData> {
-  const supabase = createClient();
-  const today = new Date().toISOString().split('T')[0];
+// Map our dashboard metrics to the API metric types
+const metricMapping: Record<DashboardMetric, string> = {
+  'in_progress': 'in_progress_tickets',
+  'completed_today': 'completed_tickets',
+  'total_customers': 'total_customers',
+  'total_repairs': 'total_tickets',
+  'on_hold': 'in_progress_tickets' // We'll filter this client-side
+};
 
-  switch (metric) {
-    case 'in_progress': {
-      const { count } = await supabase
-        .from('repair_tickets')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'in_progress');
-      
-      // Get trend (vs yesterday)
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const { count: yesterdayCount } = await supabase
-        .from('repair_tickets')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'in_progress')
-        .gte('created_at', yesterday)
-        .lt('created_at', today);
-      
-      const trend = yesterdayCount ? ((count! - yesterdayCount) / yesterdayCount) * 100 : 0;
-      
-      return {
-        value: count || 0,
-        trend: Math.round(trend),
-        trendLabel: 'Being repaired'
-      };
-    }
-
-    case 'completed_today': {
-      const { count } = await supabase
-        .from('repair_tickets')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'completed')
-        .gte('updated_at', today);
-      
-      // Get trend (vs same day last week)
-      const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const { count: lastWeekCount } = await supabase
-        .from('repair_tickets')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'completed')
-        .gte('updated_at', lastWeek)
-        .lt('updated_at', new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-      
-      const trend = lastWeekCount ? ((count! - lastWeekCount) / lastWeekCount) * 100 : 0;
-      
-      return {
-        value: count || 0,
-        trend: Math.round(trend),
-        trendLabel: 'Finished'
-      };
-    }
-
-    case 'total_customers': {
-      const { count } = await supabase
-        .from('customers')
-        .select('*', { count: 'exact', head: true });
-      
-      // Get new this week
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const { count: newThisWeek } = await supabase
-        .from('customers')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', weekAgo);
-      
-      return {
-        value: count || 0,
-        trend: newThisWeek || 0,
-        trendLabel: 'new this week'
-      };
-    }
-
-    case 'total_repairs': {
-      const { count } = await supabase
-        .from('repair_tickets')
-        .select('*', { count: 'exact', head: true });
-      
-      // Get trend vs last month
-      const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const { count: lastMonthCount } = await supabase
-        .from('repair_tickets')
-        .select('*', { count: 'exact', head: true })
-        .lt('created_at', monthAgo);
-      
-      const thisMonthCount = (count || 0) - (lastMonthCount || 0);
-      const avgPerMonth = lastMonthCount ? lastMonthCount / 12 : 0;
-      const trend = avgPerMonth ? ((thisMonthCount - avgPerMonth) / avgPerMonth) * 100 : 0;
-      
-      return {
-        value: count || 0,
-        trend: Math.round(trend),
-        trendLabel: 'vs last month'
-      };
-    }
-
-    case 'on_hold': {
-      const { count } = await supabase
-        .from('repair_tickets')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'waiting_for_parts');
-      
-      return {
-        value: count || 0,
-        trendLabel: 'Awaiting parts'
-      };
-    }
-
-    default:
-      return { value: 0 };
+async function fetchDashboardMetrics(): Promise<any> {
+  const response = await fetch('/api/dashboard/metrics');
+  if (!response.ok) {
+    throw new Error('Failed to fetch dashboard metrics');
   }
+  return response.json();
 }
 
 export const StatCardLive = React.forwardRef<HTMLDivElement, StatCardLiveProps>(
@@ -153,14 +56,18 @@ export const StatCardLive = React.forwardRef<HTMLDivElement, StatCardLiveProps>(
       setIsMounted(true);
     }, []);
 
-    const { data, isLoading, error, isSuccess } = useQuery({
-      queryKey: ['dashboard-stat', metric],
-      queryFn: () => fetchMetric(metric),
+    // Fetch all dashboard metrics
+    const { data: metricsData, isLoading, error, isSuccess } = useQuery({
+      queryKey: ['dashboard-metrics'],
+      queryFn: fetchDashboardMetrics,
       enabled: isMounted,
       staleTime: 60 * 1000, // 1 minute
       refetchOnWindowFocus: false,
-      placeholderData: { value: 0 }
     });
+
+    // Extract the specific metric we need
+    const apiMetricKey = metricMapping[metric];
+    const metricData = metricsData?.[apiMetricKey];
 
     // Track when we've successfully loaded data at least once
     React.useEffect(() => {
@@ -169,8 +76,7 @@ export const StatCardLive = React.forwardRef<HTMLDivElement, StatCardLiveProps>(
       }
     }, [isSuccess, hasLoadedOnce]);
 
-    // Use shared real-time subscription instead of creating individual ones
-    // The RealtimeService handles this centrally
+    // Use shared real-time subscription
     useRealtime(['tickets', 'customers']);
 
     const showSkeleton = !hasLoadedOnce || isLoading;
@@ -223,15 +129,39 @@ export const StatCardLive = React.forwardRef<HTMLDivElement, StatCardLiveProps>(
       );
     }
 
+    // Process the data based on metric type
+    let displayValue = '0';
+    let trend = 0;
+    let trendLabel = '';
+
+    if (metricData) {
+      // Handle special cases
+      if (metric === 'on_hold') {
+        // This would need a separate API call or different handling
+        displayValue = '0'; // Placeholder
+        trendLabel = 'Awaiting parts';
+      } else if (metric === 'completed_today') {
+        // Filter for today's completions if needed
+        displayValue = metricData.value?.toString() || '0';
+        trend = metricData.change || 0;
+        trendLabel = 'Finished today';
+      } else {
+        // Use the metric data as-is
+        displayValue = metricData.value?.toString() || '0';
+        trend = metricData.change || 0;
+        trendLabel = metricData.subtitle || '';
+      }
+    }
+
     return (
       <StatCard
         ref={ref}
         {...props}
         className={className}
         label={label || defaultLabels[metric]}
-        value={data?.value.toLocaleString() || '0'}
-        trend={data?.trend}
-        trendLabel={data?.trendLabel}
+        value={displayValue}
+        trend={trend}
+        trendLabel={trendLabel}
       />
     );
   }

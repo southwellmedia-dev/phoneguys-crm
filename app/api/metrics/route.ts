@@ -100,6 +100,54 @@ export async function GET(request: NextRequest) {
         break;
       }
 
+      case 'active_customers': {
+        const allTickets = await ticketRepo.findAllWithCustomers();
+        // Get unique customer IDs from tickets
+        const activeCustomerIds = new Set(allTickets.map(t => t.customer_id).filter(Boolean));
+        const activeCount = activeCustomerIds.size;
+        const previousCount = Math.max(0, activeCount - 2); // Mock previous value
+        result = {
+          value: activeCount,
+          change: previousCount > 0 ? Math.round(((activeCount - previousCount) / previousCount) * 100) : 0,
+          trend: activeCount > previousCount ? 'up' : activeCount < previousCount ? 'down' : 'neutral',
+          sparkline: generateSparklineFromCount(activeCount),
+          subtitle: 'With repair history'
+        };
+        break;
+      }
+
+      case 'total_repairs': {
+        const tickets = await ticketRepo.findAllWithCustomers();
+        const previousCount = Math.floor(tickets.length * 0.9); // Mock previous value
+        result = {
+          value: tickets.length,
+          change: tickets.length > 0 ? Math.round(((tickets.length - previousCount) / previousCount) * 100) : 0,
+          trend: tickets.length > previousCount ? 'up' : tickets.length < previousCount ? 'down' : 'neutral',
+          sparkline: generateSparklineFromCount(tickets.length),
+          subtitle: 'All time repairs'
+        };
+        break;
+      }
+
+      case 'new_customers_month': {
+        const customers = await customerRepo.findAll();
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const newCustomers = customers.filter(c => {
+          const createdDate = new Date(c.created_at);
+          return createdDate >= startOfMonth;
+        });
+        const previousCount = Math.max(0, newCustomers.length - 1); // Mock previous value
+        result = {
+          value: newCustomers.length,
+          change: previousCount > 0 ? Math.round(((newCustomers.length - previousCount) / previousCount) * 100) : 0,
+          trend: newCustomers.length > previousCount ? 'up' : newCustomers.length < previousCount ? 'down' : 'neutral',
+          sparkline: generateSparklineFromCount(newCustomers.length),
+          subtitle: 'Recent registrations'
+        };
+        break;
+      }
+
       case 'total_appointments': {
         const appointments = await appointmentRepo.findAllWithDetails();
         

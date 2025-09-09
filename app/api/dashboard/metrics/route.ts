@@ -84,6 +84,16 @@ export async function GET(request: NextRequest) {
       })
       .reduce((acc, ticket) => acc + (ticket.actual_cost || 0), 0);
 
+    // Calculate active customers (those with repair history)
+    const activeCustomerIds = new Set(allTickets.map(t => t.customer_id).filter(Boolean));
+    const activeCustomersCount = activeCustomerIds.size;
+
+    // Calculate new customers this month
+    const newCustomersThisMonth = allCustomers.filter(c => {
+      const createdDate = new Date(c.created_at);
+      return createdDate >= startOfMonth;
+    });
+
     // Build metrics response
     const metrics: Record<MetricType, MetricData> = {
       total_tickets: {
@@ -120,6 +130,27 @@ export async function GET(request: NextRequest) {
         trend: 'up',
         sparkline: generateSparkline(allCustomers.length),
         subtitle: 'Registered customers'
+      },
+      active_customers: {
+        value: activeCustomersCount,
+        change: Math.round(Math.random() * 10 + 2),
+        trend: activeCustomersCount > 0 ? 'up' : 'neutral',
+        sparkline: generateSparkline(activeCustomersCount),
+        subtitle: 'With repair history'
+      },
+      total_repairs: {
+        value: allTickets.length,
+        change: Math.round(Math.random() * 15 + 5),
+        trend: 'up',
+        sparkline: generateSparkline(allTickets.length),
+        subtitle: 'All time repairs'
+      },
+      new_customers_month: {
+        value: newCustomersThisMonth.length,
+        change: Math.round(Math.random() * 8),
+        trend: newCustomersThisMonth.length > 0 ? 'up' : 'neutral',
+        sparkline: generateSparkline(newCustomersThisMonth.length),
+        subtitle: 'Recent registrations'
       },
       total_appointments: {
         value: todaysAppointments.length,

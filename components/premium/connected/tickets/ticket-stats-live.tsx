@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { createClient } from '@/lib/supabase/client';
 import { StatCard } from '@/components/premium/ui/cards/stat-card';
+import { useRealtime } from '@/lib/hooks/use-realtime';
 import { 
   Package, 
   AlertCircle, 
@@ -30,31 +30,18 @@ interface TicketStats {
 }
 
 async function fetchTicketStats(): Promise<TicketStats> {
-  const supabase = createClient();
-  
-  // Get all tickets with their statuses
-  const { data: tickets, error } = await supabase
-    .from('repair_tickets')
-    .select('id, status, created_at');
-
-  if (error) {
+  try {
+    // Use the API endpoint to get ticket statistics
+    const response = await fetch('/api/tickets/stats');
+    if (!response.ok) {
+      throw new Error('Failed to fetch ticket stats');
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
     console.error('Error fetching ticket stats:', error);
     return { total: 0, new: 0, in_progress: 0, on_hold: 0, completed: 0, today: 0 };
   }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const stats = {
-    total: tickets?.length || 0,
-    new: tickets?.filter(t => t.status === 'NEW').length || 0,
-    in_progress: tickets?.filter(t => t.status === 'IN_PROGRESS').length || 0,
-    on_hold: tickets?.filter(t => t.status === 'ON_HOLD').length || 0,
-    completed: tickets?.filter(t => t.status === 'COMPLETED').length || 0,
-    today: tickets?.filter(t => new Date(t.created_at) >= today).length || 0,
-  };
-
-  return stats;
 }
 
 const metricConfig = {
@@ -73,13 +60,13 @@ const metricConfig = {
   in_progress: {
     title: 'In Progress',
     icon: <Clock />,
-    variant: 'accent-secondary' as const,
+    variant: 'accent-warning' as const,
     description: 'Currently being repaired'
   },
   on_hold: {
     title: 'On Hold',
     icon: <PauseCircle />,
-    variant: 'warning' as const,
+    variant: 'default' as const,
     description: 'Waiting for parts'
   },
   completed: {
@@ -110,7 +97,6 @@ export const TicketStatsLive: React.FC<TicketStatsLiveProps> = ({ metric, classN
     queryFn: fetchTicketStats,
     enabled: isMounted,
     staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // 1 minute
     refetchOnWindowFocus: false,
   });
 
@@ -121,29 +107,8 @@ export const TicketStatsLive: React.FC<TicketStatsLiveProps> = ({ metric, classN
     }
   }, [isSuccess, hasLoadedOnce]);
 
-  // Set up real-time subscription
-  React.useEffect(() => {
-    if (!isMounted) return;
-
-    const supabase = createClient();
-    const channel = supabase.channel(`ticket-stats-${metric}`);
-
-    channel
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'repair_tickets'
-      }, async () => {
-        // Refetch stats when tickets change
-        const newStats = await fetchTicketStats();
-        queryClient.setQueryData(['ticket-stats'], newStats);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isMounted, metric, queryClient]);
+  // Use shared real-time subscription
+  useRealtime(['tickets']);
 
   const config = metricConfig[metric];
   const value = data?.[metric] || 0;
@@ -155,13 +120,12 @@ export const TicketStatsLive: React.FC<TicketStatsLiveProps> = ({ metric, classN
 
   return (
     <StatCard
-      title={config.title}
-      value={showSkeleton ? undefined : value.toString()}
-      description={config.description}
+      label={config.title}
+      value={showSkeleton ? '0' : value.toString()}
+      trendLabel={config.description}
       icon={config.icon}
       variant={config.variant}
-      trend={showSkeleton ? undefined : trend}
-      change={showSkeleton ? undefined : change}
+      trend={showSkeleton ? undefined : (metric === 'new' && value > 0 ? value : undefined)}
       loading={showSkeleton}
       className={className}
       size="sm"

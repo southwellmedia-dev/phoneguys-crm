@@ -5,7 +5,7 @@ import { CustomerRepository } from "@/lib/repositories/customer.repository";
 import { RepairTicketRepository } from "@/lib/repositories/repair-ticket.repository";
 import { CustomerDeviceService } from "@/lib/services/customer-device.service";
 import { CustomerDeviceRepository } from "@/lib/repositories/customer-device.repository";
-import { CustomerDetailClient } from "./customer-detail-client";
+import { CustomerDetailPremium } from "./customer-detail-premium";
 
 export default async function CustomerDetailPage({
   params,
@@ -84,7 +84,7 @@ export default async function CustomerDetailPage({
   const customerDevices = await customerDeviceService.getCustomerDevices(id);
 
   return (
-    <CustomerDetailClient 
+    <CustomerDetailPremium 
       customer={customer} 
       repairs={repairs}
       customerDevices={customerDevices}

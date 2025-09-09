@@ -160,7 +160,7 @@ export const StatCard = React.forwardRef<HTMLDivElement, StatCardProps>(
                   ) : isNegative ? (
                     <ArrowDown className="h-3 w-3" />
                   ) : null}
-                  <span>{Math.abs(trend)}%</span>
+                  <span>{isNaN(trend) ? '0' : Math.abs(trend)}%</span>
                 </div>
               )}
             </div>

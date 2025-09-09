@@ -9,7 +9,6 @@
 
 import * as React from 'react';
 import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -97,12 +96,9 @@ export function CustomersTableLive({ className }: CustomersTableLiveProps) {
             <User className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <Link 
-              href={`/customers/${row.id}`}
-              className="font-medium hover:underline"
-            >
+            <div className="font-medium">
               {value}
-            </Link>
+            </div>
             {row.notes && (
               <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px]">
                 {row.notes}
@@ -178,17 +174,17 @@ export function CustomersTableLive({ className }: CustomersTableLiveProps) {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href={`/customers/${row.id}`}>
-                <Eye className="mr-2 h-4 w-4" />
-                View Details
-              </Link>
+            <DropdownMenuItem 
+              onClick={() => router.push(`/customers/${row.id}`)}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              View Details
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/customers/${row.id}/edit`}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Customer
-              </Link>
+            <DropdownMenuItem 
+              onClick={() => router.push(`/customers/${row.id}/edit`)}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Customer
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a href={`mailto:${row.email}`}>
@@ -313,6 +309,8 @@ export function CustomersTableLive({ className }: CustomersTableLiveProps) {
               columns={columns}
               filters={searchTerm ? { search: searchTerm } : undefined}
               initialSort={{ key: 'created_at', direction: 'desc' }}
+              clickable={true}
+              basePath="/customers"
               emptyState={{
                 message: searchTerm ? "No customers found" : "No customers yet",
                 description: searchTerm 

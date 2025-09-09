@@ -1,6 +1,6 @@
 import { getRepository } from '../repositories/repository-manager';
 import { Customer, CreateCustomerDto, UpdateCustomerDto, RepairTicket } from '../types/database.types';
-import { PaginatedResponse, FilterOperator } from '../types/database.types';
+import { PaginatedResponse, FilterOperator } from '../types/common.types';
 
 export class CustomerService {
   private useServiceRole: boolean;

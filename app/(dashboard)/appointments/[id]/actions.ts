@@ -149,10 +149,26 @@ export async function convertAppointmentToTicket(appointmentId: string, addition
   }
 }
 
-export async function confirmAppointment(appointmentId: string) {
+export async function confirmAppointment(appointmentId: string, confirmationNotes?: string) {
   try {
-    const appointmentService = new AppointmentService(true);
-    await appointmentService.confirmAppointment(appointmentId);
+    const supabase = createServiceClient();
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Update appointment with confirmed status and tracking fields
+    const { error } = await supabase
+      .from('appointments')
+      .update({
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString(),
+        confirmed_by: user?.id || null,
+        confirmation_notes: confirmationNotes || null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', appointmentId);
+    
+    if (error) throw error;
     
     revalidatePath('/appointments');
     revalidatePath(`/appointments/${appointmentId}`);
@@ -167,10 +183,26 @@ export async function confirmAppointment(appointmentId: string) {
   }
 }
 
-export async function markAppointmentArrived(appointmentId: string) {
+export async function markAppointmentArrived(appointmentId: string, checkInNotes?: string) {
   try {
-    const appointmentService = new AppointmentService(true);
-    await appointmentService.markAsArrived(appointmentId);
+    const supabase = createServiceClient();
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Update appointment with arrived status and tracking fields
+    const { error } = await supabase
+      .from('appointments')
+      .update({
+        status: 'arrived',
+        arrived_at: new Date().toISOString(),
+        checked_in_by: user?.id || null,
+        check_in_notes: checkInNotes || null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', appointmentId);
+    
+    if (error) throw error;
     
     revalidatePath('/appointments');
     revalidatePath(`/appointments/${appointmentId}`);

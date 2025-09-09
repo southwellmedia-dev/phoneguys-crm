@@ -1,349 +1,1421 @@
-// Database type definitions for The Phone Guys CRM
-// These types match the database schema structure
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
-export type UserRole = 'admin' | 'technician' | 'manager';
-
-export interface User {
-  id: string;
-  email: string;
-  full_name: string;
-  role: UserRole;
-  created_at: string;
-  updated_at: string;
+export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+  public: {
+    Tables: {
+      appointments: {
+        Row: {
+          appointment_number: string
+          arrived_at: string | null
+          assigned_to: string | null
+          cancellation_reason: string | null
+          check_in_notes: string | null
+          checked_in_by: string | null
+          confirmation_notes: string | null
+          confirmation_sent_at: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          converted_by: string | null
+          converted_to_ticket_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_device_id: string | null
+          customer_id: string | null
+          description: string | null
+          device_id: string | null
+          duration_minutes: number | null
+          estimated_cost: number | null
+          id: string
+          issues: string[] | null
+          notes: string | null
+          reminder_sent_at: string | null
+          scheduled_date: string
+          scheduled_time: string
+          service_ids: string[] | null
+          source: string | null
+          status: Database["public"]["Enums"]["appointment_status"] | null
+          updated_at: string
+          urgency: string | null
+        }
+        Insert: {
+          appointment_number: string
+          arrived_at?: string | null
+          assigned_to?: string | null
+          cancellation_reason?: string | null
+          check_in_notes?: string | null
+          checked_in_by?: string | null
+          confirmation_notes?: string | null
+          confirmation_sent_at?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          converted_by?: string | null
+          converted_to_ticket_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_device_id?: string | null
+          customer_id?: string | null
+          description?: string | null
+          device_id?: string | null
+          duration_minutes?: number | null
+          estimated_cost?: number | null
+          id?: string
+          issues?: string[] | null
+          notes?: string | null
+          reminder_sent_at?: string | null
+          scheduled_date: string
+          scheduled_time: string
+          service_ids?: string[] | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["appointment_status"] | null
+          updated_at?: string
+          urgency?: string | null
+        }
+        Update: {
+          appointment_number?: string
+          arrived_at?: string | null
+          assigned_to?: string | null
+          cancellation_reason?: string | null
+          check_in_notes?: string | null
+          checked_in_by?: string | null
+          confirmation_notes?: string | null
+          confirmation_sent_at?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          converted_by?: string | null
+          converted_to_ticket_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_device_id?: string | null
+          customer_id?: string | null
+          description?: string | null
+          device_id?: string | null
+          duration_minutes?: number | null
+          estimated_cost?: number | null
+          id?: string
+          issues?: string[] | null
+          notes?: string | null
+          reminder_sent_at?: string | null
+          scheduled_date?: string
+          scheduled_time?: string
+          service_ids?: string[] | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["appointment_status"] | null
+          updated_at?: string
+          urgency?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_checked_in_by_fkey"
+            columns: ["checked_in_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_converted_by_fkey"
+            columns: ["converted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_converted_to_ticket_id_fkey"
+            columns: ["converted_to_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "repair_tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_customer_device_id_fkey"
+            columns: ["customer_device_id"]
+            isOneToOne: false
+            referencedRelation: "customer_devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_devices: {
+        Row: {
+          color: string | null
+          condition: string | null
+          created_at: string
+          customer_id: string
+          device_id: string | null
+          id: string
+          imei: string | null
+          is_active: boolean | null
+          is_primary: boolean | null
+          nickname: string | null
+          notes: string | null
+          previous_repairs: Json | null
+          purchase_date: string | null
+          serial_number: string | null
+          storage_size: string | null
+          updated_at: string
+          warranty_expires: string | null
+        }
+        Insert: {
+          color?: string | null
+          condition?: string | null
+          created_at?: string
+          customer_id: string
+          device_id?: string | null
+          id?: string
+          imei?: string | null
+          is_active?: boolean | null
+          is_primary?: boolean | null
+          nickname?: string | null
+          notes?: string | null
+          previous_repairs?: Json | null
+          purchase_date?: string | null
+          serial_number?: string | null
+          storage_size?: string | null
+          updated_at?: string
+          warranty_expires?: string | null
+        }
+        Update: {
+          color?: string | null
+          condition?: string | null
+          created_at?: string
+          customer_id?: string
+          device_id?: string | null
+          id?: string
+          imei?: string | null
+          is_active?: boolean | null
+          is_primary?: boolean | null
+          nickname?: string | null
+          notes?: string | null
+          previous_repairs?: Json | null
+          purchase_date?: string | null
+          serial_number?: string | null
+          storage_size?: string | null
+          updated_at?: string
+          warranty_expires?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_devices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_devices_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string | null
+          email: string
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          phone: string | null
+          state: string | null
+          total_orders: number | null
+          total_spent: number | null
+          updated_at: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          state?: string | null
+          total_orders?: number | null
+          total_spent?: number | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          state?: string | null
+          total_orders?: number | null
+          total_spent?: number | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
+      device_models: {
+        Row: {
+          average_repair_time_hours: number | null
+          common_issues: string[] | null
+          created_at: string
+          device_type: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          manufacturer_id: string
+          model_name: string
+          model_number: string | null
+          release_year: number | null
+          specifications: Json | null
+          total_repairs_count: number | null
+          typical_repair_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          average_repair_time_hours?: number | null
+          common_issues?: string[] | null
+          created_at?: string
+          device_type?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          manufacturer_id: string
+          model_name: string
+          model_number?: string | null
+          release_year?: number | null
+          specifications?: Json | null
+          total_repairs_count?: number | null
+          typical_repair_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          average_repair_time_hours?: number | null
+          common_issues?: string[] | null
+          created_at?: string
+          device_type?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          manufacturer_id?: string
+          model_name?: string
+          model_number?: string | null
+          release_year?: number | null
+          specifications?: Json | null
+          total_repairs_count?: number | null
+          typical_repair_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_models_manufacturer_id_fkey"
+            columns: ["manufacturer_id"]
+            isOneToOne: false
+            referencedRelation: "manufacturers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      device_services: {
+        Row: {
+          created_at: string
+          device_id: string
+          is_available: boolean | null
+          notes: string | null
+          service_id: string
+          typical_duration_minutes: number | null
+          typical_price: number | null
+        }
+        Insert: {
+          created_at?: string
+          device_id: string
+          is_available?: boolean | null
+          notes?: string | null
+          service_id: string
+          typical_duration_minutes?: number | null
+          typical_price?: number | null
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          is_available?: boolean | null
+          notes?: string | null
+          service_id?: string
+          typical_duration_minutes?: number | null
+          typical_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_services_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      devices: {
+        Row: {
+          average_repair_cost: number | null
+          average_repair_time_hours: number | null
+          color_options: string[] | null
+          common_issues: string[] | null
+          created_at: string
+          description: string | null
+          device_type: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          manufacturer_id: string | null
+          model_name: string
+          model_number: string | null
+          parts_availability: string | null
+          release_year: number | null
+          screen_size: string | null
+          specifications: Json | null
+          storage_options: string[] | null
+          thumbnail_url: string | null
+          total_repairs_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          average_repair_cost?: number | null
+          average_repair_time_hours?: number | null
+          color_options?: string[] | null
+          common_issues?: string[] | null
+          created_at?: string
+          description?: string | null
+          device_type?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          manufacturer_id?: string | null
+          model_name: string
+          model_number?: string | null
+          parts_availability?: string | null
+          release_year?: number | null
+          screen_size?: string | null
+          specifications?: Json | null
+          storage_options?: string[] | null
+          thumbnail_url?: string | null
+          total_repairs_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          average_repair_cost?: number | null
+          average_repair_time_hours?: number | null
+          color_options?: string[] | null
+          common_issues?: string[] | null
+          created_at?: string
+          description?: string | null
+          device_type?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          manufacturer_id?: string | null
+          model_name?: string
+          model_number?: string | null
+          parts_availability?: string | null
+          release_year?: number | null
+          screen_size?: string | null
+          specifications?: Json | null
+          storage_options?: string[] | null
+          thumbnail_url?: string | null
+          total_repairs_count?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devices_manufacturer_id_fkey"
+            columns: ["manufacturer_id"]
+            isOneToOne: false
+            referencedRelation: "manufacturers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manufacturers: {
+        Row: {
+          country: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          logo_url: string | null
+          name: string
+          total_repairs_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name: string
+          total_repairs_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string
+          total_repairs_count?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          notification_type: string
+          recipient_email: string
+          scheduled_for: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+          ticket_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          notification_type: string
+          recipient_email: string
+          scheduled_for?: string | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+          ticket_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          notification_type?: string
+          recipient_email?: string
+          scheduled_for?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "repair_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      repair_tickets: {
+        Row: {
+          actual_cost: number | null
+          appointment_id: string | null
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          customer_device_id: string | null
+          customer_id: string
+          date_received: string | null
+          deposit_amount: number | null
+          description: string | null
+          device_brand: string
+          device_id: string | null
+          device_model: string
+          device_model_id: string | null
+          estimated_completion: string | null
+          estimated_cost: number | null
+          id: string
+          imei: string | null
+          is_timer_running: boolean | null
+          priority: string
+          repair_issues: string[]
+          serial_number: string | null
+          status: string
+          ticket_number: string
+          timer_started_at: string | null
+          total_time_minutes: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          actual_cost?: number | null
+          appointment_id?: string | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_device_id?: string | null
+          customer_id: string
+          date_received?: string | null
+          deposit_amount?: number | null
+          description?: string | null
+          device_brand: string
+          device_id?: string | null
+          device_model: string
+          device_model_id?: string | null
+          estimated_completion?: string | null
+          estimated_cost?: number | null
+          id?: string
+          imei?: string | null
+          is_timer_running?: boolean | null
+          priority?: string
+          repair_issues?: string[]
+          serial_number?: string | null
+          status?: string
+          ticket_number: string
+          timer_started_at?: string | null
+          total_time_minutes?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          actual_cost?: number | null
+          appointment_id?: string | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_device_id?: string | null
+          customer_id?: string
+          date_received?: string | null
+          deposit_amount?: number | null
+          description?: string | null
+          device_brand?: string
+          device_id?: string | null
+          device_model?: string
+          device_model_id?: string | null
+          estimated_completion?: string | null
+          estimated_cost?: number | null
+          id?: string
+          imei?: string | null
+          is_timer_running?: boolean | null
+          priority?: string
+          repair_issues?: string[]
+          serial_number?: string | null
+          status?: string
+          ticket_number?: string
+          timer_started_at?: string | null
+          total_time_minutes?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repair_tickets_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repair_tickets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repair_tickets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repair_tickets_customer_device_id_fkey"
+            columns: ["customer_device_id"]
+            isOneToOne: false
+            referencedRelation: "customer_devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repair_tickets_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repair_tickets_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repair_tickets_device_model_id_fkey"
+            columns: ["device_model_id"]
+            isOneToOne: false
+            referencedRelation: "device_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      services: {
+        Row: {
+          base_price: number | null
+          category: string | null
+          created_at: string
+          description: string | null
+          estimated_duration_minutes: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          requires_parts: boolean | null
+          skill_level: string | null
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          base_price?: number | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          estimated_duration_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          requires_parts?: boolean | null
+          skill_level?: string | null
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          base_price?: number | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          estimated_duration_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          requires_parts?: boolean | null
+          skill_level?: string | null
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ticket_notes: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          is_important: boolean | null
+          note_type: string
+          ticket_id: string
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          is_important?: boolean | null
+          note_type?: string
+          ticket_id: string
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_important?: boolean | null
+          note_type?: string
+          ticket_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_notes_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "repair_tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_notes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_photo_shares: {
+        Row: {
+          accessed_count: number | null
+          created_at: string | null
+          expires_at: string
+          id: string
+          last_accessed_at: string | null
+          ticket_id: string
+          token: string
+        }
+        Insert: {
+          accessed_count?: number | null
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          last_accessed_at?: string | null
+          ticket_id: string
+          token: string
+        }
+        Update: {
+          accessed_count?: number | null
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          last_accessed_at?: string | null
+          ticket_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_photo_shares_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "repair_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_photos: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          is_after_photo: boolean | null
+          is_before_photo: boolean | null
+          mime_type: string
+          service_id: string | null
+          tags: string[] | null
+          ticket_id: string
+          updated_at: string | null
+          uploaded_at: string | null
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id?: string
+          is_after_photo?: boolean | null
+          is_before_photo?: boolean | null
+          mime_type: string
+          service_id?: string | null
+          tags?: string[] | null
+          ticket_id: string
+          updated_at?: string | null
+          uploaded_at?: string | null
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          is_after_photo?: boolean | null
+          is_before_photo?: boolean | null
+          mime_type?: string
+          service_id?: string | null
+          tags?: string[] | null
+          ticket_id?: string
+          updated_at?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_photos_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_photos_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "repair_tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_photos_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_services: {
+        Row: {
+          created_at: string
+          id: string
+          performed_at: string | null
+          performed_by: string | null
+          quantity: number | null
+          service_id: string
+          technician_notes: string | null
+          ticket_id: string
+          total_price: number | null
+          unit_price: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          performed_at?: string | null
+          performed_by?: string | null
+          quantity?: number | null
+          service_id: string
+          technician_notes?: string | null
+          ticket_id: string
+          total_price?: number | null
+          unit_price?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          performed_at?: string | null
+          performed_by?: string | null
+          quantity?: number | null
+          service_id?: string
+          technician_notes?: string | null
+          ticket_id?: string
+          total_price?: number | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_services_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_services_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "repair_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_entries: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          duration_minutes: number | null
+          end_time: string | null
+          id: string
+          start_time: string
+          ticket_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          end_time?: string | null
+          id?: string
+          start_time: string
+          ticket_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          end_time?: string | null
+          id?: string
+          start_time?: string
+          ticket_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "repair_tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_activity_logs: {
+        Row: {
+          activity_type: string
+          created_at: string | null
+          details: Json | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_id_mapping: {
+        Row: {
+          app_user_id: string
+          auth_user_id: string
+          created_at: string | null
+        }
+        Insert: {
+          app_user_id: string
+          auth_user_id: string
+          created_at?: string | null
+        }
+        Update: {
+          app_user_id?: string
+          auth_user_id?: string
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      user_statistics: {
+        Row: {
+          appointments_assigned: number | null
+          appointments_cancelled: number | null
+          appointments_converted: number | null
+          appointments_created: number | null
+          appointments_no_show: number | null
+          avg_completion_time_hours: number | null
+          conversion_rate: number | null
+          created_at: string | null
+          customer_satisfaction_avg: number | null
+          daily_completion_avg: number | null
+          id: string
+          last_activity_at: string | null
+          monthly_completion_avg: number | null
+          notes_created: number | null
+          stats_updated_at: string | null
+          tickets_assigned: number | null
+          tickets_cancelled: number | null
+          tickets_completed: number | null
+          tickets_created: number | null
+          tickets_in_progress: number | null
+          tickets_on_hold: number | null
+          total_time_logged_minutes: number | null
+          updated_at: string | null
+          user_id: string
+          weekly_completion_avg: number | null
+        }
+        Insert: {
+          appointments_assigned?: number | null
+          appointments_cancelled?: number | null
+          appointments_converted?: number | null
+          appointments_created?: number | null
+          appointments_no_show?: number | null
+          avg_completion_time_hours?: number | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          customer_satisfaction_avg?: number | null
+          daily_completion_avg?: number | null
+          id?: string
+          last_activity_at?: string | null
+          monthly_completion_avg?: number | null
+          notes_created?: number | null
+          stats_updated_at?: string | null
+          tickets_assigned?: number | null
+          tickets_cancelled?: number | null
+          tickets_completed?: number | null
+          tickets_created?: number | null
+          tickets_in_progress?: number | null
+          tickets_on_hold?: number | null
+          total_time_logged_minutes?: number | null
+          updated_at?: string | null
+          user_id: string
+          weekly_completion_avg?: number | null
+        }
+        Update: {
+          appointments_assigned?: number | null
+          appointments_cancelled?: number | null
+          appointments_converted?: number | null
+          appointments_created?: number | null
+          appointments_no_show?: number | null
+          avg_completion_time_hours?: number | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          customer_satisfaction_avg?: number | null
+          daily_completion_avg?: number | null
+          id?: string
+          last_activity_at?: string | null
+          monthly_completion_avg?: number | null
+          notes_created?: number | null
+          stats_updated_at?: string | null
+          tickets_assigned?: number | null
+          tickets_cancelled?: number | null
+          tickets_completed?: number | null
+          tickets_created?: number | null
+          tickets_in_progress?: number | null
+          tickets_on_hold?: number | null
+          total_time_logged_minutes?: number | null
+          updated_at?: string | null
+          user_id?: string
+          weekly_completion_avg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_statistics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          last_login_at: string | null
+          preferences: Json | null
+          role: string
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email: string
+          full_name: string
+          id?: string
+          last_login_at?: string | null
+          preferences?: Json | null
+          role?: string
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          last_login_at?: string | null
+          preferences?: Json | null
+          role?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      generate_appointment_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_ticket_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_user_dashboard_data: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
+      log_user_activity: {
+        Args: {
+          p_activity_type: string
+          p_details?: Json
+          p_entity_id?: string
+          p_entity_type?: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      migrate_existing_repairs_to_devices: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      update_user_statistics: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+    }
+    Enums: {
+      appointment_status:
+        | "scheduled"
+        | "confirmed"
+        | "arrived"
+        | "no_show"
+        | "cancelled"
+        | "converted"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
 }
 
-export interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string | null;
-  address?: string | null;
-  notes?: string | null;
-  is_active?: boolean;
-  created_at: string;
-  updated_at: string;
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
 }
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
-export type TicketStatus = 'new' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
-export type Priority = 'low' | 'medium' | 'high' | 'urgent';
-export type RepairIssue = 'screen_crack' | 'battery_issue' | 'charging_port' | 'water_damage' | 'software_issue' | 'other';
-export type DeviceType = 'smartphone' | 'tablet' | 'laptop' | 'smartwatch' | 'desktop' | 'earbuds' | 'other';
-export type PartsAvailability = 'readily_available' | 'available' | 'limited' | 'scarce' | 'discontinued';
-export type ServiceCategory = 'screen_repair' | 'battery_replacement' | 'charging_port' | 
-  'water_damage' | 'diagnostic' | 'software_issue' | 'camera_repair' | 'speaker_repair' | 
-  'button_repair' | 'motherboard_repair' | 'data_recovery' | 'other';
-export type SkillLevel = 'basic' | 'intermediate' | 'advanced' | 'expert';
-export type DeviceCondition = 'excellent' | 'good' | 'fair' | 'poor' | 'broken';
-
-export interface RepairTicket {
-  id: string;
-  ticket_number: string;
-  customer_id: string;
-  assigned_to?: string | null;
-  device_brand: string;
-  device_model: string;
-  serial_number?: string | null;
-  imei?: string | null;
-  repair_issues: RepairIssue[];
-  description?: string | null;
-  estimated_cost?: number | null;
-  actual_cost?: number | null;
-  total_cost?: number | null;
-  // labor_cost?: number | null; // This column doesn't exist in the database
-  total_time_minutes?: number | null;
-  status: TicketStatus;
-  priority: Priority;
-  date_received: string;
-  completed_at?: string | null;
-  cancelled_at?: string | null;
-  cancelled_by?: string | null;
-  created_by?: string | null;
-  timer_started_at?: string | null;
-  total_timer_minutes?: number | null;
-  created_at: string;
-  updated_at: string;
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
 }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
-export type NoteType = 'internal' | 'customer';
-
-export interface TicketNote {
-  id: string;
-  ticket_id: string;
-  user_id?: string | null;
-  note_type: NoteType;
-  content: string;
-  is_important: boolean;
-  created_at: string;
-  updated_at: string;
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
 }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
 
-export interface TimeEntry {
-  id: string;
-  ticket_id: string;
-  user_id: string;
-  start_time: string;
-  end_time?: string | null;
-  duration_minutes?: number | null;
-  description?: string | null;
-  created_at: string;
-  updated_at: string;
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
 }
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
-export type NotificationType = 'new_ticket' | 'status_change' | 'completion' | 'on_hold' | 'custom';
-export type NotificationStatus = 'pending' | 'sent' | 'failed';
-
-export interface Notification {
-  id: string;
-  ticket_id: string;
-  notification_type: NotificationType;
-  recipient_email: string;
-  subject: string;
-  content: string;
-  status: NotificationStatus;
-  sent_at?: string | null;
-  created_at: string;
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
 }
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
-// DTOs (Data Transfer Objects) for API communication
-export interface CreateCustomerDto {
-  name: string;
-  email: string;
-  phone?: string;
-  address?: string;
-}
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {
+      appointment_status: [
+        "scheduled",
+        "confirmed",
+        "arrived",
+        "no_show",
+        "cancelled",
+        "converted",
+      ],
+    },
+  },
+} as const
 
-export interface UpdateCustomerDto extends Partial<CreateCustomerDto> {}
-
-export interface CreateRepairTicketDto {
-  customer: CreateCustomerDto | { id: string };
-  device: {
-    brand: string;
-    model: string;
-    serial_number?: string;
-    imei?: string;
-  };
-  repair_issues: RepairIssue[];
-  description?: string;
-  priority?: Priority;
-  estimated_cost?: number;
-}
-
-export interface UpdateRepairTicketDto {
-  assigned_to?: string;
-  status?: TicketStatus;
-  priority?: Priority;
-  repair_issues?: RepairIssue[];
-  description?: string;
-  estimated_cost?: number;
-  actual_cost?: number;
-}
-
-export interface CreateTicketNoteDto {
-  ticket_id: string;
-  note_type: NoteType;
-  content: string;
-  is_important?: boolean;
-}
-
-export interface CreateTimeEntryDto {
-  ticket_id: string;
-  user_id: string;
-  start_time: string;
-  end_time?: string;
-  duration_minutes?: number;
-  description?: string;
-}
-
-export interface UpdateTimeEntryDto {
-  end_time: string;
-  duration_minutes?: number;
-}
-
-export interface CreateNotificationDto {
-  ticket_id?: string;
-  notification_type: NotificationType;
-  recipient_email: string;
-  subject: string;
-  body?: string;
-  content?: string;
-  status?: NotificationStatus;
-  scheduled_for?: string;
-  created_at?: string;
-}
-
-// Response types for API
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-  details?: any;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-// Filter operators for database queries
-export enum FilterOperator {
-  EQ = 'eq',
-  NEQ = 'neq',
-  GT = 'gt',
-  GTE = 'gte',
-  LT = 'lt',
-  LTE = 'lte',
-  IN = 'in',
-  NOT_IN = 'not_in',
-  LIKE = 'like',
-  ILIKE = 'ilike',
-  IS_NULL = 'is_null',
-  IS_NOT_NULL = 'is_not_null'
-}
-
-// Filter types for queries
-export interface RepairTicketFilters {
-  status?: TicketStatus | TicketStatus[];
-  priority?: Priority | Priority[];
-  assigned_to?: string;
-  customer_id?: string;
-  date_from?: string;
-  date_to?: string;
-  search?: string;
-}
-
-export interface CustomerFilters {
-  search?: string;
-  email?: string;
-  phone?: string;
-}
-
-export interface PaginationParams {
-  page?: number;
-  pageSize?: number;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-}
-
-// Additional DTOs for services
-export interface CreateCustomerDto extends Partial<Customer> {
-  name: string;
-  email: string;
-}
-
-export interface UpdateCustomerDto extends Partial<Customer> {}
-
-export interface UpdateRepairTicketDto extends Partial<RepairTicket> {}
-
-// Admin feature types
-export interface Manufacturer {
-  id: string;
-  name: string;
-  logo_url?: string | null;
-  country?: string | null;
-  is_active: boolean;
-  total_repairs_count: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Device {
-  id: string;
-  manufacturer_id?: string | null;
-  model_name: string;
-  model_number?: string | null;
-  device_type?: DeviceType | null;
-  release_year?: number | null;
-  thumbnail_url?: string | null;
-  image_url?: string | null;
-  description?: string | null;
-  specifications?: Record<string, any>;
-  screen_size?: string | null;
-  storage_options?: string[];
-  color_options?: string[];
-  common_issues?: string[];
-  average_repair_cost?: number | null;
-  average_repair_time_hours?: number | null;
-  parts_availability?: PartsAvailability | null;
-  is_active: boolean;
-  total_repairs_count: number;
-  created_at: string;
-  updated_at: string;
-  
-  // Relations (when joined)
-  manufacturer?: Manufacturer;
-}
-
-export interface Service {
-  id: string;
-  name: string;
-  description?: string | null;
-  category?: ServiceCategory | null;
-  base_price?: number | null;
-  estimated_duration_minutes?: number | null;
-  requires_parts: boolean;
-  skill_level?: SkillLevel | null;
-  is_active: boolean;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CustomerDevice {
-  id: string;
-  customer_id: string;
-  device_id?: string | null;
-  serial_number?: string | null;
-  imei?: string | null;
-  color?: string | null;
-  storage_size?: string | null;
-  nickname?: string | null;
-  purchase_date?: string | null;
-  warranty_expires?: string | null;
-  condition?: DeviceCondition | null;
-  previous_repairs?: any[];
-  notes?: string | null;
-  is_primary: boolean;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  
-  // Relations (when joined)
-  customer?: Customer;
-  device?: Device;
-}
-
-export interface DeviceService {
-  device_id: string;
-  service_id: string;
-  typical_price?: number | null;
-  typical_duration_minutes?: number | null;
-  notes?: string | null;
-  is_available: boolean;
-  created_at: string;
-  
-  // Relations (when joined)
-  device?: Device;
-  service?: Service;
-}
-
-export interface TicketService {
-  id: string;
-  ticket_id: string;
-  service_id: string;
-  quantity: number;
-  unit_price?: number | null;
-  total_price?: number | null;
-  technician_notes?: string | null;
-  performed_by?: string | null;
-  performed_at?: string | null;
-  created_at: string;
-  
-  // Relations (when joined)
-  ticket?: RepairTicket;
-  service?: Service;
-  technician?: User;
-}

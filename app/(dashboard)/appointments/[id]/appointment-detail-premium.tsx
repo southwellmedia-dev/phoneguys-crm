@@ -25,10 +25,17 @@ import { SelectPremium } from "@/components/premium/ui/forms/select-premium";
 import { ButtonPremium } from "@/components/premium/ui/buttons/button-premium";
 import Link from "next/link";
 import { 
+  AppointmentStatusBadge, 
+  AppointmentStatusFlow 
+} from "@/components/appointments/flow";
+import { ConfirmationModal } from "@/components/appointments/flow/confirmation-modal";
+import { CheckInModal } from "@/components/appointments/flow/check-in-modal";
+import { 
   Calendar,
   Clock,
   MapPin,
   User,
+  UserCheck,
   AlertCircle,
   Save,
   Edit,
@@ -124,6 +131,10 @@ export function AppointmentDetailPremium({
     cancel: false,
     convert: false
   });
+  
+  // Modal states for the new flow
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showCheckInModal, setShowCheckInModal] = useState(false);
   
   // Check if appointment is locked
   const isLocked = appointment.status === 'converted' || 
@@ -324,25 +335,36 @@ export function AppointmentDetailPremium({
     }
   };
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (data: { notes?: string; notificationMethod?: 'email' | 'sms' | 'phone' | 'none' }) => {
     setActionLoading(prev => ({ ...prev, confirm: true }));
     try {
-      await confirmAppointment(appointmentId);
+      await confirmAppointment(appointmentId, data.notes);
       toast.success('Appointment confirmed');
+      setCurrentStatus('confirmed');
+      setShowConfirmModal(false);
     } catch (error) {
       toast.error('Failed to confirm appointment');
+      throw error;
     } finally {
       setActionLoading(prev => ({ ...prev, confirm: false }));
     }
   };
 
-  const handleMarkArrived = async () => {
+  const handleCheckIn = async (data: { notes?: string; verified: boolean; proceedToAssistant: boolean }) => {
     setActionLoading(prev => ({ ...prev, arrived: true }));
     try {
-      await markAppointmentArrived(appointmentId);
-      toast.success('Customer marked as arrived');
+      await markAppointmentArrived(appointmentId, data.notes);
+      toast.success('Customer checked in successfully');
+      setCurrentStatus('arrived');
+      setShowCheckInModal(false);
+      
+      // Navigate to assistant view if requested
+      if (data.proceedToAssistant) {
+        router.push(`/appointments/${appointmentId}/assistant`);
+      }
     } catch (error) {
-      toast.error('Failed to update appointment');
+      toast.error('Failed to check in customer');
+      throw error;
     } finally {
       setActionLoading(prev => ({ ...prev, arrived: false }));
     }
@@ -369,7 +391,7 @@ export function AppointmentDetailPremium({
     try {
       const result = await convertAppointmentToTicket(appointmentId);
       toast.success('Successfully converted to ticket');
-      router.push(`/orders/${result.ticketId}`);
+      router.push(`/orders/${result.ticket.id}`);
     } catch (error) {
       toast.error('Failed to convert appointment');
     } finally {
@@ -434,9 +456,9 @@ export function AppointmentDetailPremium({
     // Status-based actions
     if (appointment.status === 'scheduled' && !isLocked) {
       actions.push({
-        label: "Confirm",
+        label: "Confirm Appointment",
         variant: "default" as const,
-        onClick: handleConfirm,
+        onClick: () => setShowConfirmModal(true),
         icon: <CheckCircle className="h-4 w-4" />,
         disabled: actionLoading.confirm,
       });
@@ -444,9 +466,9 @@ export function AppointmentDetailPremium({
     
     if (appointment.status === 'confirmed' && !isLocked) {
       actions.push({
-        label: "Mark Arrived",
+        label: "Check In Customer",
         variant: "default" as const,
-        onClick: handleMarkArrived,
+        onClick: () => setShowCheckInModal(true),
         icon: <User className="h-4 w-4" />,
         disabled: actionLoading.arrived,
       });
@@ -521,10 +543,10 @@ export function AppointmentDetailPremium({
                     try {
                       if (value === 'converted') {
                         const result = await convertAppointmentToTicket(appointment.id);
-                        if (result.success && result.ticketId) {
+                        if (result.success && result.ticket) {
                           setCurrentStatus('converted');
                           toast.success('Converted to ticket successfully');
-                          router.push(`/orders/${result.ticketId}`);
+                          router.push(`/orders/${result.ticket.id}`);
                         } else {
                           throw new Error(result.message || 'Failed to convert');
                         }
@@ -589,6 +611,46 @@ export function AppointmentDetailPremium({
       )}
       
       <div className="space-y-6">
+        {/* Appointment Status Flow */}
+        {currentStatus === 'arrived' ? (
+          <Card className="border-green-400 bg-gradient-to-r from-green-50 to-emerald-50">
+            <CardContent className="pt-6">
+              <div className="text-center space-y-4">
+                <div className="flex justify-center">
+                  <div className="p-3 bg-green-100 rounded-full">
+                    <UserCheck className="h-8 w-8 text-green-600" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-green-800">Active Appointment</h3>
+                  <p className="text-sm text-green-600 mt-1">Customer has checked in and is being assisted</p>
+                </div>
+                <ButtonPremium
+                  variant="gradient-success"
+                  size="lg"
+                  onClick={() => router.push(`/appointments/${appointmentId}/assistant`)}
+                  className="mt-4"
+                >
+                  <Wrench className="h-5 w-5 mr-2" />
+                  Open Appointment Assistant
+                </ButtonPremium>
+                <div className="mt-6 pt-4 border-t border-green-200">
+                  <AppointmentStatusFlow 
+                    currentStatus={currentStatus as any} 
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50">
+            <CardContent className="pt-6">
+              <AppointmentStatusFlow 
+                currentStatus={currentStatus as any} 
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Key Metrics Row */}
         <div className="grid gap-4 md:grid-cols-3">
@@ -596,13 +658,20 @@ export function AppointmentDetailPremium({
             title="Scheduled Date/Time"
             value={showSkeleton ? <SkeletonPremium className="h-5 w-32" /> : (
               <div className="flex flex-col">
-                <span className="text-sm font-semibold">{format(new Date(appointment.scheduled_date), 'MMM d, yyyy')}</span>
+                <span className="text-sm font-semibold">
+                  {appointment.scheduled_date 
+                    ? format(new Date(appointment.scheduled_date), 'MMM d, yyyy')
+                    : 'Not scheduled'}
+                </span>
                 <span className="text-xs text-muted-foreground">{formattedTime}</span>
               </div>
             )}
-            variant="accent-primary"
+            variant={currentStatus === 'confirmed' || currentStatus === 'arrived' ? "accent-success" : "accent-primary"}
             icon={<Calendar />}
             size="sm"
+            badge={currentStatus === 'confirmed' && (
+              <Badge variant="success" className="text-xs">Confirmed</Badge>
+            )}
           />
           <MetricCard
             title="Duration"
@@ -989,6 +1058,32 @@ export function AppointmentDetailPremium({
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        appointmentId={appointmentId}
+        customerName={customerData.name}
+        customerEmail={customerData.email}
+        customerPhone={customerData.phone}
+        scheduledDate={appointment.scheduled_date}
+        scheduledTime={appointment.scheduled_time}
+        services={availableServices
+          .filter(s => selectedServices.includes(s.id))
+          .map(s => s.name)}
+        onConfirm={handleConfirm}
+      />
+      
+      <CheckInModal
+        isOpen={showCheckInModal}
+        onClose={() => setShowCheckInModal(false)}
+        appointmentId={appointmentId}
+        customerName={customerData.name}
+        customerPhone={customerData.phone}
+        scheduledTime={formattedTime}
+        onCheckIn={handleCheckIn}
+      />
 
     </PageContainer>
   );

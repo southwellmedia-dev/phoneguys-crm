@@ -249,21 +249,15 @@ export function AppointmentAssistant({
       }
     >
       <div className="space-y-6">
-        {/* Status Flow with In Progress Indicator */}
+        {/* Status Flow */}
         <Card className="border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50">
           <CardContent className="pt-6">
-            <div className="space-y-3">
-              <AppointmentStatusFlow currentStatus={appointment.status} />
-              <div className="flex items-center justify-center gap-2 text-sm">
-                <div className="h-2 w-2 bg-cyan-500 rounded-full animate-pulse" />
-                <span className="font-medium text-cyan-700">Appointment In Progress</span>
-              </div>
-            </div>
+            <AppointmentStatusFlow currentStatus={appointment.status} />
           </CardContent>
         </Card>
 
-        {/* Prominent Appointment Time Card */}
-        <Card className="bg-gradient-to-r from-primary to-primary/90 text-white border-0 shadow-lg">
+        {/* Prominent Appointment Status Card - Green for In Progress */}
+        <Card className="bg-gradient-to-r from-green-600 to-green-500 text-white border-0 shadow-lg">
           <CardContent className="py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -271,7 +265,10 @@ export function AppointmentAssistant({
                   <Clock className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white/90">Appointment Scheduled For</p>
+                  <p className="text-sm font-medium text-white/90 flex items-center gap-2">
+                    APPOINTMENT IN PROGRESS
+                    <span className="h-2 w-2 bg-white rounded-full animate-pulse" />
+                  </p>
                   <p className="text-2xl font-bold">
                     {appointment.scheduled_date 
                       ? format(new Date(appointment.scheduled_date), 'EEEE, MMMM d')
@@ -313,44 +310,114 @@ export function AppointmentAssistant({
           />
         </div>
 
-        {/* Device Selection - Full Width */}
-        <CardPremium variant="outline">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Smartphone className="h-5 w-5" />
-              Device Information
-            </CardTitle>
-            <CardDescription>Select the device for repair</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Customer's Devices Grid */}
-            {customerDevices.length > 0 && (
-              <div className="space-y-2">
-                <Label>Customer's Devices</Label>
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {customerDevices.map(device => {
-                    const deviceInfo = device.devices || device.device || device;
-                    return (
-                      <div
-                        key={device.id}
-                        onClick={() => {
-                          setSelectedCustomerDeviceId(device.id);
-                          setDeviceData({
-                            id: device.device_id || deviceInfo.id,
-                            serialNumber: device.serial_number || '',
-                            imei: device.imei || '',
-                            color: device.color || '',
-                            storageSize: device.storage_size || '',
-                            condition: device.condition || 'good'
-                          });
-                        }}
-                        className={cn(
-                          "flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all",
-                          selectedCustomerDeviceId === device.id
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        )}
-                      >
+        {/* Device Selection */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Left Column - Assignment & Customer */}
+          <div className="space-y-6">
+            {/* Assignment - Moved to top */}
+            <CardPremium variant="outline">
+              <CardHeader>
+                <CardTitle>Assignment</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Label htmlFor="technician">Assigned Technician</Label>
+                <Select value={assignedTo} onValueChange={setAssignedTo}>
+                  <SelectTrigger id="technician">
+                    <SelectValue placeholder="Select technician" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {technicians.map((tech) => (
+                      <SelectItem key={tech.id} value={tech.id}>
+                        {tech.full_name} ({tech.role})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </CardPremium>
+
+            {/* Customer Card */}
+            <CardPremium variant="outline">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Customer Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <p className="text-lg font-semibold">{customer?.name}</p>
+                </div>
+                {customer?.phone && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Phone className="h-4 w-4" />
+                    {customer.phone}
+                  </div>
+                )}
+                {customer?.email && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Mail className="h-4 w-4" />
+                    {customer.email}
+                  </div>
+                )}
+                {customer?.address && (
+                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4 mt-0.5" />
+                    <div>
+                      {customer.address}<br />
+                      {customer.city}, {customer.state} {customer.zip_code}
+                    </div>
+                  </div>
+                )}
+                {customer?.total_orders > 0 && (
+                  <div className="pt-2 border-t">
+                    <Badge variant="secondary">
+                      {customer.total_orders} Previous Orders
+                    </Badge>
+                  </div>
+                )}
+              </CardContent>
+            </CardPremium>
+
+            {/* Device Selection */}
+            <CardPremium variant="outline">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5" />
+                  Device Information
+                </CardTitle>
+                <CardDescription>Select the device for repair</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Customer's Devices Grid */}
+                {customerDevices.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Customer's Devices</Label>
+                    <div className="grid grid-cols-1 gap-3">
+                      {customerDevices.map(device => {
+                        const deviceInfo = device.devices || device.device || device;
+                        return (
+                          <div
+                            key={device.id}
+                            onClick={() => {
+                              setSelectedCustomerDeviceId(device.id);
+                              setDeviceData({
+                                id: device.device_id || deviceInfo.id,
+                                serialNumber: device.serial_number || '',
+                                imei: device.imei || '',
+                                color: device.color || '',
+                                storageSize: device.storage_size || '',
+                                condition: device.condition || 'good'
+                              });
+                            }}
+                            className={cn(
+                              "flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all",
+                              selectedCustomerDeviceId === device.id
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-primary/50"
+                            )}
+                          >
                         <div className="w-16 h-16 rounded-lg bg-muted/30 flex items-center justify-center shrink-0 overflow-hidden">
                           {deviceInfo.thumbnail_url || deviceInfo.image_url ? (
                             <img 
@@ -433,7 +500,7 @@ export function AppointmentAssistant({
                     </div>
                   </div>
                 )}
-                <FormGrid columns={4}>
+                <FormGrid columns={2}>
                   <FormFieldWrapper
                     label="Serial Number"
                     description={selectedCustomerDeviceId ? "From saved device" : "Device serial number"}
@@ -486,75 +553,6 @@ export function AppointmentAssistant({
             )}
           </CardContent>
         </CardPremium>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Left Column - Assignment & Customer */}
-          <div className="space-y-6">
-            {/* Assignment - Moved to top */}
-            <CardPremium variant="outline">
-              <CardHeader>
-                <CardTitle>Assignment</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Label htmlFor="technician">Assigned Technician</Label>
-                <Select value={assignedTo} onValueChange={setAssignedTo}>
-                  <SelectTrigger id="technician">
-                    <SelectValue placeholder="Select technician" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {technicians.map((tech) => (
-                      <SelectItem key={tech.id} value={tech.id}>
-                        {tech.full_name} ({tech.role})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </CardContent>
-            </CardPremium>
-
-            {/* Customer Card */}
-            <CardPremium variant="outline">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Customer Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <p className="text-lg font-semibold">{customer?.name}</p>
-                </div>
-                {customer?.phone && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Phone className="h-4 w-4" />
-                    {customer.phone}
-                  </div>
-                )}
-                {customer?.email && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Mail className="h-4 w-4" />
-                    {customer.email}
-                  </div>
-                )}
-                {customer?.address && (
-                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4 mt-0.5" />
-                    <div>
-                      {customer.address}<br />
-                      {customer.city}, {customer.state} {customer.zip_code}
-                    </div>
-                  </div>
-                )}
-                {customer?.total_orders > 0 && (
-                  <div className="pt-2 border-t">
-                    <Badge variant="secondary">
-                      {customer.total_orders} Previous Orders
-                    </Badge>
-                  </div>
-                )}
-              </CardContent>
-            </CardPremium>
           </div>
 
           {/* Right Column - Services & Notes */}

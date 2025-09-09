@@ -1,5 +1,5 @@
 import { getRepository } from '@/lib/repositories/repository-manager';
-import { Appointment } from '@/lib/repositories/appointment.repository';
+import { Appointment, AppointmentRepository } from '@/lib/repositories/appointment.repository';
 import { NotificationService } from './notification.service';
 import { createServiceClient } from '@/lib/supabase/service';
 
@@ -58,7 +58,8 @@ export class AppointmentService {
   }
 
   private get appointmentRepo() {
-    return getRepository.appointments(this.useServiceRole);
+    // Directly instantiate to avoid repository manager caching issues in production
+    return new AppointmentRepository(this.useServiceRole);
   }
 
   private get ticketRepo() {

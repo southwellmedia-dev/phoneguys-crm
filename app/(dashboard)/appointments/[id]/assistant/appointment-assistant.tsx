@@ -16,7 +16,8 @@ import {
   DollarSign,
   CheckCircle,
   AlertCircle,
-  Wrench
+  Wrench,
+  Smartphone
 } from 'lucide-react';
 import { PageContainer } from '@/components/layout/page-container';
 import { ButtonPremium } from '@/components/premium/ui/buttons/button-premium';
@@ -33,8 +34,11 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AppointmentStatusFlow } from '@/components/appointments/flow';
 import { ConversionModal } from '@/components/appointments/flow/conversion-modal';
-import { DeviceSelector } from '@/components/appointments/device-selector';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
+import { FormFieldWrapper, FormGrid } from '@/components/premium/ui/forms/form-field-wrapper';
+import { InputPremium } from '@/components/premium/ui/forms/input-premium';
 import { updateAppointmentDetails, convertAppointmentToTicket, cancelAppointment } from '../actions';
 
 interface AppointmentAssistantProps {
@@ -245,31 +249,47 @@ export function AppointmentAssistant({
       }
     >
       <div className="space-y-6">
-        {/* Status Flow */}
+        {/* Status Flow with In Progress Indicator */}
         <Card className="border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50">
           <CardContent className="pt-6">
-            <AppointmentStatusFlow currentStatus={appointment.status} />
+            <div className="space-y-3">
+              <AppointmentStatusFlow currentStatus={appointment.status} />
+              <div className="flex items-center justify-center gap-2 text-sm">
+                <div className="h-2 w-2 bg-cyan-500 rounded-full animate-pulse" />
+                <span className="font-medium text-cyan-700">Appointment In Progress</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Prominent Appointment Time Card */}
+        <Card className="bg-gradient-to-r from-primary to-primary/90 text-white border-0 shadow-lg">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/20 rounded-lg">
+                  <Clock className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white/90">Appointment Scheduled For</p>
+                  <p className="text-2xl font-bold">
+                    {appointment.scheduled_date 
+                      ? format(new Date(appointment.scheduled_date), 'EEEE, MMMM d')
+                      : 'Not scheduled'}
+                  </p>
+                  <p className="text-lg text-white/90">{formattedTime}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-white/80">Duration</p>
+                <p className="text-xl font-semibold">{appointment.duration_minutes || 30} min</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         {/* Key Info Row */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <MetricCard
-            title="Appointment Time"
-            value={
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold">
-                  {appointment.scheduled_date 
-                    ? format(new Date(appointment.scheduled_date), 'MMM d')
-                    : 'Not scheduled'}
-                </span>
-                <span className="text-xs text-muted-foreground">{formattedTime}</span>
-              </div>
-            }
-            variant="accent-success"
-            icon={<Clock />}
-            size="sm"
-          />
+        <div className="grid gap-4 md:grid-cols-3">
           <MetricCard
             title="Selected Services"
             value={selectedServices.length}
@@ -293,8 +313,182 @@ export function AppointmentAssistant({
           />
         </div>
 
+        {/* Device Selection - Full Width */}
+        <CardPremium variant="outline">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Smartphone className="h-5 w-5" />
+              Device Information
+            </CardTitle>
+            <CardDescription>Select the device for repair</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Customer's Devices Grid */}
+            {customerDevices.length > 0 && (
+              <div className="space-y-2">
+                <Label>Customer's Devices</Label>
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {customerDevices.map(device => {
+                    const deviceInfo = device.devices || device.device || device;
+                    return (
+                      <div
+                        key={device.id}
+                        onClick={() => {
+                          setSelectedCustomerDeviceId(device.id);
+                          setDeviceData({
+                            id: device.device_id || deviceInfo.id,
+                            serialNumber: device.serial_number || '',
+                            imei: device.imei || '',
+                            color: device.color || '',
+                            storageSize: device.storage_size || '',
+                            condition: device.condition || 'good'
+                          });
+                        }}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all",
+                          selectedCustomerDeviceId === device.id
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
+                        )}
+                      >
+                        <div className="w-16 h-16 rounded-lg bg-muted/30 flex items-center justify-center shrink-0 overflow-hidden">
+                          {deviceInfo.thumbnail_url || deviceInfo.image_url ? (
+                            <img 
+                              src={deviceInfo.thumbnail_url || deviceInfo.image_url} 
+                              alt={deviceInfo.model_name}
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <Smartphone className="h-8 w-8 text-muted-foreground" />
+                          )}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">
+                            {deviceInfo.manufacturers?.name || deviceInfo.manufacturer?.name || ''} {deviceInfo.model_name}
+                          </p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {device.serial_number || 'No serial number'}
+                          </p>
+                          {device.storage_size && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {device.storage_size} • {device.color || 'Unknown color'}
+                            </p>
+                          )}
+                        </div>
+                        
+                        {selectedCustomerDeviceId === device.id && (
+                          <CheckCircle className="h-5 w-5 text-primary shrink-0" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Device Model Selection */}
+            {!selectedCustomerDeviceId && (
+              <FormFieldWrapper
+                label="Select Device Model"
+                description="Choose the device model for repair"
+              >
+                <Combobox
+                  options={devices.map(d => ({
+                    value: d.id,
+                    label: `${d.manufacturers?.name || ''} ${d.model_name}`.trim(),
+                    secondaryLabel: d.device_type
+                  }))}
+                  value={deviceData.id}
+                  onValueChange={(deviceId) => {
+                    const device = devices.find(d => d.id === deviceId);
+                    if (device) {
+                      setSelectedCustomerDeviceId(null);
+                      setDeviceData({
+                        id: deviceId,
+                        serialNumber: '',
+                        imei: '',
+                        color: '',
+                        storageSize: '',
+                        condition: 'good'
+                      });
+                    }
+                  }}
+                  placeholder="Search devices..."
+                  searchPlaceholder="Type to search..."
+                  emptyText="No devices found"
+                />
+              </FormFieldWrapper>
+            )}
+
+            {/* Device Details */}
+            {(deviceData.id || selectedCustomerDeviceId) && (
+              <>
+                {selectedCustomerDeviceId && (
+                  <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border-2 border-green-500 shadow-sm">
+                    <div className="flex items-center gap-2 text-sm">
+                      <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <span className="font-semibold text-green-900 dark:text-green-100">Using saved device information</span>
+                      <span className="text-green-700 dark:text-green-300">• Fields are pre-filled from customer's device</span>
+                    </div>
+                  </div>
+                )}
+                <FormGrid columns={4}>
+                  <FormFieldWrapper
+                    label="Serial Number"
+                    description={selectedCustomerDeviceId ? "From saved device" : "Device serial number"}
+                  >
+                    <InputPremium
+                      value={deviceData.serialNumber}
+                      onChange={(e) => !selectedCustomerDeviceId && setDeviceData(prev => ({ ...prev, serialNumber: e.target.value }))}
+                      placeholder="Enter serial number"
+                      disabled={!!selectedCustomerDeviceId}
+                    />
+                  </FormFieldWrapper>
+
+                  <FormFieldWrapper
+                    label="IMEI"
+                    description={selectedCustomerDeviceId ? "From saved device" : "Device IMEI number"}
+                  >
+                    <InputPremium
+                      value={deviceData.imei}
+                      onChange={(e) => !selectedCustomerDeviceId && setDeviceData(prev => ({ ...prev, imei: e.target.value }))}
+                      placeholder="Enter IMEI"
+                      disabled={!!selectedCustomerDeviceId}
+                    />
+                  </FormFieldWrapper>
+
+                  <FormFieldWrapper
+                    label="Color"
+                    description={selectedCustomerDeviceId ? "From saved device" : "Device color"}
+                  >
+                    <InputPremium
+                      value={deviceData.color}
+                      onChange={(e) => !selectedCustomerDeviceId && setDeviceData(prev => ({ ...prev, color: e.target.value }))}
+                      placeholder="e.g., Black, White, Blue"
+                      disabled={!!selectedCustomerDeviceId}
+                    />
+                  </FormFieldWrapper>
+
+                  <FormFieldWrapper
+                    label="Storage Size"
+                    description={selectedCustomerDeviceId ? "From saved device" : "Storage capacity"}
+                  >
+                    <InputPremium
+                      value={deviceData.storageSize}
+                      onChange={(e) => !selectedCustomerDeviceId && setDeviceData(prev => ({ ...prev, storageSize: e.target.value }))}
+                      placeholder="e.g., 128GB, 256GB"
+                      disabled={!!selectedCustomerDeviceId}
+                    />
+                  </FormFieldWrapper>
+                </FormGrid>
+              </>
+            )}
+          </CardContent>
+        </CardPremium>
+
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Left Column - Assignment, Customer & Device */}
+          {/* Left Column - Assignment & Customer */}
           <div className="space-y-6">
             {/* Assignment - Moved to top */}
             <CardPremium variant="outline">
@@ -361,96 +555,6 @@ export function AppointmentAssistant({
                 )}
               </CardContent>
             </CardPremium>
-
-            {/* Device Selection */}
-            <CardPremium variant="outline">
-              <CardHeader>
-                <CardTitle>Device Information</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DeviceSelector
-                  devices={devices}
-                  selectedDeviceId={deviceData.id}
-                  onDeviceChange={(deviceId) => {
-                    const device = devices.find(d => d.id === deviceId);
-                    if (device) {
-                      setSelectedCustomerDeviceId(null); // Clear customer device selection when selecting a different device
-                      setDeviceData({
-                        id: deviceId,
-                        serialNumber: '', // Clear serial number
-                        imei: '', // Clear IMEI
-                        color: '',
-                        storageSize: '',
-                        condition: 'good'
-                      });
-                    }
-                  }}
-                  customerDevices={customerDevices}
-                  selectedCustomerDeviceId={selectedCustomerDeviceId}
-                  onCustomerDeviceChange={(deviceId) => {
-                    const device = customerDevices.find(d => d.id === deviceId);
-                    setSelectedCustomerDeviceId(deviceId);
-                    if (device) {
-                      setDeviceData({
-                        id: device.device_id || device.devices?.id,
-                        serialNumber: device.serial_number || '',
-                        imei: device.imei || '',
-                        color: device.color || '',
-                        storageSize: device.storage_size || '',
-                        condition: device.condition || 'good'
-                      });
-                    }
-                  }}
-                  // Device details props required by DeviceSelector
-                  serialNumber={deviceData.serialNumber}
-                  onSerialNumberChange={(value) => setDeviceData(prev => ({ ...prev, serialNumber: value }))}
-                  imei={deviceData.imei}
-                  onImeiChange={(value) => setDeviceData(prev => ({ ...prev, imei: value }))}
-                  color={deviceData.color}
-                  onColorChange={(value) => setDeviceData(prev => ({ ...prev, color: value }))}
-                  storageSize={deviceData.storageSize}
-                  onStorageSizeChange={(value) => setDeviceData(prev => ({ ...prev, storageSize: value }))}
-                  condition={deviceData.condition}
-                  onConditionChange={(value) => setDeviceData(prev => ({ ...prev, condition: value }))}
-                />
-                
-                {/* Device details inputs */}
-                <div className="mt-4 space-y-3">
-                  <div>
-                    <Label htmlFor="serial">
-                      Serial Number
-                      {selectedCustomerDeviceId && deviceData.serialNumber && (
-                        <span className="ml-2 text-xs text-muted-foreground">(from customer device)</span>
-                      )}
-                    </Label>
-                    <Input
-                      id="serial"
-                      value={deviceData.serialNumber}
-                      onChange={(e) => setDeviceData(prev => ({ ...prev, serialNumber: e.target.value }))}
-                      placeholder="Enter serial number"
-                      disabled={!!(selectedCustomerDeviceId && deviceData.serialNumber)}
-                      className={selectedCustomerDeviceId && deviceData.serialNumber ? "bg-gray-50" : ""}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="imei">
-                      IMEI
-                      {selectedCustomerDeviceId && deviceData.imei && (
-                        <span className="ml-2 text-xs text-muted-foreground">(from customer device)</span>
-                      )}
-                    </Label>
-                    <Input
-                      id="imei"
-                      value={deviceData.imei}
-                      onChange={(e) => setDeviceData(prev => ({ ...prev, imei: e.target.value }))}
-                      placeholder="Enter IMEI"
-                      disabled={!!(selectedCustomerDeviceId && deviceData.imei)}
-                      className={selectedCustomerDeviceId && deviceData.imei ? "bg-gray-50" : ""}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </CardPremium>
           </div>
 
           {/* Right Column - Services & Notes */}
@@ -463,8 +567,37 @@ export function AppointmentAssistant({
                   Select all services to be performed
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3 max-h-[500px] overflow-y-auto">
+              <CardContent className="space-y-4">
+                {/* Originally Reported Issues - As Helper Pills */}
+                {appointment.issues && appointment.issues.length > 0 && (
+                  <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                          Customer reported these issues:
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {appointment.issues.map((issue: string, index: number) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                            >
+                              {issue}
+                            </span>
+                          ))}
+                        </div>
+                        {appointment.description && (
+                          <p className="text-xs text-blue-700 dark:text-blue-300 mt-2 italic">
+                            "{appointment.description}"
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
                   {services.map((service) => (
                     <div
                       key={service.id}

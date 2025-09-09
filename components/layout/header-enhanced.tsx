@@ -6,6 +6,7 @@ import { Menu, Search, Bell, Command } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import Link from "next/link";
+import { useSearch } from "@/lib/contexts/search-context";
 
 interface HeaderEnhancedProps {
   title?: string;
@@ -14,8 +15,7 @@ interface HeaderEnhancedProps {
 }
 
 export function HeaderEnhanced({ title, description, actions }: HeaderEnhancedProps) {
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const { openSearch } = useSearch();
   const [notifications] = useState(3); // Example notification count
 
   return (
@@ -88,48 +88,19 @@ export function HeaderEnhanced({ title, description, actions }: HeaderEnhancedPr
           
           {/* Icons group with consistent padding */}
           <div className="flex items-center gap-2 px-3">
-            {/* Search - Expandable */}
-            <div className={cn(
-              "flex items-center transition-all duration-300 ease-in-out overflow-hidden",
-              searchOpen ? "w-64" : "w-9"
-            )}>
-              {searchOpen && (
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={cn(
-                    "w-full h-9 px-3 mr-1 text-sm",
-                    "bg-muted/50 border border-border rounded-lg",
-                    "focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary",
-                    "placeholder:text-muted-foreground",
-                    "animate-fade-in"
-                  )}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      setSearchOpen(false);
-                      setSearchQuery("");
-                    }
-                  }}
-                  autoFocus
-                />
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setSearchOpen(!searchOpen);
-                  if (searchOpen) setSearchQuery("");
-                }}
-                className="shrink-0"
-              >
-                <Search className={cn(
-                  "h-5 w-5 transition-transform duration-300",
-                  searchOpen && "scale-110"
-                )} />
-              </Button>
-            </div>
+            {/* Global Search Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={openSearch}
+              className="flex items-center gap-2 px-3"
+            >
+              <Search className="h-4 w-4" />
+              <span className="hidden lg:inline text-sm">Search</span>
+              <kbd className="hidden lg:inline-flex pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground ml-2">
+                <span className="text-xs">⌘</span>K
+              </kbd>
+            </Button>
 
             {/* Notifications */}
             <Button variant="ghost" size="icon" className="relative">

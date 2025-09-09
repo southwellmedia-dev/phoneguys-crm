@@ -247,7 +247,7 @@ export function NewAppointmentClientPremium({ customers, devices, technicians = 
         issue_description: description || null,
         internal_notes: notes || null,
         urgency,
-        source: "in_person",
+        source: "walk-in",
         status: "scheduled",
         assigned_to: assignedTo || null
       };

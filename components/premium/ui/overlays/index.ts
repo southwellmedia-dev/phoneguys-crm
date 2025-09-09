@@ -67,3 +67,12 @@ export {
   type MenuPopoverProps,
   type InfoPopoverProps,
 } from './popover-premium';
+
+// Search Modal
+export {
+  SearchModal,
+} from '../overlay/search-modal';
+
+export {
+  SearchModalPremium,
+} from '../overlay/search-modal-premium';

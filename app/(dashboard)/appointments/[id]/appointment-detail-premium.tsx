@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAppointment, useUpdateAppointment } from "@/lib/hooks/use-appointments";
 import { useRealtime } from "@/lib/hooks/use-realtime";
@@ -9,6 +9,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import {
   ServiceSelectorCard,
   NotesCard,
+  AssigneeCard,
   type CustomerData,
   type Service,
   type NotesData
@@ -72,10 +73,14 @@ export function AppointmentDetailPremium({
   technicians = []
 }: AppointmentDetailPremiumProps) {
   const router = useRouter();
-  const { data: appointment = initialAppointment, showSkeleton } = useAppointment(appointmentId, initialAppointment);
-  const updateAppointment = useUpdateAppointment();
   
-  // Set up real-time subscriptions
+  // Use React Query properly with HYDRATION_STRATEGY.md pattern
+  // The key is to use initialData and disable refetching
+  const { data: appointment = initialAppointment } = useAppointment(appointmentId, initialAppointment);
+  const updateAppointment = useUpdateAppointment();
+  const showSkeleton = false; // We have initialData
+  
+  // Set up real-time subscriptions (this updates React Query cache properly)
   useRealtime(['appointments']);
   
   // Check if user is admin
@@ -137,6 +142,11 @@ export function AppointmentDetailPremium({
     return { customer_notes: appointment.notes || '', technician_notes: '' };
   })();
   
+  // Track selected customer device ID separately
+  const [selectedCustomerDeviceId, setSelectedCustomerDeviceId] = useState<string | null>(
+    appointment.customer_device_id || null
+  );
+
   // Form state
   const [customerData, setCustomerData] = useState<CustomerData>({
     id: appointment.customer_id,
@@ -165,9 +175,10 @@ export function AppointmentDetailPremium({
     return null;
   }, [appointment.customer_device_id, appointment.device_id, customerDevices]);
 
-  const [deviceData, setDeviceData] = useState<DeviceData>({
-    id: appointment.device_id,
-    manufacturer: appointment.devices?.manufacturers?.name,
+  // Following HYDRATION_STRATEGY.md - Initialize state properly
+  const [deviceData, setDeviceData] = useState<DeviceData>(() => ({
+    id: appointment.device_id || null,
+    manufacturer: appointment.devices?.manufacturers?.name || appointment.devices?.manufacturer?.name,
     modelName: appointment.devices?.model_name,
     serialNumber: appointment.customer_devices?.serial_number || '',
     imei: appointment.customer_devices?.imei || '',
@@ -175,91 +186,136 @@ export function AppointmentDetailPremium({
     storageSize: appointment.customer_devices?.storage_size || '',
     condition: appointment.customer_devices?.condition || 'good',
     issues: appointment.issues || []
-  });
+  }));
 
-  const [selectedServices, setSelectedServices] = useState<string[]>(
+  const [selectedServices, setSelectedServices] = useState<string[]>(() => 
     appointment.service_ids || []
   );
+  
+  // Use refs to ensure we always have current state values
+  const stateRef = useRef({
+    deviceData,
+    selectedServices,
+    selectedCustomerDeviceId: null as string | null,
+    notes: {} as NotesData
+  });
+  
+  // Update ref whenever state changes
+  useEffect(() => {
+    stateRef.current.deviceData = deviceData;
+  }, [deviceData]);
+  
+  useEffect(() => {
+    stateRef.current.selectedServices = selectedServices;
+  }, [selectedServices]);
 
   const [notes, setNotes] = useState<NotesData>({
     customerNotes: parsedNotes.customer_notes || '',
     technicianNotes: parsedNotes.technician_notes || '',
     additionalIssues: parsedNotes.additional_issues || ''
   });
-
-  // Update form data when appointment changes
+  
   useEffect(() => {
-    const parsedNotes = (() => {
-      try {
-        if (appointment.notes && typeof appointment.notes === 'string' && appointment.notes.startsWith('{')) {
-          return JSON.parse(appointment.notes);
-        }
-      } catch (e) {}
-      return { customer_notes: appointment.notes || '', technician_notes: '' };
-    })();
+    stateRef.current.notes = notes;
+  }, [notes]);
+  
+  useEffect(() => {
+    stateRef.current.selectedCustomerDeviceId = selectedCustomerDeviceId;
+  }, [selectedCustomerDeviceId]);
 
-    setCustomerData({
-      id: appointment.customer_id,
-      name: appointment.customers?.name || appointment.customer_name || '',
-      email: appointment.customers?.email || appointment.customer_email || '',
-      phone: appointment.customers?.phone || appointment.customer_phone || '',
-      address: appointment.customers?.address,
-      city: appointment.customers?.city,
-      state: appointment.customers?.state,
-      zip: appointment.customers?.zip,
-      previousAppointments: appointment.customers?.appointment_count || 0,
-      notificationPreference: appointment.notification_preference || 'email',
-      createdAt: appointment.customers?.created_at
-    });
-
-    setDeviceData({
-      id: appointment.device_id,
-      manufacturer: appointment.devices?.manufacturers?.name,
-      modelName: appointment.devices?.model_name,
-      serialNumber: appointment.customer_devices?.serial_number || '',
-      imei: appointment.customer_devices?.imei || '',
-      color: appointment.customer_devices?.color || '',
-      storageSize: appointment.customer_devices?.storage_size || '',
-      condition: appointment.customer_devices?.condition || 'good',
-      issues: appointment.issues || []
-    });
-
-    setSelectedServices(appointment.service_ids || []);
-    
-    setNotes({
-      customerNotes: parsedNotes.customer_notes || '',
-      technicianNotes: parsedNotes.technician_notes || '',
-      additionalIssues: parsedNotes.additional_issues || ''
-    });
-  }, [appointment]);
+  // Per HYDRATION_STRATEGY.md - Don't update state from props after mount
+  // State is initialized once and managed locally during editing
 
   const handleServiceToggle = (serviceId: string) => {
-    setSelectedServices(prev => 
-      prev.includes(serviceId)
+    console.log('Toggling service:', serviceId);
+    setSelectedServices(prev => {
+      const newServices = prev.includes(serviceId)
         ? prev.filter(id => id !== serviceId)
-        : [...prev, serviceId]
-    );
+        : [...prev, serviceId];
+      console.log('New selected services:', newServices);
+      return newServices;
+    });
   };
 
+  // Use ref to ensure we have the latest state
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const notesJson = JSON.stringify({
-        customer_notes: notes.customerNotes,
-        technician_notes: notes.technicianNotes,
-        additional_issues: notes.additionalIssues
-      });
-
-      await updateAppointmentDetails(appointmentId, {
-        device_id: deviceData.id,
-        service_ids: selectedServices,
-        notes: notesJson,
-        notification_preference: customerData.notificationPreference,
-        // Device details would need to be saved to customer_devices table
-      });
-
-      toast.success('Appointment details updated successfully');
-      setIsEditing(false);
+      // Use ref to get current state values
+      const currentState = stateRef.current;
+      
+      console.log('Current state before save (from ref):');
+      console.log('- deviceData:', currentState.deviceData);
+      console.log('- selectedCustomerDeviceId:', currentState.selectedCustomerDeviceId);
+      console.log('- selectedServices:', currentState.selectedServices);
+      
+      // Create formData object similar to the enhanced version
+      const formData = {
+        // Device details
+        device_id: currentState.deviceData.id || null,
+        customer_device_id: currentState.selectedCustomerDeviceId || null,
+        serial_number: currentState.deviceData.serialNumber || '',
+        imei: currentState.deviceData.imei || '',
+        color: currentState.deviceData.color || '',
+        storage_size: currentState.deviceData.storageSize || '',
+        device_condition: currentState.deviceData.condition || 'good',
+        
+        // Services - this is the critical field
+        selected_services: currentState.selectedServices || [],
+        estimated_cost: availableServices
+          .filter(s => currentState.selectedServices.includes(s.id))
+          .reduce((sum, s) => sum + s.base_price, 0),
+        
+        // Notes
+        customer_notes: currentState.notes.customerNotes || '',
+        technician_notes: currentState.notes.technicianNotes || '',
+        additional_issues: currentState.notes.additionalIssues || '',
+        
+        // Customer preferences
+        notification_preference: customerData.notificationPreference || 'email',
+      };
+      
+      console.log('Sending formData to server:', formData);
+      
+      const result = await updateAppointmentDetails(appointmentId, formData);
+      
+      if (result.success) {
+        toast.success('Appointment details updated successfully');
+        setIsEditing(false);
+        
+        // Force refresh the appointment data to ensure UI updates
+        const { createClient } = await import('@/lib/supabase/client');
+        const supabase = createClient();
+        const { data: updatedAppointment } = await supabase
+          .from('appointments')
+          .select(`
+            *,
+            customers (*),
+            devices (*),
+            customer_devices (*)
+          `)
+          .eq('id', appointmentId)
+          .single();
+          
+        if (updatedAppointment) {
+          // Update local state with fresh data
+          setSelectedServices(updatedAppointment.service_ids || []);
+          setDeviceData({
+            id: updatedAppointment.device_id,
+            manufacturer: updatedAppointment.devices?.manufacturers?.name,
+            modelName: updatedAppointment.devices?.model_name,
+            serialNumber: updatedAppointment.customer_devices?.serial_number || '',
+            imei: updatedAppointment.customer_devices?.imei || '',
+            color: updatedAppointment.customer_devices?.color || '',
+            storageSize: updatedAppointment.customer_devices?.storage_size || '',
+            condition: updatedAppointment.customer_devices?.condition || 'good',
+            issues: updatedAppointment.issues || []
+          });
+          setSelectedCustomerDeviceId(updatedAppointment.customer_device_id);
+        }
+      } else {
+        toast.error(result.error || 'Failed to update appointment details');
+      }
     } catch (error) {
       toast.error('Failed to update appointment details');
       console.error(error);
@@ -321,6 +377,18 @@ export function AppointmentDetailPremium({
     }
   };
 
+  const handleAssigneeChange = async (technicianId: string | null) => {
+    try {
+      await updateAppointmentDetails(appointmentId, {
+        assigned_to: technicianId
+      });
+      // The real-time subscription will update the UI
+    } catch (error) {
+      console.error('Error updating assignee:', error);
+      throw error;
+    }
+  };
+
   // Format date and time for header
   const formattedDate = React.useMemo(() => {
     if (!appointment.scheduled_date) return '';
@@ -353,7 +421,7 @@ export function AppointmentDetailPremium({
         },
         {
           label: isSaving ? "Saving..." : "Save Changes",
-          variant: "gradient" as const,
+          variant: "gradient-success" as const,
           onClick: handleSave,
           disabled: isSaving,
           icon: isSaving ? <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="h-4 w-4" />,
@@ -398,7 +466,14 @@ export function AppointmentDetailPremium({
       actions.push({
         label: "Edit",
         variant: "outline" as const,
-        onClick: () => setIsEditing(true),
+        onClick: () => {
+          console.log('Entering edit mode with state:', {
+            deviceData,
+            selectedServices,
+            selectedCustomerDeviceId
+          });
+          setIsEditing(true);
+        },
         icon: <Edit className="h-4 w-4" />,
       });
     }
@@ -518,17 +593,22 @@ export function AppointmentDetailPremium({
         {/* Key Metrics Row */}
         <div className="grid gap-4 md:grid-cols-3">
           <MetricCard
-            title="Scheduled Time"
-            value={showSkeleton ? <SkeletonPremium className="h-5 w-16" /> : formattedTime}
+            title="Scheduled Date/Time"
+            value={showSkeleton ? <SkeletonPremium className="h-5 w-32" /> : (
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold">{format(new Date(appointment.scheduled_date), 'MMM d, yyyy')}</span>
+                <span className="text-xs text-muted-foreground">{formattedTime}</span>
+              </div>
+            )}
             variant="accent-primary"
-            icon={<Clock />}
+            icon={<Calendar />}
             size="sm"
           />
           <MetricCard
             title="Duration"
             value={showSkeleton ? <SkeletonPremium className="h-5 w-12" /> : `${appointment.duration_minutes} min`}
             variant="default"
-            icon={<Calendar />}
+            icon={<Clock />}
             size="sm"
           />
           <MetricCard
@@ -550,8 +630,11 @@ export function AppointmentDetailPremium({
                 devices={availableDevices}
                 selectedDeviceId={deviceData.id}
                 onDeviceChange={(deviceId) => {
+                  console.log('Device change called with ID:', deviceId);
                   const device = availableDevices.find(d => d.id === deviceId);
                   if (device) {
+                    // Clear customer device selection when selecting a different device
+                    setSelectedCustomerDeviceId(null);
                     setDeviceData(prev => ({
                       ...prev,
                       id: device.id,
@@ -560,15 +643,23 @@ export function AppointmentDetailPremium({
                       imageUrl: device.image_url,
                       thumbnailUrl: device.thumbnail_url
                     }));
+                  } else if (deviceId) {
+                    // Device ID from customer device - just set the ID
+                    console.log('Setting device ID from customer device:', deviceId);
+                    setDeviceData(prev => ({
+                      ...prev,
+                      id: deviceId
+                    }));
                   }
                 }}
                 customerDevices={customerDevices}
-                selectedCustomerDeviceId={customerDevice?.id}
+                selectedCustomerDeviceId={selectedCustomerDeviceId}
                 onCustomerDeviceChange={(customerDeviceId) => {
+                  setSelectedCustomerDeviceId(customerDeviceId);
                   const cd = customerDevices.find(d => d.id === customerDeviceId);
                   if (cd) {
                     setDeviceData({
-                      id: cd.device_id,
+                      id: cd.device_id || cd.devices?.id,
                       manufacturer: cd.devices?.manufacturer?.name,
                       modelName: cd.devices?.model_name,
                       imageUrl: cd.devices?.image_url,
@@ -591,7 +682,7 @@ export function AppointmentDetailPremium({
                 storageSize={deviceData.storageSize || ''}
                 onStorageSizeChange={(value) => setDeviceData(prev => ({ ...prev, storageSize: value }))}
                 condition={deviceData.condition || 'good'}
-                onConditionChange={(value) => setDeviceData(prev => ({ ...prev, condition: value as any }))}
+                onConditionChange={(value) => setDeviceData(prev => ({ ...prev, condition: value }))}
                 isEditing={true}
               />
             ) : (
@@ -697,34 +788,88 @@ export function AppointmentDetailPremium({
 
           {/* Right Column - Customer & Details */}
           <div className="space-y-6">
-            {/* Estimated Cost Card - Moved to top of sidebar */}
-            <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-800">
+            {/* Estimated Cost Card - First in sidebar */}
+            <Card className={selectedServices.length === 0 
+              ? "bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950/20 dark:to-gray-900/20 border-gray-200 dark:border-gray-700 opacity-75"
+              : "bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-800"
+            }>
               <CardHeader className="p-4 pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-lg bg-green-500/10">
-                      <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    <div className={selectedServices.length === 0 
+                      ? "p-2 rounded-lg bg-gray-500/10"
+                      : "p-2 rounded-lg bg-green-500/10"
+                    }>
+                      <DollarSign className={selectedServices.length === 0 
+                        ? "h-4 w-4 text-gray-600 dark:text-gray-400"
+                        : "h-4 w-4 text-green-600 dark:text-green-400"
+                      } />
                     </div>
-                    <CardTitle className="text-base font-semibold text-green-900 dark:text-green-100">
+                    <CardTitle className={selectedServices.length === 0 
+                      ? "text-base font-semibold text-gray-900 dark:text-gray-100"
+                      : "text-base font-semibold text-green-900 dark:text-green-100"
+                    }>
                       Estimated Cost
                     </CardTitle>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="p-4 pt-0">
-                <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-                  {showSkeleton ? (
-                    <SkeletonPremium className="h-9 w-24" />
-                  ) : (
-                    `$${availableServices.filter(s => selectedServices.includes(s.id)).reduce((sum, s) => sum + s.base_price, 0).toFixed(2)}`
-                  )}
-                </div>
-                <div className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">
-                  {selectedServices.length} service{selectedServices.length !== 1 ? 's' : ''} • 
-                  {availableServices.filter(s => selectedServices.includes(s.id)).reduce((sum, s) => sum + s.estimated_duration_minutes, 0)} min
-                </div>
+                {selectedServices.length === 0 ? (
+                  <div className="space-y-2">
+                    <div className="text-lg font-medium text-gray-500 dark:text-gray-400">
+                      No estimate available
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Select services to calculate cost
+                    </div>
+                    {!isLocked && !isEditing && (
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className="text-xs font-medium text-primary hover:text-primary/90 transition-colors mt-2"
+                      >
+                        Add Services →
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-3xl font-bold text-green-600 dark:text-green-400">
+                      {showSkeleton ? (
+                        <SkeletonPremium className="h-9 w-24" />
+                      ) : (
+                        `$${availableServices.filter(s => selectedServices.includes(s.id)).reduce((sum, s) => sum + s.base_price, 0).toFixed(2)}`
+                      )}
+                    </div>
+                    <div className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">
+                      {selectedServices.length} service{selectedServices.length !== 1 ? 's' : ''} • 
+                      {availableServices.filter(s => selectedServices.includes(s.id)).reduce((sum, s) => sum + s.estimated_duration_minutes, 0)} min
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
+            
+            {/* Assignee Card - Second in sidebar */}
+            <AssigneeCard
+              assignee={appointment.assigned_to ? {
+                id: appointment.assigned_to,
+                name: technicians.find(t => t.id === appointment.assigned_to)?.name || 'Unknown',
+                email: technicians.find(t => t.id === appointment.assigned_to)?.email,
+                role: technicians.find(t => t.id === appointment.assigned_to)?.role,
+                // TODO: Add real stats from database
+                stats: {
+                  totalAppointments: 24,
+                  completedToday: 3,
+                  avgDuration: 45,
+                  satisfactionRate: 98
+                }
+              } : null}
+              technicians={technicians}
+              isEditing={isEditing}
+              isLocked={isLocked}
+              onAssigneeChange={handleAssigneeChange}
+            />
             
             {/* Enhanced Customer Information Card */}
             <Card className="bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-950/20 dark:to-blue-950/20 border-cyan-200 dark:border-cyan-800">

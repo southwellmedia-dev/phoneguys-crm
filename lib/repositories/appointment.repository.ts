@@ -373,4 +373,85 @@ export class AppointmentRepository extends BaseRepository<Appointment> {
 
     return data as Appointment[];
   }
+
+  async findUpcoming(limit: number = 10): Promise<Appointment[]> {
+    const today = new Date().toISOString().split('T')[0];
+    const client = await this.getClient();
+    
+    const { data, error } = await client
+      .from(this.tableName)
+      .select(`
+        *,
+        customers (
+          id,
+          name,
+          email,
+          phone
+        ),
+        devices (
+          id,
+          model_name,
+          manufacturer:manufacturers (
+            name
+          )
+        )
+      `)
+      .gte('scheduled_date', today)
+      .order('scheduled_date', { ascending: true })
+      .order('scheduled_time', { ascending: true })
+      .limit(limit);
+
+    if (error) {
+      throw new Error(`Failed to fetch upcoming appointments: ${error.message}`);
+    }
+
+    return data as Appointment[];
+  }
+
+  async searchAppointments(filters: { search?: string }): Promise<Appointment[]> {
+    const client = await this.getClient();
+    let query = client.from(this.tableName).select(`
+      *,
+      customers (
+        id,
+        name,
+        email,
+        phone
+      ),
+      devices (
+        id,
+        model_name,
+        manufacturer:manufacturers (
+          name
+        )
+      )
+    `);
+
+    if (filters.search) {
+      // Search across appointment number, description, notes, and customer name
+      query = query.or(
+        `appointment_number.ilike.%${filters.search}%,` +
+        `description.ilike.%${filters.search}%,` +
+        `notes.ilike.%${filters.search}%`
+      );
+    }
+
+    const { data, error } = await query.order('scheduled_date', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to search appointments: ${error.message}`);
+    }
+
+    // Filter by customer name in memory since we can't directly filter on joined tables
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      return (data as Appointment[]).filter(apt => 
+        apt.customers?.name?.toLowerCase().includes(searchLower) ||
+        apt.customers?.email?.toLowerCase().includes(searchLower) ||
+        apt.customers?.phone?.includes(filters.search)
+      );
+    }
+
+    return data as Appointment[];
+  }
 }

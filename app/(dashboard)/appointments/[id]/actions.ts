@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 
 export async function updateAppointmentDetails(appointmentId: string, details: any) {
   try {
+    console.log('Updating appointment with details:', details);
     const appointmentRepo = new AppointmentRepository(true);
     const supabase = createServiceClient();
     
@@ -26,10 +27,17 @@ export async function updateAppointmentDetails(appointmentId: string, details: a
     const updateData: any = {
       device_id: details.device_id || null,
       customer_device_id: details.customer_device_id || null,
-      service_ids: details.selected_services || [],
+      service_ids: details.selected_services || details.service_ids || [],
       estimated_cost: details.estimated_cost || 0,
       notes: JSON.stringify(notesData),
     };
+
+    console.log('Update data being sent to repository:', updateData);
+
+    // Handle assigned_to field if provided
+    if (details.assigned_to !== undefined) {
+      updateData.assigned_to = details.assigned_to;
+    }
     
     // If a customer device is selected but no device_id, get the device_id from customer device
     if (details.customer_device_id && !details.device_id) {
@@ -49,7 +57,8 @@ export async function updateAppointmentDetails(appointmentId: string, details: a
       updateData.issues = [...(currentAppointment.issues || []), ...details.additional_issues.split(',').map((i: string) => i.trim())];
     }
     
-    await appointmentRepo.update(appointmentId, updateData);
+    const updatedAppointment = await appointmentRepo.update(appointmentId, updateData);
+    console.log('Appointment updated successfully:', updatedAppointment);
     
     // If a new device was added (not selecting existing), create/update customer device
     if (details.device_id && !details.customer_device_id && currentAppointment.customer_id) {

@@ -4,7 +4,6 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Check, ChevronDown, X, Search, Loader2, AlertCircle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 export interface SelectOption {
   value: string;
@@ -85,7 +84,6 @@ const SelectPremium = React.forwardRef<HTMLButtonElement, SelectPremiumProps>(
     leftIcon,
     containerClassName,
     className,
-    ...props
   }, ref) => {
     const [open, setOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState('');
@@ -247,7 +245,6 @@ const SelectPremium = React.forwardRef<HTMLButtonElement, SelectPremiumProps>(
                 
                 className
               )}
-              {...props}
             >
               <div className="flex items-center gap-2 flex-1 truncate">
                 {leftIcon && (
@@ -298,30 +295,40 @@ const SelectPremium = React.forwardRef<HTMLButtonElement, SelectPremiumProps>(
             align="start"
             style={{ width: 'var(--radix-popover-trigger-width)' }}
           >
-            <Command>
+            <div className="flex flex-col max-h-[300px]">
               {searchable && (
-                <CommandInput 
-                  placeholder={searchPlaceholder} 
-                  value={searchQuery}
-                  onValueChange={setSearchQuery}
-                  className="h-9"
-                />
+                <div className="flex items-center border-b px-3">
+                  <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                  <input
+                    placeholder={searchPlaceholder}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
+                  />
+                </div>
               )}
-              <CommandList>
-                <CommandEmpty>{emptyMessage}</CommandEmpty>
-                <CommandGroup>
-                  {filteredOptions.map((option) => {
+              <div className="overflow-auto p-1">
+                {filteredOptions.length === 0 ? (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    {emptyMessage}
+                  </div>
+                ) : (
+                  filteredOptions.map((option) => {
                     const isSelected = selectedValues.includes(option.value);
                     
                     return (
-                      <CommandItem
+                      <div
                         key={option.value}
-                        value={option.value}
-                        disabled={option.disabled}
-                        onSelect={() => handleSelect(option.value)}
+                        onClick={() => {
+                          if (!option.disabled) {
+                            handleSelect(option.value);
+                          }
+                        }}
                         className={cn(
-                          'flex items-center gap-2 px-2 py-1.5',
-                          isSelected && 'bg-cyan-50 dark:bg-cyan-950/20'
+                          'flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-sm',
+                          'hover:bg-cyan-50 hover:text-cyan-900 dark:hover:bg-cyan-950/20 dark:hover:text-cyan-100',
+                          isSelected && 'bg-cyan-100 text-cyan-900 dark:bg-cyan-950/30 dark:text-cyan-100',
+                          option.disabled && 'opacity-50 cursor-not-allowed pointer-events-none'
                         )}
                       >
                         {multiple && (
@@ -338,7 +345,7 @@ const SelectPremium = React.forwardRef<HTMLButtonElement, SelectPremiumProps>(
                         )}
                         
                         {option.icon && (
-                          <span className="text-gray-500 dark:text-gray-400">
+                          <span className="text-current opacity-70">
                             {option.icon}
                           </span>
                         )}
@@ -346,7 +353,7 @@ const SelectPremium = React.forwardRef<HTMLButtonElement, SelectPremiumProps>(
                         <div className="flex-1">
                           <div className="font-medium">{option.label}</div>
                           {option.description && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                            <div className="text-xs opacity-60">
                               {option.description}
                             </div>
                           )}
@@ -355,12 +362,12 @@ const SelectPremium = React.forwardRef<HTMLButtonElement, SelectPremiumProps>(
                         {!multiple && isSelected && (
                           <Check className={cn(iconSizeClasses.sm, 'text-cyan-500')} />
                         )}
-                      </CommandItem>
+                      </div>
                     );
-                  })}
-                </CommandGroup>
-              </CommandList>
-            </Command>
+                  })
+                )}
+              </div>
+            </div>
           </PopoverContent>
         </Popover>
         

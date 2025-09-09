@@ -5,3 +5,4 @@
  */
 
 export * from './table-premium';
+export * from './accordion-premium';

@@ -3,7 +3,6 @@
 import { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { LogoutButton } from "@/components/logout-button";
 import { Menu, Plus } from "lucide-react";
 import {
   DropdownMenu,
@@ -18,7 +17,7 @@ export interface HeaderAction {
   href?: string;
   onClick?: () => void;
   icon?: ReactNode;
-  variant?: "default" | "outline" | "ghost" | "secondary" | "destructive";
+  variant?: "default" | "outline" | "ghost" | "secondary" | "destructive" | "success";
   className?: string;
   disabled?: boolean;
   component?: ReactNode; // Support for custom components
@@ -57,8 +56,14 @@ export function PageHeader({
           </div>
         </div>
 
-        {/* Right side - Actions and user controls */}
+        {/* Right side - Actions and theme switcher */}
         <div className="flex items-center space-x-3">
+          {/* Theme Switcher */}
+          <ThemeSwitcher />
+          
+          {/* Divider */}
+          {actions.length > 0 && <div className="w-px h-8 bg-border" />}
+
           {/* Desktop: Show all action buttons */}
           <div className="hidden md:flex items-center space-x-2">
             {actions.map((action, index) => (
@@ -137,13 +142,6 @@ export function PageHeader({
                 </div>
               ))}
           </div>
-
-          {/* Divider */}
-          {actions.length > 0 && <div className="w-px h-8 bg-border" />}
-
-          {/* User controls */}
-          <ThemeSwitcher />
-          <LogoutButton />
         </div>
       </div>
     </header>

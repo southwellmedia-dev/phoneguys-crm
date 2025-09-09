@@ -20,7 +20,7 @@
 export { InputPremium, type InputPremiumProps } from './input-premium';
 
 // Select Components
-export { SelectPremium, SelectOption, type SelectPremiumProps } from './select-premium';
+export { SelectPremium, type SelectOption, type SelectPremiumProps } from './select-premium';
 
 // Checkbox Components
 export { CheckboxPremium, CheckboxGroup, type CheckboxPremiumProps, type CheckboxGroupProps } from './checkbox-premium';

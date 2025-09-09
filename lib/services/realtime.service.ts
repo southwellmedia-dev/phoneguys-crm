@@ -372,6 +372,19 @@ export class RealtimeService {
         { event: 'DELETE', schema: 'public', table: 'customers' },
         (payload) => this.handleCustomerDelete(payload)
       )
+      // Listen to customer devices changes
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'customer_devices' },
+        (payload) => this.handleCustomerDeviceInsert(payload)
+      )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'customer_devices' },
+        (payload) => this.handleCustomerDeviceUpdate(payload)
+      )
+      .on('postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'customer_devices' },
+        (payload) => this.handleCustomerDeviceDelete(payload)
+      )
       .subscribe((status) => {
         console.log(`📡 Customers real-time subscription: ${status}`);
       });
@@ -483,6 +496,95 @@ export class RealtimeService {
 
     // Update dashboard counts
     this.updateDashboardCounts('customers', 'decrement');
+  }
+
+  // ============================================
+  // CUSTOMER DEVICES SUBSCRIPTIONS
+  // ============================================
+
+  private handleCustomerDeviceInsert(payload: RealtimePostgresChangesPayload<any>) {
+    console.log('📱 New device added for customer:', payload.new.customer_id);
+    
+    const customerId = payload.new.customer_id;
+    
+    // Update customer devices list
+    this.queryClient.setQueryData(['customer-devices', customerId], (old: any[] = []) => {
+      // Check if device already exists
+      if (old.find((d: any) => d.id === payload.new.id)) return old;
+      return [...old, payload.new];
+    });
+
+    // Update customer's device count in lists if needed
+    this.queryClient.setQueriesData(
+      { queryKey: ['customers'], exact: false },
+      (old: any) => {
+        if (Array.isArray(old)) {
+          return old.map((customer: any) => 
+            customer.id === customerId 
+              ? { ...customer, device_count: (customer.device_count || 0) + 1 }
+              : customer
+          );
+        } else if (old?.data && Array.isArray(old.data)) {
+          return {
+            ...old,
+            data: old.data.map((customer: any) => 
+              customer.id === customerId 
+                ? { ...customer, device_count: (customer.device_count || 0) + 1 }
+                : customer
+            )
+          };
+        }
+        return old;
+      }
+    );
+  }
+
+  private handleCustomerDeviceUpdate(payload: RealtimePostgresChangesPayload<any>) {
+    console.log('📱 Device updated:', payload.new.id);
+    
+    const customerId = payload.new.customer_id;
+    
+    // Update device in the list
+    this.queryClient.setQueryData(['customer-devices', customerId], (old: any[] = []) => {
+      return old.map(device => 
+        device.id === payload.new.id ? { ...device, ...payload.new } : device
+      );
+    });
+  }
+
+  private handleCustomerDeviceDelete(payload: RealtimePostgresChangesPayload<any>) {
+    console.log('📱 Device deleted:', payload.old.id);
+    
+    const customerId = payload.old.customer_id;
+    
+    // Remove device from the list
+    this.queryClient.setQueryData(['customer-devices', customerId], (old: any[] = []) => {
+      return old.filter(device => device.id !== payload.old.id);
+    });
+
+    // Update customer's device count in lists if needed
+    this.queryClient.setQueriesData(
+      { queryKey: ['customers'], exact: false },
+      (old: any) => {
+        if (Array.isArray(old)) {
+          return old.map((customer: any) => 
+            customer.id === customerId 
+              ? { ...customer, device_count: Math.max(0, (customer.device_count || 1) - 1) }
+              : customer
+          );
+        } else if (old?.data && Array.isArray(old.data)) {
+          return {
+            ...old,
+            data: old.data.map((customer: any) => 
+              customer.id === customerId 
+                ? { ...customer, device_count: Math.max(0, (customer.device_count || 1) - 1) }
+                : customer
+            )
+          };
+        }
+        return old;
+      }
+    );
   }
 
   // ============================================

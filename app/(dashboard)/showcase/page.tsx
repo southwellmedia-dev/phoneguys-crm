@@ -10,6 +10,7 @@ import { FeedbackShowcase } from "./components/feedback-showcase";
 import { TableShowcase } from "./components/table-showcase";
 import { NavigationShowcase } from "./components/navigation-showcase";
 import { OverviewShowcase } from "./components/overview-showcase";
+import OverlayShowcase from "./components/overlay-showcase";
 import { 
   Layout, 
   Square, 
@@ -17,7 +18,8 @@ import {
   MessageSquare,
   Table, 
   Navigation,
-  Layers
+  Layers,
+  PanelTop
 } from "lucide-react";
 
 export default function ShowcasePage() {
@@ -28,6 +30,7 @@ export default function ShowcasePage() {
     { id: "buttons", label: "Buttons", icon: <Square className="h-4 w-4" />, count: 2 },
     { id: "cards", label: "Cards", icon: <Layers className="h-4 w-4" />, count: 4 },
     { id: "badges", label: "Badges", icon: <Badge className="h-4 w-4" />, count: 1 },
+    { id: "overlays", label: "Overlays", icon: <PanelTop className="h-4 w-4" />, count: 6 },
     { id: "feedback", label: "Feedback", icon: <MessageSquare className="h-4 w-4" />, count: 5 },
     { id: "tables", label: "Tables", icon: <Table className="h-4 w-4" />, count: 1 },
     { id: "navigation", label: "Navigation", icon: <Navigation className="h-4 w-4" />, count: 2 },
@@ -51,6 +54,7 @@ export default function ShowcasePage() {
           {activeTab === "buttons" && <ButtonShowcase />}
           {activeTab === "cards" && <CardShowcase />}
           {activeTab === "badges" && <BadgeShowcase />}
+          {activeTab === "overlays" && <OverlayShowcase />}
           {activeTab === "feedback" && <FeedbackShowcase />}
           {activeTab === "tables" && <TableShowcase />}
           {activeTab === "navigation" && <NavigationShowcase />}

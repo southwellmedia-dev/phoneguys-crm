@@ -1,7 +1,7 @@
 import { CustomerRepository } from "@/lib/repositories/customer.repository";
 import { UserRepository } from "@/lib/repositories/user.repository";
 import { createClient } from "@/lib/supabase/server";
-import { NewOrderClient } from "./new-order-client-stable";
+import { NewOrderClientPremium } from "./new-order-client-premium";
 
 async function getCustomers() {
   const customerRepo = new CustomerRepository(true); // Use service role
@@ -83,7 +83,7 @@ export default async function NewOrderPage() {
     getTechnicians()
   ]);
   
-  return <NewOrderClient 
+  return <NewOrderClientPremium 
     customers={customers} 
     devices={devices} 
     services={services} 

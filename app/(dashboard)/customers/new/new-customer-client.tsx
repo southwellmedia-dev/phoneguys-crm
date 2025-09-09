@@ -6,12 +6,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { customerFormSchema, CustomerFormData } from '@/lib/validations/forms';
 import { PageContainer } from '@/components/layout/page-container';
+import { ButtonPremium } from '@/components/premium/ui/buttons/button-premium';
+import { InputPremium } from '@/components/premium/ui/forms/input-premium';
+import { TextareaPremium } from '@/components/premium/ui/forms/textarea-premium';
+import { FormFieldWrapper, FormSection, FormGrid } from '@/components/premium/ui/forms/form-field-wrapper';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Save, X, Loader2 } from 'lucide-react';
+import { Save, X, Loader2, User, Mail, Phone, MapPin, FileText } from 'lucide-react';
 
 export default function NewCustomerClient() {
   const router = useRouter();
@@ -63,16 +65,15 @@ export default function NewCustomerClient() {
     {
       label: "Cancel",
       icon: <X className="h-4 w-4" />,
-      variant: "outline" as const,
+      variant: "destructive" as const,
       onClick: () => router.push('/customers'),
     },
     {
       label: isLoading ? "Creating..." : "Create Customer",
       icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />,
-      variant: "default" as const,
+      variant: "success" as const,
       onClick: form.handleSubmit(onSubmit),
       disabled: isLoading,
-      className: "bg-green-600 hover:bg-green-700 text-white",
     }
   ];
   
@@ -85,175 +86,197 @@ export default function NewCustomerClient() {
       <Form {...form}>
         <div className="space-y-6">
           {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
+          <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border/50">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                <CardTitle className="text-lg">Basic Information</CardTitle>
+              </div>
               <CardDescription>
                 Enter the customer's contact details
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="pt-6">
+              <FormSection separator={false}>
                 <FormField
                   control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email *</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="email" 
-                          placeholder="john@example.com" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                  name="name"
+                  render={({ field, fieldState }) => (
+                    <FormFieldWrapper
+                      label="Full Name"
+                      required
+                      error={fieldState.error?.message}
+                    >
+                      <InputPremium 
+                        placeholder="John Doe" 
+                        icon={<User className="h-4 w-4" />}
+                        variant={fieldState.error ? "error" : "default"}
+                        {...field} 
+                      />
+                    </FormFieldWrapper>
                   )}
                 />
                 
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone *</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="(555) 123-4567" 
+                <FormGrid columns={2}>
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field, fieldState }) => (
+                      <FormFieldWrapper
+                        label="Email Address"
+                        required
+                        error={fieldState.error?.message}
+                      >
+                        <InputPremium 
+                          type="email" 
+                          placeholder="john@example.com"
+                          icon={<Mail className="h-4 w-4" />}
+                          variant={fieldState.error ? "error" : "default"}
                           {...field} 
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                      </FormFieldWrapper>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field, fieldState }) => (
+                      <FormFieldWrapper
+                        label="Phone Number"
+                        required
+                        error={fieldState.error?.message}
+                      >
+                        <InputPremium 
+                          placeholder="(555) 123-4567"
+                          icon={<Phone className="h-4 w-4" />}
+                          variant={fieldState.error ? "error" : "default"}
+                          {...field} 
+                        />
+                      </FormFieldWrapper>
+                    )}
+                  />
+                </FormGrid>
+              </FormSection>
             </CardContent>
           </Card>
           
           {/* Address Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Address Information</CardTitle>
+          <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border/50">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-primary" />
+                <CardTitle className="text-lg">Address Information</CardTitle>
+              </div>
               <CardDescription>
                 Optional address details for the customer
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Street Address</FormLabel>
-                    <FormControl>
-                      <Input 
+            <CardContent className="pt-6">
+              <FormSection separator={false}>
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field, fieldState }) => (
+                    <FormFieldWrapper
+                      label="Street Address"
+                      error={fieldState.error?.message}
+                      description="Customer's physical address"
+                    >
+                      <InputPremium 
                         placeholder="123 Main St" 
+                        icon={<MapPin className="h-4 w-4" />}
+                        variant={fieldState.error ? "error" : "default"}
                         {...field} 
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>City</FormLabel>
-                      <FormControl>
-                        <Input 
+                    </FormFieldWrapper>
+                  )}
+                />
+                
+                <FormGrid columns={3}>
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field, fieldState }) => (
+                      <FormFieldWrapper
+                        label="City"
+                        error={fieldState.error?.message}
+                      >
+                        <InputPremium 
                           placeholder="New York" 
+                          variant={fieldState.error ? "error" : "default"}
                           {...field} 
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="state"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>State</FormLabel>
-                      <FormControl>
-                        <Input 
+                      </FormFieldWrapper>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field, fieldState }) => (
+                      <FormFieldWrapper
+                        label="State"
+                        error={fieldState.error?.message}
+                      >
+                        <InputPremium 
                           placeholder="NY" 
+                          variant={fieldState.error ? "error" : "default"}
                           {...field} 
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="zip_code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ZIP Code</FormLabel>
-                      <FormControl>
-                        <Input 
+                      </FormFieldWrapper>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="zip_code"
+                    render={({ field, fieldState }) => (
+                      <FormFieldWrapper
+                        label="ZIP Code"
+                        error={fieldState.error?.message}
+                      >
+                        <InputPremium 
                           placeholder="10001" 
+                          variant={fieldState.error ? "error" : "default"}
                           {...field} 
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                      </FormFieldWrapper>
+                    )}
+                  />
+                </FormGrid>
+              </FormSection>
             </CardContent>
           </Card>
           
           {/* Additional Notes */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Additional Information</CardTitle>
+          <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border/50">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                <CardTitle className="text-lg">Additional Information</CardTitle>
+              </div>
               <CardDescription>
                 Any additional notes about the customer
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               <FormField
                 control={form.control}
                 name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Customer preferences, special requirements, etc..."
-                        className="min-h-[100px]"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Internal notes about this customer (not visible to the customer)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                render={({ field, fieldState }) => (
+                  <FormFieldWrapper
+                    label="Internal Notes"
+                    description="These notes are for internal use only and won't be visible to the customer"
+                    error={fieldState.error?.message}
+                  >
+                    <TextareaPremium 
+                      placeholder="Customer preferences, special requirements, important information..."
+                      rows={4}
+                      variant={fieldState.error ? "error" : "default"}
+                      {...field} 
+                    />
+                  </FormFieldWrapper>
                 )}
               />
             </CardContent>

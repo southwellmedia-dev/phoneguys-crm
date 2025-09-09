@@ -27,7 +27,7 @@ interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
-  ({ className, blur = "md", opacity = 10, border = true, ...props }, ref) => (
+  ({ className, blur = "md", opacity = 95, border = true, ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
@@ -36,11 +36,11 @@ const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
         blur === "md" && "backdrop-blur-md",
         blur === "lg" && "backdrop-blur-lg",
         blur === "xl" && "backdrop-blur-xl",
-        border && "border border-white/20 dark:border-white/10",
-        `bg-white/${opacity} dark:bg-black/${opacity}`,
-        "shadow-glass",
+        border && "border border-border/50 dark:border-white/10",
+        `bg-card/${opacity} dark:bg-card/${opacity}`,
+        "shadow-sm",
         "transition-all duration-300",
-        "hover:bg-white/20 dark:hover:bg-black/20",
+        "hover:shadow-md hover:border-border/70 dark:hover:border-white/20",
         className
       )}
       {...props}
@@ -57,7 +57,7 @@ const GlassCardHeader = React.forwardRef<
     ref={ref}
     className={cn(
       "flex flex-col space-y-1.5 p-6",
-      "border-b border-white/10 dark:border-white/5",
+      "border-b border-border/50 dark:border-white/10",
       className
     )}
     {...props}
@@ -96,7 +96,7 @@ const GlassCardContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+  <div ref={ref} className={cn("p-6", className)} {...props} />
 ));
 GlassCardContent.displayName = "GlassCardContent";
 

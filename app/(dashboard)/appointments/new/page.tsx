@@ -1,7 +1,7 @@
 import { CustomerRepository } from "@/lib/repositories/customer.repository";
 import { UserRepository } from "@/lib/repositories/user.repository";
 import { createClient } from "@/lib/supabase/server";
-import { NewAppointmentClient } from "./new-appointment-client";
+import { NewAppointmentClientPremium } from "./new-appointment-client-premium";
 
 async function getCustomers() {
   const customerRepo = new CustomerRepository(true);
@@ -52,5 +52,5 @@ export default async function NewAppointmentPage() {
     getDevices()
   ]);
   
-  return <NewAppointmentClient customers={customers} devices={devices} technicians={technicianList} />;
+  return <NewAppointmentClientPremium customers={customers} devices={devices} technicians={technicianList} />;
 }

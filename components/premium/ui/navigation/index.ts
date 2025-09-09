@@ -6,3 +6,4 @@
 
 export * from './header-premium';
 export * from './tab-nav';
+export * from './dropdown-premium';

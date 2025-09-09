@@ -245,14 +245,13 @@ export function NewOrderClient({ customers, devices, services }: NewOrderClientP
     ...(step < totalSteps ? [{
       label: "Next Step",
       icon: <ChevronRight className="h-4 w-4" />,
-      variant: "default" as const,
+      variant: isStepValid() ? "success" as const : "outline" as const,
       onClick: nextStep,
       disabled: !isStepValid(),
-      className: isStepValid() ? "bg-green-600 hover:bg-green-700 text-white" : "bg-gray-400 text-gray-200 cursor-not-allowed hover:bg-gray-400",
     }] : [{
       label: isLoading ? "Creating..." : "Create Order",
       icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />,
-      variant: "default" as const,
+      variant: "success" as const,
       onClick: () => {
         console.log("Create Order button clicked");
         console.log("Form state valid:", form.formState.isValid);

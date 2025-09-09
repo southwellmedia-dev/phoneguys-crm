@@ -39,6 +39,9 @@ export * from './ui/data-display';
 // Navigation Components
 export * from './ui/navigation';
 
+// Overlay Components (Modals, Dialogs, Tooltips, Popovers)
+export * from './ui/overlays';
+
 // Connected Components
 export * from './connected';
 

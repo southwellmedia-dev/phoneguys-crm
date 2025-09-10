@@ -146,25 +146,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create form submission record
-    const formSubmissionRepo = getRepository.formSubmissions(false);
-    const formSubmission = await formSubmissionRepo.create({
-      form_type: 'appointment',
-      submission_data: body,
-      customer_name: data.customer.name,
-      customer_email: data.customer.email,
-      customer_phone: data.customer.phone,
-      device_info: data.device,
-      issues: data.issues,
-      preferred_date: data.appointmentDate,
-      preferred_time: data.appointmentTime,
-      status: 'pending',
-      source_url: data.sourceUrl,
-      ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
-      user_agent: request.headers.get('user-agent')
-    });
-
-    // Create appointment with the customer device
+    // Create appointment with the customer device FIRST
     const appointment = await appointmentService.createAppointment({
       customer: { id: customer.id },
       device: { id: data.device.deviceId },
@@ -185,9 +167,29 @@ export async function POST(request: NextRequest) {
       appointment.id
     );
 
-    // Update form submission with appointment ID
-    if (formSubmission) {
-      await formSubmissionRepo.updateStatus(formSubmission.id, 'processed', appointment.id);
+    // NOW create form submission record with appointment ID (after successful appointment creation)
+    const formSubmissionRepo = getRepository.formSubmissions(false);
+    let formSubmission = null;
+    try {
+      formSubmission = await formSubmissionRepo.create({
+        form_type: 'appointment',
+        submission_data: body,
+        customer_name: data.customer.name,
+        customer_email: data.customer.email,
+        customer_phone: data.customer.phone,
+        device_info: data.device,
+        issues: data.issues,
+        preferred_date: data.appointmentDate,
+        preferred_time: data.appointmentTime,
+        status: 'processed', // Mark as processed immediately since appointment was created
+        appointment_id: appointment.id, // Include the appointment ID directly
+        source_url: data.sourceUrl,
+        ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+        user_agent: request.headers.get('user-agent')
+      });
+    } catch (error) {
+      // Log error but don't fail the appointment creation
+      console.error('Failed to create form submission record:', error);
     }
 
     // Create internal notifications for admins/staff

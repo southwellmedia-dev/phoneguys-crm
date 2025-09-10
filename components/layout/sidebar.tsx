@@ -36,7 +36,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
-import { Calendar } from "lucide-react";
+import { Calendar, Globe } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -49,6 +49,7 @@ const adminNavigation = [
   { name: "Users", href: "/admin/users", icon: Users },
   { name: "Devices", href: "/admin/devices", icon: Smartphone },
   { name: "Services", href: "/admin/services", icon: Wrench },
+  { name: "Website Integration", href: "/admin/website-integration", icon: Globe },
   { name: "Media Gallery", href: "/admin/media", icon: Image },
   { name: "Component Showcase", href: "/showcase", icon: Palette },
   { name: "Reports", href: "/reports", icon: FileText, disabled: true },

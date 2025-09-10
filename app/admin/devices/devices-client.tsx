@@ -33,8 +33,11 @@ import {
   Download,
   Smartphone,
   Image as ImageIcon,
-  MoreHorizontal
+  MoreHorizontal,
+  RefreshCw,
+  Database
 } from "lucide-react";
+import { ButtonPremium, ModalPremium, StatusBadge } from "@/components/premium";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -71,25 +74,34 @@ export function DevicesClient({
   uploadToGallery
 }: DevicesClientProps) {
   const queryClient = useQueryClient();
-  const { data: devices = initialDevices, isLoading, isFetching, refetch } = useDevices(initialDevices);
+  // Don't pass initialDevices to force fresh fetch on client side
+  const { data: devices = [], isLoading, isFetching, refetch } = useDevices();
   const deleteDevice = useDeleteDevice();
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{ success?: boolean; message?: string; devicesAdded?: number }>({});
   
   // Set up real-time subscriptions
   useRealtime(['admin']);
   
   // Determine if we should show skeleton
-  const showSkeleton = useShowSkeleton(isLoading, isFetching, !!devices);
+  const showSkeleton = useShowSkeleton(isLoading, isFetching, devices.length > 0);
   
   // Ensure devices is always an array
   const safeDevices = Array.isArray(devices) ? devices : [];
 
-  const filteredDevices = safeDevices.filter(device => 
-    device.model_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    device.model_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    device.manufacturer?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredDevices = safeDevices.filter(device => {
+    if (!device) return false;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      device.model_name?.toLowerCase().includes(searchLower) ||
+      device.model_number?.toLowerCase().includes(searchLower) ||
+      device.manufacturer?.name?.toLowerCase().includes(searchLower) ||
+      device.brand?.toLowerCase().includes(searchLower)
+    );
+  });
 
   const handleDeviceUpdate = () => {
     // Query invalidation is handled by mutations
@@ -100,6 +112,71 @@ export function DevicesClient({
       return;
     }
     deleteDevice.mutate(deviceId);
+  };
+
+  const handleSyncDevices = async (source: 'popular' | 'techspecs', apiKey?: string) => {
+    console.log('Starting sync with source:', source);
+    setSyncing(true);
+    setSyncStatus({});
+    
+    try {
+      const response = await fetch('/api/admin/sync-devices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source, apiKey })
+      });
+      
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('Sync result:', result);
+      
+      if (result.success) {
+        const message = result.devicesAdded > 0 
+          ? `Added ${result.devicesAdded} new devices${result.devicesUpdated > 0 ? ` and updated ${result.devicesUpdated} existing devices` : ''}`
+          : result.devicesUpdated > 0 
+          ? `Updated ${result.devicesUpdated} existing devices`
+          : 'All devices are already up to date';
+          
+        setSyncStatus({
+          success: true,
+          message: message,
+          devicesAdded: result.devicesAdded
+        });
+        
+        if (result.devicesAdded > 0 || result.devicesUpdated > 0) {
+          toast.success(message);
+          // Invalidate and refetch devices after a small delay to ensure DB is updated
+          setTimeout(async () => {
+            await queryClient.invalidateQueries({ queryKey: ['admin', 'devices'] });
+            await refetch();
+          }, 500);
+        } else {
+          toast.info('All devices are already up to date');
+        }
+      } else {
+        setSyncStatus({
+          success: false,
+          message: result.error || 'Failed to sync devices'
+        });
+        toast.error(result.error || 'Failed to sync devices');
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      setSyncStatus({
+        success: false,
+        message: error instanceof Error ? error.message : 'Network error occurred'
+      });
+      toast.error(error instanceof Error ? error.message : 'Failed to connect to sync service');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const getDeviceTypeColor = (type?: string | null) => {
@@ -125,8 +202,23 @@ export function DevicesClient({
 
   const headerActions = [
     {
+      component: (
+        <ButtonPremium
+          variant="gradient"
+          size="sm"
+          icon={<Database className="h-4 w-4" />}
+          onClick={() => {
+            console.log('Sync button clicked, opening modal');
+            setShowSyncModal(true);
+          }}
+        >
+          Sync Devices
+        </ButtonPremium>
+      ),
+    },
+    {
       label: "Refresh",
-      icon: <Upload className="h-4 w-4" />,
+      icon: <RefreshCw className="h-4 w-4" />,
       variant: "outline" as const,
       onClick: () => refetch(),
     },
@@ -465,6 +557,151 @@ export function DevicesClient({
         </CardContent>
       </Card>
       </div>
+
+      {/* Sync Devices Modal */}
+      <ModalPremium
+        open={showSyncModal}
+        onOpenChange={(open) => {
+          console.log('Modal state changing to:', open);
+          if (!open) {
+            setShowSyncModal(false);
+            setSyncStatus({});
+          }
+        }}
+        title="Sync Device Database"
+        description="Import the latest device information from various sources"
+      >
+        <div className="space-y-6">
+          {!syncing && !syncStatus.message && (
+            <>
+              <div className="space-y-4">
+                <div className="p-4 bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-950/30 dark:to-blue-950/30 rounded-lg border border-cyan-200 dark:border-cyan-800">
+                  <h3 className="font-semibold text-cyan-900 dark:text-cyan-100 mb-2">Popular Devices</h3>
+                  <p className="text-sm text-cyan-700 dark:text-cyan-300 mb-3">
+                    Import 50+ latest devices from Apple, Samsung, and Google. No API key required.
+                  </p>
+                  <ButtonPremium
+                    variant="default"
+                    size="sm"
+                    icon={<Database className="h-4 w-4" />}
+                    onClick={() => {
+                      console.log('Sync Popular Devices clicked');
+                      handleSyncDevices('popular');
+                    }}
+                    className="w-full"
+                  >
+                    Sync Popular Devices
+                  </ButtonPremium>
+                </div>
+
+                <div className="p-4 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                  <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-2">TechSpecs API</h3>
+                  <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
+                    Comprehensive device database with detailed specifications. Requires API key.
+                  </p>
+                  <div className="space-y-3">
+                    <Input
+                      placeholder="Enter TechSpecs API key"
+                      type="password"
+                      id="techspecs-api-key"
+                      className="w-full"
+                    />
+                    <ButtonPremium
+                      variant="gradient"
+                      size="sm"
+                      icon={<Database className="h-4 w-4" />}
+                      onClick={() => {
+                        const apiKey = (document.getElementById('techspecs-api-key') as HTMLInputElement)?.value;
+                        if (apiKey) {
+                          handleSyncDevices('techspecs', apiKey);
+                        } else {
+                          toast.error('Please enter an API key');
+                        }
+                      }}
+                      className="w-full"
+                    >
+                      Sync with TechSpecs
+                    </ButtonPremium>
+                  </div>
+                  <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">
+                    Get your API key at <a href="https://techspecs.io" target="_blank" rel="noopener noreferrer" className="underline">techspecs.io</a>
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <StatusBadge status="info" variant="soft" />
+                  <span>Current devices in database: {safeDevices.length}</span>
+                </div>
+              </div>
+            </>
+          )}
+
+          {syncing && (
+            <div className="text-center py-8">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
+                <RefreshCw className="h-6 w-6 text-primary animate-spin" />
+              </div>
+              <p className="text-lg font-medium">Syncing devices...</p>
+              <p className="text-sm text-muted-foreground mt-1">This may take a few moments</p>
+            </div>
+          )}
+
+          {syncStatus.message && (
+            <div className="space-y-4">
+              <div className={`p-4 rounded-lg ${
+                syncStatus.success 
+                  ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800' 
+                  : 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <StatusBadge 
+                    status={syncStatus.success ? 'success' : 'error'} 
+                    variant="soft"
+                  />
+                  <div className="flex-1">
+                    <p className={`font-medium ${
+                      syncStatus.success 
+                        ? 'text-green-900 dark:text-green-100' 
+                        : 'text-red-900 dark:text-red-100'
+                    }`}>
+                      {syncStatus.message}
+                    </p>
+                    {syncStatus.devicesAdded && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {syncStatus.devicesAdded} new devices added to your database
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2">
+                <ButtonPremium
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSyncStatus({});
+                  }}
+                >
+                  Sync More
+                </ButtonPremium>
+                <ButtonPremium
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    setShowSyncModal(false);
+                    setSyncStatus({});
+                  }}
+                >
+                  Done
+                </ButtonPremium>
+              </div>
+            </div>
+          )}
+        </div>
+      </ModalPremium>
     </PageContainer>
   );
 }

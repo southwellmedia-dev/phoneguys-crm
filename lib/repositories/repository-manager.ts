@@ -196,6 +196,7 @@ import { AppointmentRepository } from './appointment.repository';
 import { TicketNoteRepository } from './ticket-note.repository';
 import { ServiceRepository } from './service.repository';
 import { CustomerDeviceRepository } from './customer-device.repository';
+import { AvailabilityRepository } from './availability.repository';
 
 /**
  * Convenience function to get commonly used repositories
@@ -225,4 +226,7 @@ export const getRepository = {
   
   customerDevices: (useServiceRole = false) => 
     RepositoryManager.get(CustomerDeviceRepository, useServiceRole),
+  
+  availability: (useServiceRole = false) => 
+    RepositoryManager.get(AvailabilityRepository, useServiceRole),
 };

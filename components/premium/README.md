@@ -304,7 +304,7 @@ Yo
 
 | Category | Components | Completed | Percentage |
 |----------|------------|-----------|------------|
-| Theme System | 3 | 3 | 100% |
+| Theme System | 3 | 3 | 100WII% |
 | Buttons | 2 | 2 | 100% |
 | Cards | 4 | 4 | 100% |
 | Badges | 1 | 1 | 100% |

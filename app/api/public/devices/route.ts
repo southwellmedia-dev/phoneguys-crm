@@ -23,22 +23,8 @@ export async function GET(request: NextRequest) {
 
     const deviceRepo = getRepository.devices(true); // Use service role
 
-    // Get all active devices with manufacturer info
-    const devicesQuery = await deviceRepo.supabase
-      .from('devices')
-      .select(`
-        id,
-        model_name,
-        device_type,
-        manufacturer:manufacturers!devices_manufacturer_id_fkey (
-          id,
-          name
-        )
-      `)
-      .eq('is_active', true)
-      .order('model_name');
-
-    const devices = devicesQuery.data || [];
+    // Get all active devices with manufacturer info using repository method
+    const devices = await deviceRepo.getActiveDevices();
 
     let filteredDevices = devices;
 
@@ -60,15 +46,12 @@ export async function GET(request: NextRequest) {
 
     // Get popular devices (most frequently repaired)
     if (popular) {
-      // Query repair tickets to find most common device_ids
-      const popularQuery = await deviceRepo.supabase
-        .from('repair_tickets')
-        .select('device_id')
-        .not('device_id', 'is', null)
-        .limit(100);
+      // Get popular device IDs from repository method
+      const popularDeviceIds = await deviceRepo.getPopularDeviceIds(100);
       
-      const deviceCounts = (popularQuery.data || []).reduce((acc: any, ticket: any) => {
-        acc[ticket.device_id] = (acc[ticket.device_id] || 0) + 1;
+      // Create a map of device counts for quick lookup
+      const deviceCounts = popularDeviceIds.reduce((acc: Record<string, number>, item) => {
+        acc[item.device_id] = item.count;
         return acc;
       }, {});
 
@@ -101,16 +84,8 @@ export async function GET(request: NextRequest) {
       return acc;
     }, {});
 
-    // Get list of all manufacturers
-    const manufacturersQuery = await deviceRepo.supabase
-      .from('manufacturers')
-      .select('id, name')
-      .order('name');
-    
-    const manufacturers = (manufacturersQuery.data || []).map(m => ({
-      id: m.id,
-      name: m.name
-    }));
+    // Get list of all manufacturers using repository method
+    const manufacturers = await deviceRepo.getAllManufacturers();
 
     // Convert grouped devices to array
     const deviceGroups = Object.values(groupedDevices);

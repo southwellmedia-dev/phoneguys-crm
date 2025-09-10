@@ -223,4 +223,42 @@ export class DeviceRepository extends BaseRepository<Device> {
 
     return data as Device[];
   }
+
+  async getPopularDeviceIds(limit = 100): Promise<{ device_id: string; count: number }[]> {
+    const client = await this.getClient();
+    const { data, error } = await client
+      .from('repair_tickets')
+      .select('device_id')
+      .not('device_id', 'is', null)
+      .limit(limit);
+
+    if (error) {
+      throw new Error(`Failed to fetch popular device IDs: ${error.message}`);
+    }
+
+    // Count occurrences of each device_id
+    const deviceCounts = (data || []).reduce((acc: Record<string, number>, ticket: any) => {
+      acc[ticket.device_id] = (acc[ticket.device_id] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Convert to array and sort by count
+    return Object.entries(deviceCounts)
+      .map(([device_id, count]) => ({ device_id, count }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  async getAllManufacturers(): Promise<{ id: string; name: string }[]> {
+    const client = await this.getClient();
+    const { data, error } = await client
+      .from('manufacturers')
+      .select('id, name')
+      .order('name');
+
+    if (error) {
+      throw new Error(`Failed to fetch manufacturers: ${error.message}`);
+    }
+
+    return data || [];
+  }
 }

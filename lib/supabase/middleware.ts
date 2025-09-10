@@ -72,7 +72,8 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Skip authentication for public API endpoints
-  const isPublicAPI = request.nextUrl.pathname.startsWith("/api/repairs");
+  const isPublicAPI = request.nextUrl.pathname.startsWith("/api/repairs") || 
+                      request.nextUrl.pathname.startsWith("/api/public/");
   const isAPIRoute = request.nextUrl.pathname.startsWith("/api/");
   
   // For API routes without auth, return 401 instead of redirecting

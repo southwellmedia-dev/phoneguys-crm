@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { DeviceSyncService } from '@/lib/services/device-sync.service';
+import { DeviceSyncMultiService } from '@/lib/services/device-sync-multi.service';
 import { getRepository } from '@/lib/repositories/repository-manager';
 
 export async function POST(request: NextRequest) {
@@ -24,9 +25,8 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json();
-    const { source, apiKey } = body;
+    const { source, apiKey, limit, testMode, brand, autoImport, fetchFullDetails } = body;
     
-    const syncService = new DeviceSyncService(supabase);
     let result;
     
     switch(source) {
@@ -34,11 +34,57 @@ export async function POST(request: NextRequest) {
         if (!apiKey) {
           return NextResponse.json({ error: 'API key required for TechSpecs' }, { status: 400 });
         }
-        result = await syncService.syncFromTechSpecs(apiKey);
+        
+        // Use multi-service for all manufacturers, regular service for single brand
+        const syncService = (!brand || brand === '') ? 
+          new DeviceSyncMultiService(supabase) : 
+          new DeviceSyncService(supabase);
+        
+        // Use smart sync to check existing devices first
+        const syncResult = (!brand || brand === '') ?
+          await (syncService as DeviceSyncMultiService).smartSyncMultipleDevices(apiKey, {
+            limit: testMode ? 1 : (limit || 10),
+            autoImport: autoImport || false,
+            fetchFullDetails: fetchFullDetails || false
+          }) :
+          await syncService.smartSyncDevices(apiKey, {
+            limit: testMode ? 1 : (limit || 10),
+            brand: brand || undefined,
+            autoImport: autoImport || false,
+            fetchFullDetails: fetchFullDetails || false
+          });
+        
+        // Convert to expected format
+        result = {
+          success: syncResult.success,
+          existingDevices: syncResult.existingDevices,
+          newDevices: syncResult.newDevices,
+          devicesUpdated: syncResult.updatedCount,
+          updatedDevices: syncResult.updatedDevices,
+          devicesAdded: 0,  // Will be set if autoImport is true
+          errors: syncResult.errors,
+          message: syncResult.message
+        };
+        
+        // If autoImport is enabled and there are new devices, import them
+        if (autoImport && syncResult.newDevices.length > 0) {
+          const importService = new DeviceSyncService(supabase);
+          const importResult = await importService.importNewDevices(syncResult.newDevices);
+          result.devicesAdded = importResult.imported;
+          if (importResult.errors.length > 0) {
+            result.errors = [...(result.errors || []), ...importResult.errors];
+          }
+        }
+        
+        // Add brand results if available (from multi-sync)
+        if ('brandResults' in syncResult && syncResult.brandResults) {
+          result.brandResults = syncResult.brandResults;
+        }
         break;
         
       case 'popular':
-        result = await syncService.syncPopularDevices();
+        const popularService = new DeviceSyncService(supabase);
+        result = await popularService.syncPopularDevices();
         break;
         
       default:

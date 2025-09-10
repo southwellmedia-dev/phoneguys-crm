@@ -7,33 +7,76 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.4"
   }
   public: {
     Tables: {
+      appointment_slots: {
+        Row: {
+          appointment_id: string | null
+          created_at: string | null
+          current_capacity: number | null
+          date: string
+          duration_minutes: number | null
+          end_time: string
+          id: string
+          is_available: boolean | null
+          max_capacity: number | null
+          slot_type: string | null
+          staff_id: string | null
+          start_time: string
+          updated_at: string | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          created_at?: string | null
+          current_capacity?: number | null
+          date: string
+          duration_minutes?: number | null
+          end_time: string
+          id?: string
+          is_available?: boolean | null
+          max_capacity?: number | null
+          slot_type?: string | null
+          staff_id?: string | null
+          start_time: string
+          updated_at?: string | null
+        }
+        Update: {
+          appointment_id?: string | null
+          created_at?: string | null
+          current_capacity?: number | null
+          date?: string
+          duration_minutes?: number | null
+          end_time?: string
+          id?: string
+          is_available?: boolean | null
+          max_capacity?: number | null
+          slot_type?: string | null
+          staff_id?: string | null
+          start_time?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_slots_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_slots_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           appointment_number: string
@@ -200,6 +243,42 @@ export type Database = {
           },
         ]
       }
+      business_hours: {
+        Row: {
+          break_end: string | null
+          break_start: string | null
+          close_time: string | null
+          created_at: string | null
+          day_of_week: number
+          id: string
+          is_active: boolean | null
+          open_time: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          break_end?: string | null
+          break_start?: string | null
+          close_time?: string | null
+          created_at?: string | null
+          day_of_week: number
+          id?: string
+          is_active?: boolean | null
+          open_time?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          break_end?: string | null
+          break_start?: string | null
+          close_time?: string | null
+          created_at?: string | null
+          day_of_week?: number
+          id?: string
+          is_active?: boolean | null
+          open_time?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       customer_devices: {
         Row: {
           color: string | null
@@ -290,6 +369,7 @@ export type Database = {
           total_orders: number | null
           total_spent: number | null
           updated_at: string | null
+          zip: string | null
           zip_code: string | null
         }
         Insert: {
@@ -306,6 +386,7 @@ export type Database = {
           total_orders?: number | null
           total_spent?: number | null
           updated_at?: string | null
+          zip?: string | null
           zip_code?: string | null
         }
         Update: {
@@ -322,6 +403,7 @@ export type Database = {
           total_orders?: number | null
           total_spent?: number | null
           updated_at?: string | null
+          zip?: string | null
           zip_code?: string | null
         }
         Relationships: []
@@ -437,22 +519,34 @@ export type Database = {
         Row: {
           average_repair_cost: number | null
           average_repair_time_hours: number | null
+          brand: string | null
           color_options: string[] | null
+          colors: Json | null
           common_issues: string[] | null
           created_at: string
           description: string | null
           device_type: string | null
+          external_id: string | null
+          external_thumbnail_url: string | null
           id: string
           image_url: string | null
           is_active: boolean | null
+          last_synced_at: string | null
+          local_thumbnail_url: string | null
           manufacturer_id: string | null
+          model: string | null
           model_name: string
           model_number: string | null
+          needs_sync: boolean | null
           parts_availability: string | null
+          popularity_score: number | null
+          release_date: string | null
           release_year: number | null
           screen_size: string | null
           specifications: Json | null
           storage_options: string[] | null
+          storage_sizes: Json | null
+          sync_source: string | null
           thumbnail_url: string | null
           total_repairs_count: number | null
           updated_at: string
@@ -460,22 +554,34 @@ export type Database = {
         Insert: {
           average_repair_cost?: number | null
           average_repair_time_hours?: number | null
+          brand?: string | null
           color_options?: string[] | null
+          colors?: Json | null
           common_issues?: string[] | null
           created_at?: string
           description?: string | null
           device_type?: string | null
+          external_id?: string | null
+          external_thumbnail_url?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          last_synced_at?: string | null
+          local_thumbnail_url?: string | null
           manufacturer_id?: string | null
+          model?: string | null
           model_name: string
           model_number?: string | null
+          needs_sync?: boolean | null
           parts_availability?: string | null
+          popularity_score?: number | null
+          release_date?: string | null
           release_year?: number | null
           screen_size?: string | null
           specifications?: Json | null
           storage_options?: string[] | null
+          storage_sizes?: Json | null
+          sync_source?: string | null
           thumbnail_url?: string | null
           total_repairs_count?: number | null
           updated_at?: string
@@ -483,22 +589,34 @@ export type Database = {
         Update: {
           average_repair_cost?: number | null
           average_repair_time_hours?: number | null
+          brand?: string | null
           color_options?: string[] | null
+          colors?: Json | null
           common_issues?: string[] | null
           created_at?: string
           description?: string | null
           device_type?: string | null
+          external_id?: string | null
+          external_thumbnail_url?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          last_synced_at?: string | null
+          local_thumbnail_url?: string | null
           manufacturer_id?: string | null
+          model?: string | null
           model_name?: string
           model_number?: string | null
+          needs_sync?: boolean | null
           parts_availability?: string | null
+          popularity_score?: number | null
+          release_date?: string | null
           release_year?: number | null
           screen_size?: string | null
           specifications?: Json | null
           storage_options?: string[] | null
+          storage_sizes?: Json | null
+          sync_source?: string | null
           thumbnail_url?: string | null
           total_repairs_count?: number | null
           updated_at?: string
@@ -509,6 +627,150 @@ export type Database = {
             columns: ["manufacturer_id"]
             isOneToOne: false
             referencedRelation: "manufacturers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_submissions: {
+        Row: {
+          appointment_id: string | null
+          created_at: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          device_info: Json | null
+          form_type: string | null
+          id: string
+          ip_address: unknown | null
+          issues: string[] | null
+          notes: string | null
+          preferred_date: string | null
+          preferred_time: string | null
+          processed_at: string | null
+          processed_by: string | null
+          source_url: string | null
+          status: string | null
+          submission_data: Json
+          user_agent: string | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          device_info?: Json | null
+          form_type?: string | null
+          id?: string
+          ip_address?: unknown | null
+          issues?: string[] | null
+          notes?: string | null
+          preferred_date?: string | null
+          preferred_time?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          source_url?: string | null
+          status?: string | null
+          submission_data: Json
+          user_agent?: string | null
+        }
+        Update: {
+          appointment_id?: string | null
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          device_info?: Json | null
+          form_type?: string | null
+          id?: string
+          ip_address?: unknown | null
+          issues?: string[] | null
+          notes?: string | null
+          preferred_date?: string | null
+          preferred_time?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          source_url?: string | null
+          status?: string | null
+          submission_data?: Json
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_submissions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submissions_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_notifications: {
+        Row: {
+          action_url: string | null
+          created_at: string | null
+          created_by: string | null
+          data: Json | null
+          expires_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          priority: string | null
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data?: Json | null
+          expires_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          priority?: string | null
+          read_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data?: Json | null
+          expires_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          priority?: string | null
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_notifications_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -545,6 +807,50 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      notification_preferences: {
+        Row: {
+          created_at: string | null
+          email_enabled: boolean | null
+          enabled: boolean | null
+          id: string
+          in_app_enabled: boolean | null
+          notification_type: string
+          push_enabled: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email_enabled?: boolean | null
+          enabled?: boolean | null
+          id?: string
+          in_app_enabled?: boolean | null
+          notification_type: string
+          push_enabled?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email_enabled?: boolean | null
+          enabled?: boolean | null
+          id?: string
+          in_app_enabled?: boolean | null
+          notification_type?: string
+          push_enabled?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -780,6 +1086,92 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      special_dates: {
+        Row: {
+          close_time: string | null
+          created_at: string | null
+          date: string
+          id: string
+          name: string | null
+          notes: string | null
+          open_time: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          close_time?: string | null
+          created_at?: string | null
+          date: string
+          id?: string
+          name?: string | null
+          notes?: string | null
+          open_time?: string | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          close_time?: string | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          name?: string | null
+          notes?: string | null
+          open_time?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      staff_availability: {
+        Row: {
+          created_at: string | null
+          current_appointments: number | null
+          date: string
+          end_time: string
+          id: string
+          is_available: boolean | null
+          max_appointments: number | null
+          notes: string | null
+          start_time: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_appointments?: number | null
+          date: string
+          end_time: string
+          id?: string
+          is_available?: boolean | null
+          max_appointments?: number | null
+          notes?: string | null
+          start_time: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_appointments?: number | null
+          date?: string
+          end_time?: string
+          id?: string
+          is_available?: boolean | null
+          max_appointments?: number | null
+          notes?: string | null
+          start_time?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_availability_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ticket_notes: {
         Row: {
@@ -1238,13 +1630,54 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_slot_availability: {
+        Args: { p_date: string; p_duration_minutes?: number; p_time: string }
+        Returns: {
+          is_available: boolean
+          slot_id: string
+          staff_id: string
+          staff_name: string
+        }[]
+      }
+      create_internal_notification: {
+        Args: {
+          p_action_url?: string
+          p_data?: Json
+          p_message: string
+          p_priority?: string
+          p_title: string
+          p_type: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      find_device_for_sync: {
+        Args: {
+          p_brand: string
+          p_external_id: string
+          p_model_name: string
+          p_model_number?: string
+        }
+        Returns: string
+      }
       generate_appointment_number: {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      generate_appointment_slots: {
+        Args: { p_date: string; p_slot_duration?: number }
+        Returns: undefined
+      }
       generate_ticket_number: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_device_brands: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          brand: string
+          device_count: number
+        }[]
       }
       get_user_dashboard_data: {
         Args: { p_user_id: string }
@@ -1260,9 +1693,31 @@ export type Database = {
         }
         Returns: undefined
       }
+      mark_device_for_sync: {
+        Args: { device_id: string }
+        Returns: undefined
+      }
       migrate_existing_repairs_to_devices: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      search_devices: {
+        Args: {
+          brand_filter?: string
+          limit_count?: number
+          search_query?: string
+        }
+        Returns: {
+          brand: string
+          colors: Json
+          id: string
+          image_url: string
+          model: string
+          name: string
+          popularity_score: number
+          release_date: string
+          storage_sizes: Json
+        }[]
       }
       update_user_statistics: {
         Args: { p_user_id: string }
@@ -1402,9 +1857,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       appointment_status: [
@@ -1418,4 +1870,3 @@ export const Constants = {
     },
   },
 } as const
-

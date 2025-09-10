@@ -48,6 +48,12 @@ export async function GET() {
     const queryTime = Date.now() - queryStart;
     console.log(`[Devices API] Database query took: ${queryTime}ms`);
     
+    // Check if devices is an array
+    if (!Array.isArray(devices)) {
+      console.error('[Devices API] Devices is not an array:', typeof devices, devices);
+      throw new Error('Invalid devices data structure');
+    }
+    
     const totalTime = Date.now() - startTime;
     console.log(`[Devices API] Total request time: ${totalTime}ms`);
     console.log(`[Devices API] Returning ${devices.length} devices`);
@@ -56,8 +62,16 @@ export async function GET() {
   } catch (error) {
     const errorTime = Date.now() - startTime;
     console.error(`[Devices API] Error after ${errorTime}ms:`, error);
+    console.error('[Devices API] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
     return NextResponse.json(
-      { error: 'Failed to fetch devices' },
+      { 
+        error: 'Failed to fetch devices',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

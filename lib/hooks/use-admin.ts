@@ -94,8 +94,19 @@ export function useDevices(initialData?: any[]) {
     queryKey: ['admin', 'devices'],
     queryFn: async () => {
       const response = await fetch('/api/admin/devices');
-      if (!response.ok) throw new Error('Failed to fetch devices');
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('[useDevices] API error:', response.status, errorData);
+        throw new Error(errorData.details || errorData.error || 'Failed to fetch devices');
+      }
+      
       const result = await response.json();
+      console.log('[useDevices] API response:', { 
+        success: result.success, 
+        dataLength: result.data?.length 
+      });
+      
       // API returns { success: true, data: devices }
       return result.data || [];
     },

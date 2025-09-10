@@ -87,27 +87,26 @@ export const RecentActivityLive = React.forwardRef<HTMLDivElement, RecentActivit
     const router = useRouter();
     
     // Load saved preferences from localStorage
-    const [activeTab, setActiveTab] = useState(() => {
-      if (typeof window !== 'undefined' && showTabs) {
-        return localStorage.getItem('recentActivity.activeTab') || defaultTab;
-      }
-      return defaultTab;
-    });
+    // Initialize with default values for SSR, then update from localStorage after mount
+    const [activeTab, setActiveTab] = useState(defaultTab);
+    const [hideCompletedTickets, setHideCompletedTickets] = useState(false);
+    const [hideConvertedAppointments, setHideConvertedAppointments] = useState(false);
 
-    // Filter states
-    const [hideCompletedTickets, setHideCompletedTickets] = useState(() => {
-      if (typeof window !== 'undefined') {
-        return localStorage.getItem('recentActivity.hideCompletedTickets') === 'true';
+    // Load preferences from localStorage after mount to avoid hydration issues
+    React.useEffect(() => {
+      if (showTabs) {
+        const savedTab = localStorage.getItem('recentActivity.activeTab');
+        if (savedTab) {
+          setActiveTab(savedTab);
+        }
       }
-      return false;
-    });
-
-    const [hideConvertedAppointments, setHideConvertedAppointments] = useState(() => {
-      if (typeof window !== 'undefined') {
-        return localStorage.getItem('recentActivity.hideConvertedAppointments') === 'true';
-      }
-      return false;
-    });
+      
+      const savedHideCompleted = localStorage.getItem('recentActivity.hideCompletedTickets') === 'true';
+      setHideCompletedTickets(savedHideCompleted);
+      
+      const savedHideConverted = localStorage.getItem('recentActivity.hideConvertedAppointments') === 'true';
+      setHideConvertedAppointments(savedHideConverted);
+    }, []); // Only run once on mount
 
     // Save activeTab to localStorage when it changes
     React.useEffect(() => {

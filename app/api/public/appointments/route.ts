@@ -38,7 +38,7 @@ const publicAppointmentSchema = z.object({
   
   // Appointment details
   appointmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  appointmentTime: z.string().regex(/^\d{2}:\d{2}$/),
+  appointmentTime: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/), // Accept HH:MM or HH:MM:SS
   duration: z.number().int().positive().default(30),
   
   // Metadata
@@ -74,11 +74,16 @@ export async function POST(request: NextRequest) {
 
     const data = validation.data;
     
+    // Normalize time format (remove seconds if present)
+    const normalizedTime = data.appointmentTime.includes(':') && data.appointmentTime.split(':').length === 3
+      ? data.appointmentTime.substring(0, 5) // Convert HH:MM:SS to HH:MM
+      : data.appointmentTime;
+    
     // Check slot availability
     const availabilityService = new AvailabilityService(true);
     const isAvailable = await availabilityService.isSlotAvailable(
       data.appointmentDate,
-      data.appointmentTime,
+      data.appointmentTime, // Use original format for availability check
       data.duration
     );
 
@@ -98,6 +103,7 @@ export async function POST(request: NextRequest) {
 
     // Get repositories
     const customerRepo = getRepository.customers(true);
+    const customerDeviceRepo = getRepository.customerDevices(true);
     const appointmentService = new AppointmentService(true);
     
     // Check if customer exists
@@ -114,44 +120,61 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create form submission record
-    const formSubmissionRepo = getRepository.formSubmissions?.(true);
-    if (formSubmissionRepo) {
-      await formSubmissionRepo.create({
-        form_type: 'appointment',
-        submission_data: body,
-        customer_name: data.customer.name,
-        customer_email: data.customer.email,
-        customer_phone: data.customer.phone,
-        device_info: data.device,
-        issues: data.issues,
-        preferred_date: data.appointmentDate,
-        preferred_time: data.appointmentTime,
-        status: 'pending',
-        source_url: data.sourceUrl,
-        ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
-        user_agent: request.headers.get('user-agent')
+    // Create or find customer device
+    let customerDevice = null;
+    
+    // Check if customer already has this device
+    const existingDevices = await customerDeviceRepo.findByCustomer(customer.id);
+    customerDevice = existingDevices.find(d => 
+      d.device_id === data.device.deviceId &&
+      (!data.device.serialNumber || d.serial_number === data.device.serialNumber)
+    );
+    
+    if (!customerDevice) {
+      // Create new customer device
+      customerDevice = await customerDeviceRepo.create({
+        customer_id: customer.id,
+        device_id: data.device.deviceId,
+        serial_number: data.device.serialNumber || null,
+        imei: data.device.imei || null,
+        color: data.device.color || null,
+        storage_size: data.device.storageSize || null,
+        condition: data.device.condition || null,
+        is_primary: existingDevices.length === 0, // First device is primary
+        created_at: new Date().toISOString()
       });
     }
 
-    // Create appointment
+    // Create form submission record
+    const formSubmissionRepo = getRepository.formSubmissions(true);
+    const formSubmission = await formSubmissionRepo.create({
+      form_type: 'appointment',
+      submission_data: body,
+      customer_name: data.customer.name,
+      customer_email: data.customer.email,
+      customer_phone: data.customer.phone,
+      device_info: data.device,
+      issues: data.issues,
+      preferred_date: data.appointmentDate,
+      preferred_time: data.appointmentTime,
+      status: 'pending',
+      source_url: data.sourceUrl,
+      ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+      user_agent: request.headers.get('user-agent')
+    });
+
+    // Create appointment with the customer device
     const appointment = await appointmentService.createAppointment({
       customer: { id: customer.id },
       device: { id: data.device.deviceId },
+      customer_device_id: customerDevice.id, // Link to the customer's device
       scheduled_date: data.appointmentDate,
-      scheduled_time: data.appointmentTime,
+      scheduled_time: normalizedTime, // Use normalized time (HH:MM format)
       duration_minutes: data.duration,
       issues: data.issues,
       description: data.issueDescription,
       source: 'website',
-      notes: data.notes,
-      customer_device: {
-        serial_number: data.device.serialNumber,
-        imei: data.device.imei,
-        color: data.device.color,
-        storage_size: data.device.storageSize,
-        condition: data.device.condition
-      }
+      notes: data.notes
     });
 
     // Reserve the time slot
@@ -160,6 +183,11 @@ export async function POST(request: NextRequest) {
       data.appointmentTime,
       appointment.id
     );
+
+    // Update form submission with appointment ID
+    if (formSubmission) {
+      await formSubmissionRepo.updateStatus(formSubmission.id, 'processed', appointment.id);
+    }
 
     // Create internal notifications for admins/staff
     const notificationRepo = await createInternalNotifications(appointment, customer);
@@ -185,11 +213,16 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error in POST /api/public/appointments:', error);
     
+    // More detailed error for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = process.env.NODE_ENV === 'development' ? errorMessage : undefined;
+    
     return NextResponse.json(
       {
         success: false,
         error: 'Internal server error',
-        message: 'Failed to create appointment. Please try again or contact support.'
+        message: 'Failed to create appointment. Please try again or contact support.',
+        details: errorDetails
       },
       { 
         status: 500,

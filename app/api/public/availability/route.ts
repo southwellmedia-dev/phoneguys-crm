@@ -32,13 +32,13 @@ export async function GET(request: NextRequest) {
     
     // Parse and validate query parameters
     const params = {
-      date: searchParams.get('date'),
-      startDate: searchParams.get('startDate'),
-      endDate: searchParams.get('endDate'),
-      month: searchParams.get('month'),
-      nextAvailable: searchParams.get('nextAvailable'),
-      limit: searchParams.get('limit'),
-      staffId: searchParams.get('staffId'),
+      date: searchParams.get('date') || undefined,
+      startDate: searchParams.get('startDate') || undefined,
+      endDate: searchParams.get('endDate') || undefined,
+      month: searchParams.get('month') || undefined,
+      nextAvailable: searchParams.get('nextAvailable') || undefined,
+      limit: searchParams.get('limit') || undefined,
+      staffId: searchParams.get('staffId') || undefined,
     };
 
     const validation = availabilityQuerySchema.safeParse(params);

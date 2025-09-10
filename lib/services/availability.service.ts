@@ -178,10 +178,21 @@ export class AvailabilityService {
    */
   async isSlotAvailable(date: string, time: string, duration: number = 30): Promise<boolean> {
     const slots = await this.availabilityRepo.getAvailableSlots(date);
-    return slots.some(slot => 
-      slot.startTime === time && 
-      slot.isAvailable
-    );
+    
+    // Normalize time formats for comparison (handle both HH:MM and HH:MM:SS)
+    const normalizeTime = (t: string) => {
+      if (t.includes(':') && t.split(':').length === 3) {
+        return t.substring(0, 5); // Convert HH:MM:SS to HH:MM
+      }
+      return t;
+    };
+    
+    const normalizedInputTime = normalizeTime(time);
+    
+    return slots.some(slot => {
+      const normalizedSlotTime = normalizeTime(slot.startTime);
+      return normalizedSlotTime === normalizedInputTime && slot.isAvailable;
+    });
   }
 
   /**
@@ -190,7 +201,20 @@ export class AvailabilityService {
   async reserveSlot(date: string, time: string, appointmentId: string): Promise<boolean> {
     // Find the slot
     const slots = await this.availabilityRepo.getAvailableSlots(date);
-    const slot = slots.find(s => s.startTime === time);
+    
+    // Normalize time formats for comparison
+    const normalizeTime = (t: string) => {
+      if (t.includes(':') && t.split(':').length === 3) {
+        return t.substring(0, 5); // Convert HH:MM:SS to HH:MM
+      }
+      return t;
+    };
+    
+    const normalizedInputTime = normalizeTime(time);
+    const slot = slots.find(s => {
+      const normalizedSlotTime = normalizeTime(s.startTime);
+      return normalizedSlotTime === normalizedInputTime;
+    });
     
     if (!slot || !slot.id) {
       console.error('Slot not found or unavailable');

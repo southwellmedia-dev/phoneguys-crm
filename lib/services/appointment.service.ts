@@ -233,6 +233,7 @@ export class AppointmentService {
     }
     
     // Create the appointment with customer_device_id if available
+    console.log('Creating appointment with data:', JSON.stringify(appointmentData, null, 2));
     const appointment = await this.appointmentRepo.create(appointmentData);
 
     // Send confirmation email

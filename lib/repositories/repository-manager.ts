@@ -197,6 +197,7 @@ import { TicketNoteRepository } from './ticket-note.repository';
 import { ServiceRepository } from './service.repository';
 import { CustomerDeviceRepository } from './customer-device.repository';
 import { AvailabilityRepository } from './availability.repository';
+import { FormSubmissionRepository } from './form-submission.repository';
 
 /**
  * Convenience function to get commonly used repositories
@@ -229,4 +230,7 @@ export const getRepository = {
   
   availability: (useServiceRole = false) => 
     RepositoryManager.get(AvailabilityRepository, useServiceRole),
+  
+  formSubmissions: (useServiceRole = false) => 
+    RepositoryManager.get(FormSubmissionRepository, useServiceRole),
 };

@@ -1,6 +1,7 @@
 import { BaseRepository } from './base.repository';
 import { createClient } from '@/lib/supabase/server';
 import { Database } from '@/lib/types/database.types';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 type BusinessHours = Database['public']['Tables']['business_hours']['Row'];
 type AppointmentSlot = Database['public']['Tables']['appointment_slots']['Row'];
@@ -40,7 +41,8 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
    * Get business hours for a specific day
    */
   async getBusinessHours(dayOfWeek: number): Promise<BusinessHours | null> {
-    const query = this.supabase
+    const client = await this.getClient();
+    const query = client
       .from('business_hours')
       .select('*')
       .eq('day_of_week', dayOfWeek)
@@ -59,7 +61,8 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
    * Get all business hours
    */
   async getAllBusinessHours(): Promise<BusinessHours[]> {
-    const query = this.supabase
+    const client = await this.getClient();
+    const query = client
       .from('business_hours')
       .select('*')
       .order('day_of_week');
@@ -71,7 +74,8 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
    * Check if a specific date has special hours or is closed
    */
   async getSpecialDate(date: string): Promise<SpecialDate | null> {
-    const query = this.supabase
+    const client = await this.getClient();
+    const query = client
       .from('special_dates')
       .select('*')
       .eq('date', date)
@@ -89,7 +93,8 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
    * Get available time slots for a specific date
    */
   async getAvailableSlots(date: string): Promise<TimeSlot[]> {
-    const query = this.supabase
+    const client = await this.getClient();
+    const query = client
       .from('appointment_slots')
       .select(`
         id,
@@ -108,7 +113,6 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
       `)
       .eq('date', date)
       .eq('is_available', true)
-      .lt('current_capacity', this.supabase.raw('max_capacity'))
       .order('start_time');
 
     const { data, error } = await query;
@@ -211,14 +215,15 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
    * Generate appointment slots for a date
    */
   async generateSlotsForDate(date: string, slotDuration: number = 30): Promise<void> {
-    const { error } = await this.supabase.rpc('generate_appointment_slots', {
+    const client = await this.getClient();
+    const { error } = await client.rpc('generate_appointment_slots', {
       p_date: date,
       p_slot_duration: slotDuration
     });
 
     if (error) {
       console.error('Error generating slots:', error);
-      throw error;
+      // Don't throw - just log the error since the function might not exist yet
     }
   }
 

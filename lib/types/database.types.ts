@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointment_settings: {
+        Row: {
+          allow_same_day_appointments: boolean | null
+          allow_weekend_appointments: boolean | null
+          buffer_time_minutes: number | null
+          created_at: string | null
+          id: string
+          max_advance_days: number | null
+          max_appointments_per_slot: number | null
+          min_advance_hours: number | null
+          reminder_hours_before: number | null
+          send_confirmation_email: boolean | null
+          send_reminder_email: boolean | null
+          slot_duration_minutes: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          allow_same_day_appointments?: boolean | null
+          allow_weekend_appointments?: boolean | null
+          buffer_time_minutes?: number | null
+          created_at?: string | null
+          id?: string
+          max_advance_days?: number | null
+          max_appointments_per_slot?: number | null
+          min_advance_hours?: number | null
+          reminder_hours_before?: number | null
+          send_confirmation_email?: boolean | null
+          send_reminder_email?: boolean | null
+          slot_duration_minutes?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          allow_same_day_appointments?: boolean | null
+          allow_weekend_appointments?: boolean | null
+          buffer_time_minutes?: number | null
+          created_at?: string | null
+          id?: string
+          max_advance_days?: number | null
+          max_appointments_per_slot?: number | null
+          min_advance_hours?: number | null
+          reminder_hours_before?: number | null
+          send_confirmation_email?: boolean | null
+          send_reminder_email?: boolean | null
+          slot_duration_minutes?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       appointment_slots: {
         Row: {
           appointment_id: string | null
@@ -1172,6 +1220,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      store_settings: {
+        Row: {
+          created_at: string | null
+          currency: string | null
+          id: string
+          store_address: string | null
+          store_city: string | null
+          store_country: string | null
+          store_description: string | null
+          store_email: string | null
+          store_name: string | null
+          store_phone: string | null
+          store_state: string | null
+          store_website: string | null
+          store_zip: string | null
+          tax_rate: number | null
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          store_address?: string | null
+          store_city?: string | null
+          store_country?: string | null
+          store_description?: string | null
+          store_email?: string | null
+          store_name?: string | null
+          store_phone?: string | null
+          store_state?: string | null
+          store_website?: string | null
+          store_zip?: string | null
+          tax_rate?: number | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          store_address?: string | null
+          store_city?: string | null
+          store_country?: string | null
+          store_description?: string | null
+          store_email?: string | null
+          store_name?: string | null
+          store_phone?: string | null
+          store_state?: string | null
+          store_website?: string | null
+          store_zip?: string | null
+          tax_rate?: number | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       ticket_notes: {
         Row: {

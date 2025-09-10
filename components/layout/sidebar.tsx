@@ -53,7 +53,7 @@ const adminNavigation = [
   { name: "Media Gallery", href: "/admin/media", icon: Image },
   { name: "Component Showcase", href: "/showcase", icon: Palette },
   { name: "Reports", href: "/reports", icon: FileText, disabled: true },
-  { name: "Settings", href: "/settings", icon: Settings, disabled: true },
+  { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
 interface SidebarProps {

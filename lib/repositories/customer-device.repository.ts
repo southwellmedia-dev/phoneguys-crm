@@ -20,7 +20,7 @@ export class CustomerDeviceRepository extends BaseRepository<CustomerDevice> {
           device_type,
           thumbnail_url,
           image_url,
-          manufacturer:manufacturers!manufacturer_id (
+          manufacturer:manufacturers (
             id,
             name
           )
@@ -72,7 +72,7 @@ export class CustomerDeviceRepository extends BaseRepository<CustomerDevice> {
           id,
           model_name,
           image_url,
-          manufacturer:manufacturers!manufacturer_id (
+          manufacturer:manufacturers (
             name
           )
         ),
@@ -102,7 +102,7 @@ export class CustomerDeviceRepository extends BaseRepository<CustomerDevice> {
           id,
           model_name,
           image_url,
-          manufacturer:manufacturers!manufacturer_id (
+          manufacturer:manufacturers (
             name
           )
         ),
@@ -134,7 +134,7 @@ export class CustomerDeviceRepository extends BaseRepository<CustomerDevice> {
           device_type,
           thumbnail_url,
           image_url,
-          manufacturer:manufacturers!manufacturer_id (
+          manufacturer:manufacturers (
             name
           )
         )
@@ -187,7 +187,7 @@ export class CustomerDeviceRepository extends BaseRepository<CustomerDevice> {
         *,
         device:devices!device_id (
           model_name,
-          manufacturer:manufacturers!manufacturer_id (
+          manufacturer:manufacturers (
             name
           )
         ),
@@ -221,7 +221,7 @@ export class CustomerDeviceRepository extends BaseRepository<CustomerDevice> {
         *,
         device:devices!device_id (
           model_name,
-          manufacturer:manufacturers!manufacturer_id (
+          manufacturer:manufacturers (
             name
           )
         )

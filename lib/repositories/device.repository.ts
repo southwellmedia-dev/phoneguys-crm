@@ -12,7 +12,7 @@ export class DeviceRepository extends BaseRepository<Device> {
       .from(this.tableName)
       .select(`
         *,
-        manufacturer:manufacturers!manufacturer_id (
+        manufacturer:manufacturers (
           id,
           name,
           logo_url,
@@ -43,7 +43,7 @@ export class DeviceRepository extends BaseRepository<Device> {
       .from(this.tableName)
       .select(`
         *,
-        manufacturer:manufacturers!manufacturer_id (
+        manufacturer:manufacturers (
           id,
           name
         )
@@ -66,7 +66,7 @@ export class DeviceRepository extends BaseRepository<Device> {
       .from(this.tableName)
       .select(`
         *,
-        manufacturer:manufacturers!manufacturer_id (
+        manufacturer:manufacturers (
           id,
           name,
           logo_url
@@ -118,7 +118,7 @@ export class DeviceRepository extends BaseRepository<Device> {
       .from(this.tableName)
       .select(`
         *,
-        manufacturer:manufacturers!manufacturer_id (
+        manufacturer:manufacturers (
           id,
           name,
           logo_url
@@ -149,7 +149,7 @@ export class DeviceRepository extends BaseRepository<Device> {
       .from(this.tableName)
       .select(`
         *,
-        manufacturer:manufacturers!manufacturer_id (
+        manufacturer:manufacturers (
           id,
           name
         ),

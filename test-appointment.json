@@ -1,0 +1,16 @@
+{
+  "customer": {
+    "name": "Test User",
+    "email": "test@example.com",
+    "phone": "1234567890"
+  },
+  "device": {
+    "deviceId": "9255349c-0287-4987-a931-210520d556fd",
+    "condition": "good"
+  },
+  "issues": ["Screen Repair"],
+  "appointmentDate": "2025-09-15",
+  "appointmentTime": "10:00",
+  "duration": 30,
+  "source": "website"
+}

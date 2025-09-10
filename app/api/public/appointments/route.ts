@@ -338,40 +338,16 @@ export async function OPTIONS(request: NextRequest) {
 // Helper function to create internal notifications
 async function createInternalNotifications(appointment: any, customer: any) {
   try {
-    const supabase = (await import('@/lib/supabase/server')).createClient();
+    // Note: Internal notifications are handled by database triggers
+    // The notify_on_appointment_created() trigger will create notifications
+    // for all admin and staff users automatically
+    console.log('Appointment created, notifications will be sent via database trigger');
     
-    // Get all admin and staff users
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, full_name, role')
-      .in('role', ['admin', 'staff'])
-      .eq('is_active', true);
-
-    if (!users) return;
-
-    // Create notification for each user
-    const notifications = users.map(user => ({
-      user_id: user.id,
-      type: 'appointment_created',
-      title: 'New Appointment Submitted',
-      message: `${customer.name} has scheduled an appointment for ${appointment.scheduled_date} at ${appointment.scheduled_time}`,
-      data: {
-        appointment_id: appointment.id,
-        appointment_number: appointment.appointment_number,
-        customer_id: customer.id,
-        customer_name: customer.name
-      },
-      priority: 'normal',
-      action_url: `/appointments/${appointment.id}`,
-      created_at: new Date().toISOString()
-    }));
-
-    await supabase
-      .from('internal_notifications')
-      .insert(notifications);
-
+    // We don't need to manually create notifications here since the database
+    // trigger handles it. This avoids authentication issues in public endpoints.
+    
   } catch (error) {
-    console.error('Error creating notifications:', error);
-    // Don't fail the appointment creation if notifications fail
+    console.error('Error in notification helper:', error);
+    // Don't fail the appointment creation if this fails
   }
 }

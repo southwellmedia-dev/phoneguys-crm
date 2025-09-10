@@ -21,7 +21,9 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const popular = searchParams.get('popular') === 'true';
 
-    const deviceRepo = getRepository.devices(true); // Use service role
+    // Use regular authentication (anon key) - NOT service role
+    // RLS policies now allow public read access
+    const deviceRepo = getRepository.devices(false);
 
     // Get all active devices with manufacturer info using repository method
     const devices = await deviceRepo.getActiveDevices();
@@ -109,13 +111,35 @@ export async function GET(request: NextRequest) {
     );
 
   } catch (error) {
-    console.error('Error in GET /api/public/devices:', error);
+    // Enhanced error logging for debugging
+    console.error('Error in GET /api/public/devices:', {
+      error: error instanceof Error ? {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      } : error,
+      url: request.url,
+      params: {
+        manufacturer: request.nextUrl.searchParams.get('manufacturer'),
+        search: request.nextUrl.searchParams.get('search'),
+        popular: request.nextUrl.searchParams.get('popular')
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+    // Return more specific error message in development
+    const isDev = process.env.NODE_ENV === 'development';
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     
     return NextResponse.json(
       {
         success: false,
         error: 'Internal server error',
-        message: 'Failed to fetch devices'
+        message: isDev ? errorMessage : 'Failed to fetch devices',
+        details: isDev ? {
+          error: errorMessage,
+          timestamp: new Date().toISOString()
+        } : undefined
       },
       { 
         status: 500,

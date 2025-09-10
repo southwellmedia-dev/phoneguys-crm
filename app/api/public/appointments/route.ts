@@ -101,10 +101,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get repositories
-    const customerRepo = getRepository.customers(true);
-    const customerDeviceRepo = getRepository.customerDevices(true);
-    const appointmentService = new AppointmentService(true);
+    // Get repositories - use regular authentication, not service role
+    // RLS policies now allow public INSERT/SELECT access for appointment creation
+    const customerRepo = getRepository.customers(false);
+    const customerDeviceRepo = getRepository.customerDevices(false);
+    const appointmentService = new AppointmentService(false);
     
     // Check if customer exists
     let customer = await customerRepo.findByEmail(data.customer.email);
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create form submission record
-    const formSubmissionRepo = getRepository.formSubmissions(true);
+    const formSubmissionRepo = getRepository.formSubmissions(false);
     const formSubmission = await formSubmissionRepo.create({
       form_type: 'appointment',
       submission_data: body,
@@ -211,18 +212,30 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (error) {
-    console.error('Error in POST /api/public/appointments:', error);
+    // Enhanced error logging for debugging
+    console.error('Error in POST /api/public/appointments:', {
+      error: error instanceof Error ? {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      } : error,
+      url: request.url,
+      timestamp: new Date().toISOString()
+    });
     
     // More detailed error for debugging
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = process.env.NODE_ENV === 'development' ? errorMessage : undefined;
+    const isDev = process.env.NODE_ENV === 'development';
     
     return NextResponse.json(
       {
         success: false,
         error: 'Internal server error',
         message: 'Failed to create appointment. Please try again or contact support.',
-        details: errorDetails
+        details: isDev ? {
+          error: errorMessage,
+          timestamp: new Date().toISOString()
+        } : undefined
       },
       { 
         status: 500,
@@ -255,7 +268,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const appointmentRepo = getRepository.appointments(true);
+    const appointmentRepo = getRepository.appointments(false);
     const appointment = await appointmentRepo.findByAppointmentNumber(appointmentNumber);
 
     if (!appointment) {

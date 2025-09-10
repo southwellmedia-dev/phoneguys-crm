@@ -108,7 +108,8 @@ export async function POST(request: NextRequest) {
     const appointmentService = new AppointmentService(false);
     
     // Check if customer exists
-    let customer = await customerRepo.findByEmail(data.customer.email);
+    // Use findOne directly instead of findByEmail to avoid bundling issues
+    let customer = await customerRepo.findOne({ email: data.customer.email });
     
     if (!customer) {
       // Create new customer

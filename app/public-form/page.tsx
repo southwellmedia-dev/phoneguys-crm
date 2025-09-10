@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { FormContainer } from '@/components/public-form/form-container';
+import { FormContainer } from '@/components/public-form/FormContainer';
 
 function PublicFormContent() {
   const searchParams = useSearchParams();

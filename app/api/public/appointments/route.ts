@@ -10,8 +10,12 @@ import { AppointmentService } from '@/lib/services/appointment.service';
 const corsHeaders = {
   'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGINS || '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, x-widget-key',
+  'Access-Control-Allow-Headers': 'Content-Type, x-widget-key, X-Requested-With',
+  'Access-Control-Allow-Credentials': 'true',
   'Access-Control-Max-Age': '86400',
+  // Additional headers for iframe embedding
+  'X-Frame-Options': 'ALLOWALL', // Allow embedding in iframes
+  'Content-Security-Policy': "frame-ancestors *;", // Allow any site to embed
 };
 
 // Schema for public form submission
@@ -123,7 +127,6 @@ export async function POST(request: NextRequest) {
     
     if (!customer) {
       // Create new customer
-      console.log('Creating new customer:', data.customer.email);
       customer = await customerRepo.create({
         name: data.customer.name,
         email: data.customer.email,
@@ -131,9 +134,6 @@ export async function POST(request: NextRequest) {
         address: data.customer.address,
         created_at: new Date().toISOString()
       });
-      console.log('Customer created successfully with ID:', customer.id);
-    } else {
-      console.log('Existing customer found with ID:', customer.id);
     }
 
     // Create or find customer device
@@ -152,7 +152,6 @@ export async function POST(request: NextRequest) {
     
     if (!customerDevice) {
       // Create new customer device
-      console.log('Creating new customer device for customer:', customer.id);
       customerDevice = await customerDeviceRepo.create({
         customer_id: customer.id,
         device_id: data.device.deviceId,
@@ -164,9 +163,6 @@ export async function POST(request: NextRequest) {
         is_primary: existingDevices.length === 0, // First device is primary
         created_at: new Date().toISOString()
       });
-      console.log('Customer device created successfully with ID:', customerDevice.id);
-    } else {
-      console.log('Existing customer device found with ID:', customerDevice.id);
     }
 
     // Create appointment with the customer device FIRST
@@ -185,24 +181,7 @@ export async function POST(request: NextRequest) {
       status: 'scheduled'
     };
     
-    console.log('Creating appointment with full data:', JSON.stringify(appointmentData, null, 2));
-    
-    // Use the same publicClient instance we created earlier
-    // First, let's test if we can even access the appointments table
-    console.log('Testing appointments table access...');
-    const { error: testError } = await publicClient
-      .from('appointments')
-      .select('id')
-      .limit(1);
-    
-    if (testError) {
-      console.error('Cannot SELECT from appointments table:', testError);
-    } else {
-      console.log('SELECT test passed - can read appointments table');
-    }
-    
-    // Now try the actual insert using the same client that created the customer
-    console.log('Attempting to insert appointment...');
+    // Insert the appointment using the same client that created the customer
     const { data: appointment, error: appointmentError } = await publicClient
       .from('appointments')
       .insert(appointmentData)
@@ -210,13 +189,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (appointmentError) {
-      console.error('Detailed appointment creation error:', {
-        message: appointmentError.message,
-        details: appointmentError.details,
-        hint: appointmentError.hint,
-        code: appointmentError.code,
-        appointmentData
-      });
+      console.error('Appointment creation error:', appointmentError.message);
       throw new Error(`Failed to create appointment: ${appointmentError.message}`);
     }
 
@@ -260,6 +233,27 @@ export async function POST(request: NextRequest) {
     // Create internal notifications for admins/staff
     const notificationRepo = await createInternalNotifications(appointment, customer);
 
+    // Format the time for display (convert from 24hr to 12hr format)
+    const formatTime = (time: string) => {
+      const [hours, minutes] = time.split(':');
+      const hour = parseInt(hours);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour % 12 || 12;
+      return `${displayHour}:${minutes} ${ampm}`;
+    };
+
+    // Format the date for display
+    const formatDate = (dateStr: string) => {
+      const date = new Date(dateStr + 'T00:00:00');
+      const options: Intl.DateTimeFormatOptions = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      };
+      return date.toLocaleDateString('en-US', options);
+    };
+
     return NextResponse.json(
       {
         success: true,
@@ -269,7 +263,26 @@ export async function POST(request: NextRequest) {
           status: appointment.status,
           scheduledDate: appointment.scheduled_date,
           scheduledTime: appointment.scheduled_time,
-          message: `Your appointment has been scheduled successfully. Your appointment number is ${appointment.appointment_number}. We'll send a confirmation email to ${data.customer.email}.`
+          // Formatted versions for display
+          formattedDate: formatDate(appointment.scheduled_date),
+          formattedTime: formatTime(appointment.scheduled_time),
+          // Customer info for confirmation
+          customerName: data.customer.name,
+          customerEmail: data.customer.email,
+          customerPhone: data.customer.phone,
+          // Device info
+          deviceInfo: data.device,
+          // Messages for display
+          confirmationTitle: 'Appointment Confirmed!',
+          confirmationMessage: `Thank you for scheduling your appointment, ${data.customer.name}!`,
+          appointmentDetails: `Your appointment is scheduled for ${formatDate(appointment.scheduled_date)} at ${formatTime(appointment.scheduled_time)}.`,
+          appointmentNumberMessage: `Your confirmation number is: ${appointment.appointment_number}`,
+          nextSteps: 'We will call you within 24 hours to confirm your appointment and provide any additional details.',
+          emailConfirmation: `A confirmation email has been sent to ${data.customer.email}.`,
+          // Support for redirect if needed
+          redirectUrl: data.sourceUrl ? new URL('/appointment-confirmed', data.sourceUrl).toString() : null,
+          // Full formatted message for simple displays
+          message: `Your appointment has been confirmed for ${formatDate(appointment.scheduled_date)} at ${formatTime(appointment.scheduled_time)}. Confirmation number: ${appointment.appointment_number}. We'll call you soon to confirm.`
         }
       },
       { 

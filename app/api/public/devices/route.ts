@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRepository } from '@/lib/repositories/repository-manager';
+import { createPublicClient } from '@/lib/supabase/public';
+import { DeviceRepository } from '@/lib/repositories/device.repository';
 
 // CORS headers for embeddable widget
 const corsHeaders = {
@@ -21,9 +23,10 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const popular = searchParams.get('popular') === 'true';
 
-    // Use regular authentication (anon key) - NOT service role
-    // RLS policies now allow public read access
-    const deviceRepo = getRepository.devices(false);
+    // Use public client for proper anon access
+    const deviceRepo = new DeviceRepository(false);
+    // Override getClient to use public client
+    (deviceRepo as any).getClient = async () => createPublicClient();
 
     // Get all active devices with manufacturer info using repository method
     const devices = await deviceRepo.getActiveDevices();

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { createPublicClient } from '@/lib/supabase/public';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { PaginationParams, PaginatedResponse } from '@/lib/types';
 
@@ -16,10 +17,12 @@ export interface IRepository<T> {
 export abstract class BaseRepository<T> implements IRepository<T> {
   protected tableName: string;
   protected useServiceRole: boolean;
+  protected usePublicClient: boolean;
 
-  constructor(tableName: string, useServiceRole = false) {
+  constructor(tableName: string, useServiceRole = false, usePublicClient = false) {
     this.tableName = tableName;
     this.useServiceRole = useServiceRole;
+    this.usePublicClient = usePublicClient;
   }
 
   protected async getClient(): Promise<SupabaseClient> {
@@ -28,13 +31,16 @@ export abstract class BaseRepository<T> implements IRepository<T> {
     
     if (this.useServiceRole) {
       client = createServiceClient();
+    } else if (this.usePublicClient) {
+      // Use public client for truly anonymous access (no cookies)
+      client = createPublicClient();
     } else {
       client = await createClient();
     }
     
     const elapsed = Date.now() - start;
     if (elapsed > 100) {
-      console.warn(`⚠️ Slow Supabase client creation: ${elapsed}ms (${this.tableName}, serviceRole: ${this.useServiceRole})`);
+      console.warn(`⚠️ Slow Supabase client creation: ${elapsed}ms (${this.tableName}, serviceRole: ${this.useServiceRole}, public: ${this.usePublicClient})`);
     }
     
     return client;

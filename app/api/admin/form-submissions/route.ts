@@ -29,29 +29,31 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get('limit') || '50';
     const offset = searchParams.get('offset') || '0';
     
-    // Build query
+    // Build query - querying form_submissions table, not appointments
     let query = supabase
-      .from('appointments')
+      .from('form_submissions')
       .select(`
         *,
-        customer:customers!appointments_customer_id_fkey(
+        appointments!form_submissions_appointment_id_fkey(
           id,
-          name,
-          email,
-          phone
-        ),
-        device:devices!appointments_device_id_fkey(
-          id,
-          name,
-          brand
-        ),
-        service:services!appointments_service_id_fkey(
-          id,
-          name,
-          category
+          appointment_number,
+          status,
+          scheduled_date,
+          scheduled_time,
+          customers(
+            id,
+            name,
+            email,
+            phone
+          ),
+          devices(
+            id,
+            manufacturer_name,
+            model_name
+          )
         )
       `)
-      .eq('source', 'website')
+      .eq('form_type', 'appointment')
       .order('created_at', { ascending: false })
       .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
     
@@ -69,21 +71,19 @@ export async function GET(request: NextRequest) {
     // Transform the data for the frontend
     const transformedData = submissions?.map(submission => ({
       id: submission.id,
-      customer_name: submission.customer?.name || submission.customer_name,
-      customer_email: submission.customer?.email || submission.customer_email,
-      customer_phone: submission.customer?.phone || submission.customer_phone,
-      device_info: {
-        name: submission.device?.name || submission.device_model,
-        brand: submission.device?.brand,
-        color: submission.device_color,
-        storageSize: submission.storage_size
+      customer_name: submission.customer_name || submission.appointments?.customers?.name,
+      customer_email: submission.customer_email || submission.appointments?.customers?.email,
+      customer_phone: submission.customer_phone || submission.appointments?.customers?.phone,
+      device_info: submission.device_info || {
+        name: submission.appointments?.devices?.model_name,
+        manufacturer: submission.appointments?.devices?.manufacturer_name
       },
       issues: submission.issues || [],
-      preferred_date: submission.appointment_date,
-      preferred_time: submission.appointment_time,
-      status: submission.status === 'confirmed' ? 'processed' : 
-              submission.status === 'cancelled' ? 'rejected' : 'pending',
-      appointment_id: submission.id,
+      preferred_date: submission.preferred_date,
+      preferred_time: submission.preferred_time,
+      status: submission.status,
+      appointment_id: submission.appointment_id,
+      appointment_number: submission.appointments?.appointment_number,
       source_url: submission.source_url,
       created_at: submission.created_at
     }));
@@ -135,17 +135,17 @@ export async function PATCH(request: NextRequest) {
     
     switch(action) {
       case 'approve':
-        updateData = { status: 'confirmed' };
+        updateData = { status: 'processed', processed_at: new Date().toISOString() };
         break;
       case 'reject':
-        updateData = { status: 'cancelled' };
+        updateData = { status: 'rejected', processed_at: new Date().toISOString() };
         break;
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
     
     const { data, error } = await supabase
-      .from('appointments')
+      .from('form_submissions')
       .update(updateData)
       .eq('id', id)
       .select()

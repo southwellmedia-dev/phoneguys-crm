@@ -433,25 +433,42 @@ export class NotificationService {
   }
 
   /**
-   * Send email (placeholder for actual email service integration)
+   * Send email using SendGrid
    */
   private async sendEmail(notification: Notification): Promise<void> {
-    // In production, this would integrate with an email service like:
-    // - SendGrid
-    // - AWS SES
-    // - Resend
-    // - Postmark
+    // Import EmailService
+    const { EmailService } = await import('./email.service');
+    const emailService = EmailService.getInstance();
     
-    console.log('Sending email:', {
+    // Send the email
+    const result = await emailService.sendEmailWithRetry({
       to: notification.recipient_email,
       subject: notification.subject,
-      body: notification.content // Use content field instead of body
-    });
+      html: this.formatEmailContent(notification.content),
+      text: notification.content
+    }, 3, 2000); // 3 retries with 2 second delay
 
-    // Simulate email sending delay
-    await new Promise(resolve => setTimeout(resolve, 100));
+    if (!result.success) {
+      throw new Error(`Failed to send email: ${result.error}`);
+    }
 
-    // For now, we'll just log the email
-    // In production, throw an error if email fails to send
+    console.log(`✅ Email sent successfully to ${notification.recipient_email} (Message ID: ${result.messageId})`);
+  }
+
+  /**
+   * Format email content with basic HTML
+   */
+  private formatEmailContent(content: string): string {
+    // Convert line breaks to HTML
+    const htmlContent = content
+      .split('\n')
+      .map(line => `<p style="margin: 0 0 10px 0; color: #666666; font-size: 14px; line-height: 22px;">${line}</p>`)
+      .join('');
+
+    return `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+        ${htmlContent}
+      </div>
+    `;
   }
 }

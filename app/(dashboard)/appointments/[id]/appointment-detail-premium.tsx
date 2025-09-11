@@ -463,7 +463,18 @@ export function AppointmentDetailPremium({
     
     const actions = [];
     
-    // Status-based actions - removed Confirm Appointment button
+    // Status-based actions
+    
+    // Add Confirm button for scheduled appointments
+    if (appointment.status === 'scheduled' && !isLocked) {
+      actions.push({
+        label: "Confirm Appointment",
+        variant: "default" as const,
+        onClick: () => setShowConfirmModal(true),
+        icon: <CheckCircle className="h-4 w-4" />,
+        disabled: actionLoading.confirm,
+      });
+    }
     
     if (appointment.status === 'confirmed' && !isLocked) {
       actions.push({

@@ -76,6 +76,33 @@ export default async function AppointmentDetailPage({ params }: PageProps) {
     notFound();
   }
   
+  // Get customer statistics if we have a customer
+  let customerStats = {
+    appointmentCount: 0,
+    repairCount: 0
+  };
+  
+  if (fullAppointment.customer_id) {
+    const supabase = createServiceClient();
+    
+    // Get appointment count for this customer
+    const { count: appointmentCount } = await supabase
+      .from('appointments')
+      .select('*', { count: 'exact', head: true })
+      .eq('customer_id', fullAppointment.customer_id);
+    
+    // Get repair ticket count for this customer  
+    const { count: repairCount } = await supabase
+      .from('repair_tickets')
+      .select('*', { count: 'exact', head: true })
+      .eq('customer_id', fullAppointment.customer_id);
+    
+    customerStats = {
+      appointmentCount: appointmentCount || 0,
+      repairCount: repairCount || 0
+    };
+  }
+  
   // Get technicians for assignment dropdown
   const technicians = await userRepo.findByRole(['technician', 'manager', 'admin']);
   const technicianList = technicians.map(t => ({
@@ -92,9 +119,16 @@ export default async function AppointmentDetailPage({ params }: PageProps) {
     getCustomerDevices(fullAppointment.customer_id)
   ]);
   
+  // Add customer stats to the appointment object
+  const appointmentWithStats = {
+    ...fullAppointment,
+    customerAppointmentCount: customerStats.appointmentCount,
+    customerRepairCount: customerStats.repairCount
+  };
+  
   return (
     <AppointmentDetailPremium 
-      appointment={fullAppointment}
+      appointment={appointmentWithStats}
       appointmentId={id}
       availableServices={services}
       availableDevices={devices}

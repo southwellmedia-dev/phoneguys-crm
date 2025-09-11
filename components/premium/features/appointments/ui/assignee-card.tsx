@@ -181,9 +181,9 @@ export function AssigneeCard({
           <>
             {/* Assignee Info */}
             <div className="flex items-start gap-3">
-              <Avatar className="h-12 w-12 border-2 border-primary/20">
+              <Avatar className="h-10 w-10">
                 <AvatarImage src={assignee.avatar} />
-                <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-white font-medium">
+                <AvatarFallback className="bg-gray-100 dark:bg-gray-800 text-sm">
                   {getInitials(assignee.name)}
                 </AvatarFallback>
               </Avatar>

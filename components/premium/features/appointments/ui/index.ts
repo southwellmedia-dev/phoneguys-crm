@@ -6,6 +6,7 @@
 
 export { AppointmentHeader, type AppointmentHeaderProps } from './appointment-header';
 export { CustomerDetailCard, type CustomerDetailCardProps, type CustomerData } from './customer-detail-card';
+export { CustomerInfoCard, type CustomerInfoCardProps, type CustomerData as CustomerInfoData } from './customer-info-card';
 export { DeviceDetailCard, type DeviceDetailCardProps, type DeviceData } from './device-detail-card-premium';
 export { ServiceSelectorCard, type ServiceSelectorCardProps, type Service } from './service-selector-card';
 export { NotesCard, type NotesCardProps, type NotesData } from './notes-card';

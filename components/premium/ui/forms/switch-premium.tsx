@@ -4,7 +4,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
-export interface SwitchPremiumProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'type'> {
+export interface SwitchPremiumProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'type' | 'onChange'> {
   /** Visual style variant */
   variant?: 'default' | 'primary' | 'success' | 'warning' | 'error' | 'ghost';
   /** Size of the switch */
@@ -27,6 +27,8 @@ export interface SwitchPremiumProps extends Omit<React.InputHTMLAttributes<HTMLI
   offLabel?: string;
   /** Container className */
   containerClassName?: string;
+  /** Callback when checked state changes */
+  onCheckedChange?: (checked: boolean) => void;
 }
 
 const SwitchPremium = React.forwardRef<HTMLInputElement, SwitchPremiumProps>(
@@ -45,11 +47,16 @@ const SwitchPremium = React.forwardRef<HTMLInputElement, SwitchPremiumProps>(
     offLabel = 'OFF',
     checked = false,
     disabled = false,
-    onChange,
+    onCheckedChange,
     ...props
   }, ref) => {
     const hasError = !!error;
     const errorMessage = typeof error === 'string' ? error : '';
+
+    // Handle change event
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      onCheckedChange?.(e.target.checked);
+    };
 
     // Size classes
     const switchSizeClasses = {
@@ -117,7 +124,7 @@ const SwitchPremium = React.forwardRef<HTMLInputElement, SwitchPremiumProps>(
           type="checkbox"
           checked={checked}
           disabled={disabled || loading}
-          onChange={onChange}
+          onChange={handleChange}
           className="sr-only peer"
           {...props}
         />

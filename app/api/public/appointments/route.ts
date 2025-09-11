@@ -5,12 +5,13 @@ import { getPublicRepository } from '@/lib/repositories/public-repository-manage
 import { createPublicClient } from '@/lib/supabase/public';
 import { AvailabilityService } from '@/lib/services/availability.service';
 import { AppointmentService } from '@/lib/services/appointment.service';
+import { ApiKeysService } from '@/lib/services/api-keys.service';
 
 // CORS headers for embeddable widget
 const corsHeaders = {
   'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGINS || '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, x-widget-key, X-Requested-With',
+  'Access-Control-Allow-Headers': 'Content-Type, x-api-key, x-widget-key, X-Requested-With',
   'Access-Control-Allow-Credentials': 'true',
   'Access-Control-Max-Age': '86400',
   // Additional headers for iframe embedding
@@ -59,6 +60,31 @@ const publicAppointmentSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
+    // Check API key authentication
+    const apiKey = request.headers.get('x-api-key');
+    const origin = request.headers.get('origin') || request.headers.get('referer');
+    
+    if (apiKey) {
+      // Verify API key if provided
+      const apiKeysService = new ApiKeysService();
+      const verification = await apiKeysService.verifyApiKey(apiKey, origin);
+      
+      if (!verification.valid) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: verification.error || 'Invalid API key'
+          },
+          { 
+            status: 401,
+            headers: corsHeaders
+          }
+        );
+      }
+    }
+    // If no API key provided, allow request (for backward compatibility)
+    // You may want to require API keys in production
+    
     // Get request data
     const body = await request.json();
     

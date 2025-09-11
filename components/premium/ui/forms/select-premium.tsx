@@ -221,6 +221,9 @@ const SelectPremium = React.forwardRef<HTMLButtonElement, SelectPremiumProps>(
               ref={ref}
               type="button"
               disabled={disabled || loading}
+              aria-expanded={open}
+              aria-haspopup="listbox"
+              aria-label={label || placeholder}
               className={cn(
                 // Base styles
                 'w-full rounded-md border bg-white dark:bg-gray-950',

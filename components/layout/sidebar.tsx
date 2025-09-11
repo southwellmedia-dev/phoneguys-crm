@@ -20,7 +20,6 @@ import {
   LogOut,
   User,
   ChevronUp,
-  Palette,
 } from "lucide-react";
 import { useTimer } from "@/lib/contexts/timer-context";
 import { StopTimerDialog } from "@/components/orders/stop-timer-dialog";
@@ -50,9 +49,8 @@ const adminNavigation = [
   { name: "Users", href: "/admin/users", icon: Users },
   { name: "Devices", href: "/admin/devices", icon: Smartphone },
   { name: "Services", href: "/admin/services", icon: Wrench },
-  { name: "Website Integration", href: "/admin/website-integration", icon: Globe },
+  { name: "Integration", href: "/admin/website-integration", icon: Globe },
   { name: "Media Gallery", href: "/admin/media", icon: Image },
-  { name: "Component Showcase", href: "/showcase", icon: Palette },
   { name: "Reports", href: "/reports", icon: FileText, disabled: true },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];

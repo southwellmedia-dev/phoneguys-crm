@@ -25,12 +25,13 @@ import {
 } from 'lucide-react';
 import { FormPreview } from '@/components/website-integration/FormPreview';
 import { FormSubmissions } from '@/components/website-integration/FormSubmissions';
-import { IntegrationCode } from '@/components/website-integration/IntegrationCode';
+import { IntegrationGuide } from '@/components/website-integration/IntegrationGuide';
 import { WebsiteStatistics } from '@/components/website-integration/WebsiteStatistics';
 import { IntegrationSettings } from '@/components/website-integration/IntegrationSettings';
 
 export default function WebsiteIntegrationPage() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedApiKey, setSelectedApiKey] = useState<string | undefined>();
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: <BarChart3 className="h-4 w-4" /> },
@@ -140,14 +141,14 @@ export default function WebsiteIntegrationPage() {
       case 'integration':
         return (
           <div className="space-y-4">
-            <IntegrationCode />
+            <IntegrationGuide apiKey={selectedApiKey} />
           </div>
         );
         
       case 'settings':
         return (
           <div className="space-y-4">
-            <IntegrationSettings />
+            <IntegrationSettings onApiKeyChange={setSelectedApiKey} />
           </div>
         );
         

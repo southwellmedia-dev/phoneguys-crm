@@ -486,5 +486,3 @@ export const DeviceDetailCard = React.forwardRef<HTMLDivElement, DeviceDetailCar
 );
 
 DeviceDetailCard.displayName = 'DeviceDetailCard';
-
-export { DeviceDetailCard };

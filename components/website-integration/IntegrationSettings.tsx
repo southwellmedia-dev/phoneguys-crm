@@ -21,8 +21,13 @@ import {
   Mail,
   MessageSquare
 } from 'lucide-react';
+import { ApiKeyManager } from './ApiKeyManager';
 
-export function IntegrationSettings() {
+interface IntegrationSettingsProps {
+  onApiKeyChange?: (apiKey: string) => void;
+}
+
+export function IntegrationSettings({ onApiKeyChange }: IntegrationSettingsProps) {
   const [settings, setSettings] = useState({
     autoConfirmation: true,
     requireApproval: false,
@@ -47,6 +52,9 @@ export function IntegrationSettings() {
 
   return (
     <div className="space-y-6">
+      {/* API Keys Management */}
+      <ApiKeyManager onApiKeyChange={onApiKeyChange} />
+
       {/* Booking Rules */}
       <CardPremium
         title="Booking Rules"

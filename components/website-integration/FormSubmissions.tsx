@@ -6,6 +6,12 @@ import {
   ButtonPremium,
   StatusBadge,
   TablePremium,
+  TablePremiumHeader,
+  TablePremiumBody,
+  TablePremiumRow,
+  TablePremiumHead,
+  TablePremiumCell,
+  TablePremiumEmpty,
   InputPremium,
   DropdownPremium
 } from '@/components/premium';
@@ -321,12 +327,42 @@ export function FormSubmissions() {
       </div>
 
       {/* Table */}
-      <TablePremium
-        data={filteredSubmissions}
-        columns={columns}
-        loading={loading}
-        emptyMessage="No form submissions yet"
-      />
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-sm text-muted-foreground">Loading submissions...</div>
+        </div>
+      ) : (
+        <TablePremium>
+          <TablePremiumHeader>
+            <TablePremiumRow>
+              {columns.map((column) => (
+                <TablePremiumHead key={column.key}>
+                  {column.label}
+                </TablePremiumHead>
+              ))}
+            </TablePremiumRow>
+          </TablePremiumHeader>
+          <TablePremiumBody>
+            {filteredSubmissions.length === 0 ? (
+              <TablePremiumRow>
+                <TablePremiumCell colSpan={columns.length} className="text-center py-8">
+                  <TablePremiumEmpty message="No form submissions yet" />
+                </TablePremiumCell>
+              </TablePremiumRow>
+            ) : (
+              filteredSubmissions.map((submission) => (
+                <TablePremiumRow key={submission.id}>
+                  {columns.map((column) => (
+                    <TablePremiumCell key={column.key}>
+                      {column.render ? column.render(submission) : null}
+                    </TablePremiumCell>
+                  ))}
+                </TablePremiumRow>
+              ))
+            )}
+          </TablePremiumBody>
+        </TablePremium>
+      )}
     </CardPremium>
   );
 }

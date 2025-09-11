@@ -606,16 +606,35 @@ export async function OPTIONS(request: NextRequest) {
 // Helper function to create internal notifications
 async function createInternalNotifications(appointment: any, customer: any) {
   try {
-    // Note: Internal notifications are handled by database triggers
-    // The notify_on_appointment_created() trigger will create notifications
-    // for all admin and staff users automatically
-    console.log('Appointment created, notifications will be sent via database trigger');
+    // Import the service
+    const { InternalNotificationService } = await import('@/lib/services/internal-notification.service');
+    const internalNotificationService = new InternalNotificationService(true); // Use service role
     
-    // We don't need to manually create notifications here since the database
-    // trigger handles it. This avoids authentication issues in public endpoints.
+    // Format appointment date and time for the message
+    const appointmentDate = new Date(appointment.scheduled_date + 'T' + appointment.scheduled_time);
+    const formattedDate = appointmentDate.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    });
+    const formattedTime = appointmentDate.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
     
+    // Create notifications for admins and managers
+    await internalNotificationService.notifyNewAppointment(
+      appointment.id,
+      customer.name,
+      `${formattedDate} at ${formattedTime}`,
+      'system' // Created by system since it's from public form
+    );
+    
+    console.log('✅ Internal notifications created for new appointment');
   } catch (error) {
-    console.error('Error in notification helper:', error);
-    // Don't fail the appointment creation if this fails
+    console.error('Error creating internal notifications:', error);
+    // Don't fail the appointment creation if notifications fail
   }
 }

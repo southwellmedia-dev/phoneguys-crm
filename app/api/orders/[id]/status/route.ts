@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepairOrderService } from '@/lib/services/repair-order.service';
 import { NotificationService } from '@/lib/services/notification.service';
+import { InternalNotificationService } from '@/lib/services/internal-notification.service';
 import { requirePermission, handleApiError, successResponse, requireAuth } from '@/lib/auth/helpers';
 import { Permission } from '@/lib/services/authorization.service';
 
@@ -53,9 +54,42 @@ async function updateStatus(request: NextRequest, params: RouteParams) {
     const ticket = updatedTicket;
 
     if (ticket) {
-      // Send notification - skip for reopening to avoid spam
+      // Send email notification - skip for reopening to avoid spam
       if (status !== 'in_progress' || reason !== 'Order reopened') {
         await notificationService.notifyStatusChange(ticket, status, reason);
+      }
+
+      // Create internal notifications for status changes
+      try {
+        const internalNotificationService = new InternalNotificationService(true);
+        
+        // Notify the assigned technician if there's one
+        if (ticket.assigned_to && ticket.assigned_to !== authResult.userId) {
+          await internalNotificationService.notifyTicketStatusChange(
+            ticketId,
+            ticket.ticket_number || ticketId.substring(0, 8),
+            ticket.assigned_to,
+            status,
+            ticket.customers?.name || 'Unknown Customer',
+            authResult.userId
+          );
+        }
+
+        // For completed or on_hold tickets, also notify managers/admins
+        if (status === 'completed' || status === 'on_hold') {
+          const admins = await internalNotificationService.notifyUsersByRole('admin', {
+            type: status === 'completed' ? 'ticket_completed' : 'ticket_on_hold',
+            title: `Ticket ${status === 'completed' ? 'Completed' : 'On Hold'}`,
+            message: `Ticket #${ticket.ticket_number || ticketId.substring(0, 8)} for ${ticket.customers?.name || 'Unknown Customer'} is now ${status}`,
+            priority: 'medium',
+            action_url: `/orders/${ticketId}`,
+            data: { ticket_id: ticketId, status },
+            created_by: authResult.userId
+          });
+        }
+      } catch (notifError) {
+        console.error('Failed to create internal notifications:', notifError);
+        // Don't fail the request if notifications fail
       }
     }
 

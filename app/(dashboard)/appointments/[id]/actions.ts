@@ -2,12 +2,15 @@
 
 import { AppointmentService } from "@/lib/services/appointment.service";
 import { AppointmentRepository } from "@/lib/repositories/appointment.repository";
+import { InternalNotificationService } from "@/lib/services/internal-notification.service";
+import { InternalNotificationPriority, InternalNotificationType } from "@/lib/types/internal-notification.types";
 import { createServiceClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export async function updateAppointmentDetails(appointmentId: string, details: any) {
   try {
-    console.log('Updating appointment with details:', details);
+    console.log('🎯 SERVER ACTION: updateAppointmentDetails called with:', { appointmentId, details });
     const appointmentRepo = new AppointmentRepository(true);
     const supabase = createServiceClient();
     
@@ -59,6 +62,107 @@ export async function updateAppointmentDetails(appointmentId: string, details: a
     
     const updatedAppointment = await appointmentRepo.update(appointmentId, updateData);
     console.log('Appointment updated successfully:', updatedAppointment);
+    
+    // Send notification if appointment was assigned, unassigned, or transferred
+    console.log('🔔 SERVER ACTION: Checking appointment assignment:', {
+      'details.assigned_to': details.assigned_to,
+      'currentAppointment.assigned_to': currentAppointment.assigned_to,
+      'should_notify': details.assigned_to !== undefined && details.assigned_to !== currentAppointment.assigned_to
+    });
+    
+    if (details.assigned_to !== undefined && details.assigned_to !== currentAppointment.assigned_to) {
+      try {
+        console.log('📨 Creating appointment assignment notification');
+        
+        // Get the current user
+        const userSupabase = await createClient();
+        const { data: { user } } = await userSupabase.auth.getUser();
+        
+        const notificationService = new InternalNotificationService(true);
+        
+        // Get customer info
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('name')
+          .eq('id', currentAppointment.customer_id)
+          .single();
+        
+        // Format appointment date and time
+        const appointmentDate = new Date(currentAppointment.scheduled_date + 'T' + currentAppointment.scheduled_time);
+        const formattedDate = appointmentDate.toLocaleDateString('en-US', { 
+          month: 'long', 
+          day: 'numeric'
+        });
+        const formattedTime = appointmentDate.toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        });
+        
+        const customerName = customer?.name || 'Unknown Customer';
+        const appointmentTime = `${formattedDate} at ${formattedTime}`;
+        
+        // Handle different assignment scenarios
+        if (!details.assigned_to && currentAppointment.assigned_to) {
+          // Appointment was unassigned - notify the previous assignee
+          await notificationService.createNotification({
+            user_id: currentAppointment.assigned_to,
+            type: InternalNotificationType.APPOINTMENT_UNASSIGNED,
+            title: `Unassigned from appointment`,
+            message: `You've been unassigned from ${customerName}'s appointment on ${appointmentTime}`,
+            priority: InternalNotificationPriority.NORMAL,
+            action_url: `/appointments/${appointmentId}`,
+            data: { appointment_id: appointmentId },
+            created_by: user?.id
+          });
+        } else if (details.assigned_to && currentAppointment.assigned_to && details.assigned_to !== currentAppointment.assigned_to) {
+          // Appointment was transferred - notify both users
+          // Notify the previous assignee
+          await notificationService.createNotification({
+            user_id: currentAppointment.assigned_to,
+            type: InternalNotificationType.APPOINTMENT_TRANSFERRED,
+            title: `Appointment transferred`,
+            message: `${customerName}'s appointment on ${appointmentTime} has been reassigned`,
+            priority: InternalNotificationPriority.NORMAL,
+            action_url: `/appointments/${appointmentId}`,
+            data: { appointment_id: appointmentId, transferred_to: details.assigned_to },
+            created_by: user?.id
+          });
+          
+          // Notify the new assignee
+          await notificationService.notifyAppointmentAssignment(
+            appointmentId,
+            details.assigned_to,
+            customerName,
+            appointmentTime,
+            user?.id
+          );
+        } else if (details.assigned_to && !currentAppointment.assigned_to) {
+          // New assignment - just notify the new assignee
+          console.log('📝 Creating new assignment notification for:', {
+            appointmentId,
+            assignedTo: details.assigned_to,
+            currentUserId: user?.id,
+            isSelfAssignment: details.assigned_to === user?.id
+          });
+          
+          const notification = await notificationService.notifyAppointmentAssignment(
+            appointmentId,
+            details.assigned_to,
+            customerName,
+            appointmentTime,
+            user?.id
+          );
+          
+          console.log('✅ Notification created:', notification);
+        }
+        
+        console.log('✅ Appointment assignment notification created successfully');
+      } catch (notifError) {
+        console.error('❌ Failed to create assignment notification:', notifError);
+        // Don't fail the request if notification fails
+      }
+    }
     
     // If a new device was added (not selecting existing), create/update customer device
     if (details.device_id && !details.customer_device_id && currentAppointment.customer_id) {

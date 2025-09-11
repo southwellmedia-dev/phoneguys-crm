@@ -401,12 +401,19 @@ export function AppointmentDetailPremium({
 
   const handleAssigneeChange = async (technicianId: string | null) => {
     try {
-      await updateAppointmentDetails(appointmentId, {
+      console.log('🔄 handleAssigneeChange called with technicianId:', technicianId);
+      console.log('📞 About to call updateAppointmentDetails server action...');
+      
+      const result = await updateAppointmentDetails(appointmentId, {
         assigned_to: technicianId
       });
+      
+      console.log('📥 Server action result:', result);
+      console.log('✅ handleAssigneeChange completed successfully');
       // The real-time subscription will update the UI
     } catch (error) {
-      console.error('Error updating assignee:', error);
+      console.error('❌ Error in handleAssigneeChange:', error);
+      console.error('❌ Error stack:', error.stack);
       throw error;
     }
   };

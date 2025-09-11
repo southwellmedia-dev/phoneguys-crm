@@ -2,11 +2,12 @@
 
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { Menu, Search, Bell, Command } from "lucide-react";
+import { Menu, Search, Command } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import Link from "next/link";
 import { useSearch } from "@/lib/contexts/search-context";
+import { NotificationDropdown } from "@/components/notifications/notification-dropdown";
 
 interface HeaderEnhancedProps {
   title?: string;
@@ -16,7 +17,6 @@ interface HeaderEnhancedProps {
 
 export function HeaderEnhanced({ title, description, actions }: HeaderEnhancedProps) {
   const { openSearch } = useSearch();
-  const [notifications] = useState(3); // Example notification count
 
   return (
     <header className="h-20 border-b border-border bg-card/95 backdrop-blur-sm">
@@ -103,17 +103,7 @@ export function HeaderEnhanced({ title, description, actions }: HeaderEnhancedPr
             </Button>
 
             {/* Notifications */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              {notifications > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-5 w-5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 text-white text-xs items-center justify-center font-medium">
-                    {notifications}
-                  </span>
-                </span>
-              )}
-            </Button>
+            <NotificationDropdown />
 
             <ThemeSwitcher />
           </div>

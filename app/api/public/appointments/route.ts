@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getRepository } from '@/lib/repositories/repository-manager';
 import { getPublicRepository } from '@/lib/repositories/public-repository-manager';
+import { createPublicClient } from '@/lib/supabase/public';
 import { AvailabilityService } from '@/lib/services/availability.service';
 import { AppointmentService } from '@/lib/services/appointment.service';
 
@@ -163,21 +164,34 @@ export async function POST(request: NextRequest) {
       source: 'website'
     });
     
-    // Create appointment directly using repository to ensure public client is used
-    const appointment = await appointmentRepo.create({
-      customer_id: customer.id,
-      device_id: data.device.deviceId || null,
-      customer_device_id: customerDevice.id,
-      scheduled_date: data.appointmentDate,
-      scheduled_time: normalizedTime,
-      duration_minutes: data.duration || 30,
-      issues: data.issues || null,
-      description: data.issueDescription || null,
-      source: 'website', // This must be 'website' for RLS policy
-      urgency: 'scheduled',
-      notes: data.notes || null,
-      status: 'scheduled'
-    });
+    // Create appointment directly using Supabase client to ensure proper anon access
+    const publicClient = createPublicClient();
+    const { data: appointment, error: appointmentError } = await publicClient
+      .from('appointments')
+      .insert({
+        customer_id: customer.id,
+        device_id: data.device.deviceId || null,
+        customer_device_id: customerDevice.id,
+        scheduled_date: data.appointmentDate,
+        scheduled_time: normalizedTime,
+        duration_minutes: data.duration || 30,
+        issues: data.issues || null,
+        description: data.issueDescription || null,
+        source: 'website', // This must be 'website' for RLS policy
+        urgency: 'scheduled',
+        notes: data.notes || null,
+        status: 'scheduled'
+      })
+      .select()
+      .single();
+
+    if (appointmentError) {
+      throw new Error(`Failed to create appointment: ${appointmentError.message}`);
+    }
+
+    if (!appointment) {
+      throw new Error('Failed to create appointment: No data returned');
+    }
 
     // Reserve the time slot (skip for now as it may have auth issues)
     // TODO: Fix availability service to work with public client

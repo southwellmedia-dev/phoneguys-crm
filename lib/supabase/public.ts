@@ -15,11 +15,16 @@ export function createPublicClient() {
 
   // Create a client without any auth persistence or cookies
   // This ensures we're using pure anon role access
-  return createSupabaseClient(supabaseUrl, supabaseAnonKey, {
+  const client = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false
     }
   });
+
+  // Log to verify we're using the anon key
+  console.log('Public client created with URL:', supabaseUrl);
+  
+  return client;
 }

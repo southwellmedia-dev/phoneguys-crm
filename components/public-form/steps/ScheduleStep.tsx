@@ -8,6 +8,7 @@ import { CalendarPicker } from '../CalendarPicker';
 import { TimeSlotPicker } from '../TimeSlotPicker';
 import { Calendar, Clock, Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { useAvailabilityFlow } from '@/lib/hooks/use-availability';
 
 interface ScheduleStepProps {
   selectedDate?: string;
@@ -16,66 +17,28 @@ interface ScheduleStepProps {
   onUpdate: (date: string, time: string) => void;
 }
 
-interface TimeSlot {
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
-  staffName?: string;
-}
-
 export function ScheduleStep({ selectedDate, selectedTime, apiBaseUrl, onUpdate }: ScheduleStepProps) {
-  const [availableDates, setAvailableDates] = useState<any[]>([]);
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
-  const [loadingDates, setLoadingDates] = useState(true);
-  const [loadingSlots, setLoadingSlots] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  
+  // Use the optimized availability hook
+  const {
+    availableDates,
+    timeSlots,
+    selectedDate: selectedDateInHook,
+    isLoadingDates,
+    isLoadingSlots,
+    selectDate: selectDateInHook,
+  } = useAvailabilityFlow(apiBaseUrl);
 
-  // Fetch next available dates on mount
+  // Sync external selection with hook
   useEffect(() => {
-    fetchAvailableDates();
-  }, []);
-
-  // Fetch time slots when date changes
-  useEffect(() => {
-    if (selectedDate) {
-      fetchTimeSlots(selectedDate);
+    if (selectedDate && selectedDate !== selectedDateInHook) {
+      selectDateInHook(selectedDate);
     }
-  }, [selectedDate]);
-
-  const fetchAvailableDates = async () => {
-    setLoadingDates(true);
-    try {
-      const response = await fetch(`${apiBaseUrl}/availability?nextAvailable=true&limit=30`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setAvailableDates(data.data || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch available dates:', error);
-    } finally {
-      setLoadingDates(false);
-    }
-  };
-
-  const fetchTimeSlots = async (date: string) => {
-    setLoadingSlots(true);
-    try {
-      const response = await fetch(`${apiBaseUrl}/availability?date=${date}`);
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        setTimeSlots(data.data.slots || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch time slots:', error);
-      setTimeSlots([]);
-    } finally {
-      setLoadingSlots(false);
-    }
-  };
+  }, [selectedDate, selectedDateInHook, selectDateInHook]);
 
   const handleDateSelect = (date: string) => {
+    selectDateInHook(date);
     onUpdate(date, ''); // Clear time when date changes
   };
 
@@ -86,7 +49,7 @@ export function ScheduleStep({ selectedDate, selectedTime, apiBaseUrl, onUpdate 
   };
 
   // Quick date selection buttons
-  const quickDates = availableDates.slice(0, 3).map(day => ({
+  const quickDates = (availableDates || []).slice(0, 3).map(day => ({
     date: day.date,
     label: format(parseISO(day.date), 'EEE, MMM d'),
     slots: day.availableSlots
@@ -99,7 +62,7 @@ export function ScheduleStep({ selectedDate, selectedTime, apiBaseUrl, onUpdate 
         <p className="text-gray-600">Choose a convenient date and time for your visit</p>
       </div>
 
-      {loadingDates ? (
+      {isLoadingDates ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -135,7 +98,7 @@ export function ScheduleStep({ selectedDate, selectedTime, apiBaseUrl, onUpdate 
               <CardContent className="p-4">
                 <CalendarPicker
                   selectedDate={selectedDate}
-                  availableDates={availableDates.map(d => d.date)}
+                  availableDates={(availableDates || []).map(d => d.date)}
                   onDateSelect={handleDateSelect}
                   currentMonth={currentMonth}
                   onMonthChange={setCurrentMonth}
@@ -152,13 +115,13 @@ export function ScheduleStep({ selectedDate, selectedTime, apiBaseUrl, onUpdate 
                 <Label>Available Times for {format(parseISO(selectedDate), 'EEEE, MMMM d')}</Label>
               </div>
               
-              {loadingSlots ? (
+              {isLoadingSlots ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
-              ) : timeSlots.length > 0 ? (
+              ) : (timeSlots || []).length > 0 ? (
                 <TimeSlotPicker
-                  slots={timeSlots}
+                  slots={timeSlots || []}
                   selectedTime={selectedTime}
                   onTimeSelect={handleTimeSelect}
                 />

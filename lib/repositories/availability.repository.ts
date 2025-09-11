@@ -377,4 +377,258 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
     }
     return true;
   }
+
+  /**
+   * OPTIMIZED: Get business hours for a date range
+   * Returns a map of date to business hours
+   */
+  async getBusinessHoursForDateRange(startDate: string, endDate: string): Promise<Map<string, BusinessHours | null>> {
+    const client = await this.getClient();
+    
+    // Get all active business hours
+    const { data: businessHours, error } = await client
+      .from('business_hours')
+      .select('*')
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('Error fetching business hours:', error);
+      return new Map();
+    }
+
+    // Create a map of day_of_week to business hours
+    const hoursByDay = new Map<number, BusinessHours>();
+    (businessHours || []).forEach(hours => {
+      hoursByDay.set(hours.day_of_week, hours);
+    });
+
+    // Build result map for each date in range
+    const result = new Map<string, BusinessHours | null>();
+    const current = new Date(startDate);
+    const end = new Date(endDate);
+
+    while (current <= end) {
+      const dateStr = current.toISOString().split('T')[0];
+      const dayOfWeek = current.getDay();
+      result.set(dateStr, hoursByDay.get(dayOfWeek) || null);
+      current.setDate(current.getDate() + 1);
+    }
+
+    return result;
+  }
+
+  /**
+   * OPTIMIZED: Get special dates for a date range
+   * Returns all special dates in the range
+   */
+  async getSpecialDatesForRange(startDate: string, endDate: string): Promise<Map<string, SpecialDate>> {
+    const client = await this.getClient();
+    
+    const { data, error } = await client
+      .from('special_dates')
+      .select('*')
+      .gte('date', startDate)
+      .lte('date', endDate);
+
+    if (error) {
+      console.error('Error fetching special dates:', error);
+      return new Map();
+    }
+
+    const result = new Map<string, SpecialDate>();
+    (data || []).forEach(specialDate => {
+      result.set(specialDate.date, specialDate);
+    });
+
+    return result;
+  }
+
+  /**
+   * OPTIMIZED: Get all slots for a date range in a single query
+   * Returns slots grouped by date
+   */
+  async getAvailableSlotsForRange(startDate: string, endDate: string): Promise<Map<string, TimeSlot[]>> {
+    const client = await this.getClient();
+    
+    const { data, error } = await client
+      .from('appointment_slots')
+      .select(`
+        id,
+        date,
+        start_time,
+        end_time,
+        duration_minutes,
+        staff_id,
+        is_available,
+        max_capacity,
+        current_capacity,
+        users:staff_id (
+          id,
+          full_name
+        )
+      `)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .eq('is_available', true)
+      .order('date')
+      .order('start_time');
+
+    if (error) {
+      console.error('Error fetching slots range:', error);
+      return new Map();
+    }
+
+    // Group slots by date
+    const slotsByDate = new Map<string, TimeSlot[]>();
+    (data || []).forEach(slot => {
+      const dateKey = slot.date;
+      if (!slotsByDate.has(dateKey)) {
+        slotsByDate.set(dateKey, []);
+      }
+      slotsByDate.get(dateKey)!.push({
+        id: slot.id,
+        date: slot.date,
+        startTime: slot.start_time,
+        endTime: slot.end_time,
+        staffId: slot.staff_id,
+        staffName: slot.users?.full_name,
+        isAvailable: slot.is_available && (slot.current_capacity < slot.max_capacity),
+        capacity: slot.max_capacity,
+        currentCapacity: slot.current_capacity
+      });
+    });
+
+    return slotsByDate;
+  }
+
+  /**
+   * OPTIMIZED: Generate slots for multiple dates at once
+   * Uses a database function to generate slots in batch
+   */
+  async generateSlotsForDateRange(startDate: string, endDate: string, slotDuration: number = 30): Promise<void> {
+    const client = await this.getClient();
+    
+    // Call optimized database function (we'll create this in migration)
+    const { error } = await client.rpc('generate_slots_for_date_range', {
+      p_start_date: startDate,
+      p_end_date: endDate,
+      p_slot_duration: slotDuration
+    });
+
+    if (error) {
+      console.error('Error generating slots for range:', error);
+      // Fallback to individual generation if function doesn't exist
+      const current = new Date(startDate);
+      const end = new Date(endDate);
+      
+      while (current <= end) {
+        const dateStr = current.toISOString().split('T')[0];
+        await this.generateSlotsForDate(dateStr, slotDuration);
+        current.setDate(current.getDate() + 1);
+      }
+    }
+  }
+
+  /**
+   * OPTIMIZED: Get next available dates with minimal queries
+   * This method fetches everything needed in just a few queries
+   */
+  async getNextAvailableDatesOptimized(limit: number = 30): Promise<{
+    dates: Array<{
+      date: string;
+      dayOfWeek: number;
+      isAvailable: boolean;
+      availableSlots: number;
+      openTime?: string;
+      closeTime?: string;
+    }>;
+    totalQueries: number;
+  }> {
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 60); // Look ahead 60 days max
+    
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+    
+    let queryCount = 0;
+
+    // Batch fetch 1: Business hours for all days
+    const businessHours = await this.getBusinessHoursForDateRange(startStr, endStr);
+    queryCount++;
+
+    // Batch fetch 2: Special dates for the range
+    const specialDates = await this.getSpecialDatesForRange(startStr, endStr);
+    queryCount++;
+
+    // Batch fetch 3: All existing slots for the range
+    const allSlots = await this.getAvailableSlotsForRange(startStr, endStr);
+    queryCount++;
+
+    // Process and find available dates
+    const availableDates: Array<{
+      date: string;
+      dayOfWeek: number;
+      isAvailable: boolean;
+      availableSlots: number;
+      openTime?: string;
+      closeTime?: string;
+    }> = [];
+
+    const current = new Date(startDate);
+    
+    while (availableDates.length < limit && current <= endDate) {
+      const dateStr = current.toISOString().split('T')[0];
+      const dayOfWeek = current.getDay();
+      
+      // Check special dates first
+      const specialDate = specialDates.get(dateStr);
+      
+      if (specialDate?.type === 'closure') {
+        // Skip closed days
+        current.setDate(current.getDate() + 1);
+        continue;
+      }
+
+      // Get business hours or special hours
+      let openTime: string | undefined;
+      let closeTime: string | undefined;
+      let isOpen = false;
+
+      if (specialDate?.type === 'special_hours') {
+        openTime = specialDate.open_time || undefined;
+        closeTime = specialDate.close_time || undefined;
+        isOpen = !!(openTime && closeTime);
+      } else {
+        const hours = businessHours.get(dateStr);
+        if (hours) {
+          openTime = hours.open_time;
+          closeTime = hours.close_time;
+          isOpen = true;
+        }
+      }
+
+      // Count available slots
+      const dateSlots = allSlots.get(dateStr) || [];
+      const availableSlotCount = dateSlots.filter(s => s.isAvailable).length;
+
+      if (isOpen && availableSlotCount > 0) {
+        availableDates.push({
+          date: dateStr,
+          dayOfWeek,
+          isAvailable: true,
+          availableSlots: availableSlotCount,
+          openTime,
+          closeTime
+        });
+      }
+
+      current.setDate(current.getDate() + 1);
+    }
+
+    return {
+      dates: availableDates,
+      totalQueries: queryCount
+    };
+  }
 }

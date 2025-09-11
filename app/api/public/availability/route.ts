@@ -56,6 +56,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Generate cache key based on parameters
+    const cacheKey = JSON.stringify(validation.data);
+    
     const availabilityService = new AvailabilityService(true); // Use service role for public access
 
     // Handle different query types
@@ -80,12 +83,20 @@ export async function GET(request: NextRequest) {
       result = await availabilityService.getNextAvailableDates(7);
     }
 
+    // Add cache headers for better performance
+    const cacheHeaders = {
+      ...corsHeaders,
+      'Cache-Control': 'public, max-age=300, s-maxage=300, stale-while-revalidate=60', // Cache for 5 minutes
+      'ETag': `"${Buffer.from(cacheKey).toString('base64')}"`,
+      'Vary': 'Accept-Encoding'
+    };
+
     return NextResponse.json(
       {
         success: true,
         data: result
       },
-      { headers: corsHeaders }
+      { headers: cacheHeaders }
     );
 
   } catch (error) {

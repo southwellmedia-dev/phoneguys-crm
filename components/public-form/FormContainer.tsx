@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { usePrefetchAvailability } from '@/lib/hooks/use-availability';
 
 export interface FormData {
   // Device info
@@ -79,12 +80,23 @@ export function FormContainer({
   const [services, setServices] = useState<any[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(true);
   const [loadingServices, setLoadingServices] = useState(true);
+  
+  // Prefetch availability data when user reaches step 2
+  const { prefetchAvailability } = usePrefetchAvailability(apiBaseUrl);
 
   // Load devices and services on mount
   useEffect(() => {
     fetchDevices();
     fetchServices();
   }, []);
+
+  // Prefetch availability when user is on step 2 (Issues)
+  useEffect(() => {
+    if (currentStep === 2) {
+      // Start prefetching availability data in the background
+      prefetchAvailability().catch(console.error);
+    }
+  }, [currentStep, prefetchAvailability]);
 
   const fetchDevices = async () => {
     try {

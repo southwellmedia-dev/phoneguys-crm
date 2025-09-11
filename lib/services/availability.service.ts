@@ -135,8 +135,42 @@ export class AvailabilityService {
 
   /**
    * Get next available dates with slots
+   * OPTIMIZED VERSION: Uses batch operations to minimize database queries
    */
   async getNextAvailableDates(limit: number = 7): Promise<CalendarDay[]> {
+    // Use the optimized batch method
+    const result = await this.availabilityRepo.getNextAvailableDatesOptimized(limit);
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Transform the optimized results to CalendarDay format
+    const availableDates: CalendarDay[] = result.dates.map(dateInfo => {
+      const dateObj = new Date(dateInfo.date);
+      return {
+        date: dateInfo.date,
+        dayOfWeek: dateInfo.dayOfWeek,
+        isToday: dateObj.getTime() === today.getTime(),
+        isPast: false,
+        isAvailable: dateInfo.isAvailable,
+        availableSlots: dateInfo.availableSlots,
+        // Note: We don't fetch individual slots here for performance
+        // They can be fetched when a specific date is selected
+        slots: undefined
+      };
+    });
+
+    // Log performance improvement
+    console.log(`[Performance] getNextAvailableDates completed with ${result.totalQueries} queries (previously ~${limit * 3} queries)`);
+
+    return availableDates;
+  }
+
+  /**
+   * Get next available dates with slots - LEGACY VERSION
+   * Kept for reference but should not be used
+   */
+  private async getNextAvailableDatesLegacy(limit: number = 7): Promise<CalendarDay[]> {
     const availableDates: CalendarDay[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);

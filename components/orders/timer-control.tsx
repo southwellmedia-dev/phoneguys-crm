@@ -33,7 +33,8 @@ export function TimerControl({
     isLoading, 
     error, 
     startTimer, 
-    pauseTimer, 
+    pauseTimer,
+    recoverTimer, 
     clearError 
   } = useTimer();
   
@@ -63,7 +64,7 @@ export function TimerControl({
   }, []);
 
   // Check if this component's timer is the active one
-  const isThisTimerActive = activeTimer?.ticketId === ticketId;
+  const isThisTimerActive = activeTimer && activeTimer.ticketId === ticketId;
   const hasActiveTimer = !!activeTimer;
 
   const handleStart = async () => {
@@ -106,8 +107,14 @@ export function TimerControl({
   const handleClearTimer = () => {
     // Clear the timer from local storage directly
     localStorage.removeItem('phoneguys_active_timer');
-    window.location.reload(); // Reload to reset the state
-    toast.success("Timer cleared from local storage");
+    clearError();
+    // Force refresh the timer context
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'phoneguys_active_timer',
+      newValue: null,
+      url: window.location.href
+    }));
+    toast.success("Timer cleared successfully");
   };
   
   const handleClearDatabaseTimer = async () => {
@@ -125,6 +132,19 @@ export function TimerControl({
       }
     } catch (error) {
       console.error('Error clearing database timer:', error);
+    }
+  };
+
+  const handleRecoverTimer = async () => {
+    try {
+      const success = await recoverTimer(ticketId);
+      if (success) {
+        toast.success("Timer recovered successfully");
+      } else {
+        toast.error("No active timer found to recover");
+      }
+    } catch (error) {
+      toast.error("Failed to recover timer");
     }
   };
 
@@ -166,27 +186,46 @@ export function TimerControl({
         </div>
         <CardContent className="p-6">
 
-          {/* Error Display */}
-          {error && !isDisabled && (
-            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-              <div className="flex items-start justify-between gap-2">
+          {/* Error Display & Recovery Options */}
+          {(error || (!activeTimer && ticketData?.timer_is_running)) && !isDisabled && (
+            <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-                  <span className="text-sm text-destructive">{error}</span>
+                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                  <span className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                    {error || "Timer state mismatch detected"}
+                  </span>
                 </div>
-                <div className="flex items-center gap-1">
-                  {error.includes('timer') && (
+                <div className="text-xs text-amber-700 dark:text-amber-300 mb-2">
+                  {!activeTimer && ticketData?.timer_is_running 
+                    ? "The database shows a timer is running but it's not active locally."
+                    : "There may be an issue with the timer state."}
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {!activeTimer && ticketData?.timer_is_running && (
                     <Button
                       size="sm"
-                      variant="ghost"
-                      onClick={handleClearTimer}
-                      className="text-destructive hover:text-destructive"
-                      title="Clear local timer"
+                      variant="default"
+                      onClick={handleRecoverTimer}
+                      className="text-xs"
+                      disabled={isLoading}
+                      title="Recover timer from database"
                     >
-                      <XCircle className="h-4 w-4" />
+                      <Play className="h-3 w-3 mr-1" />
+                      Recover Timer
                     </Button>
                   )}
-                  {error.includes('timer') && isAdmin && ticketData?.timer_is_running && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleClearTimer}
+                    className="text-xs"
+                    title="Reset local timer state"
+                  >
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Reset Local
+                  </Button>
+                  {isAdmin && ticketData?.timer_is_running && (
                     <Button
                       size="sm"
                       variant="ghost"
@@ -194,7 +233,8 @@ export function TimerControl({
                       className="text-orange-600 hover:text-orange-700"
                       title="Clear database timer (Admin)"
                     >
-                      <Shield className="h-4 w-4" />
+                      <Shield className="h-3 w-3 mr-1" />
+                      Clear DB
                     </Button>
                   )}
                 </div>
@@ -217,7 +257,7 @@ export function TimerControl({
               "text-4xl font-mono font-bold",
               isDisabled ? "text-muted-foreground/50" : isThisTimerActive ? "text-primary" : "text-muted-foreground"
             )}>
-              {isThisTimerActive 
+              {isThisTimerActive && activeTimer
                 ? formatTime(activeTimer.elapsedSeconds) 
                 : "00:00:00"
               }

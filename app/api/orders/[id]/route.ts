@@ -63,9 +63,39 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const noteRepo = getRepository.notes();
     const notes = await noteRepo.findByTicket(ticketId);
 
+    // Get customer stats if customer exists
+    let customerStats = null;
+    if (ticket.customer_id) {
+      try {
+        // Use the service role client to get counts
+        const { createClient } = await import('@/lib/supabase/server');
+        const supabase = await createClient(true);
+        
+        // Get repair tickets count
+        const { count: repairCount } = await supabase
+          .from('repair_tickets')
+          .select('*', { count: 'exact', head: true })
+          .eq('customer_id', ticket.customer_id);
+        
+        // Get appointments count  
+        const { count: appointmentCount } = await supabase
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .eq('customer_id', ticket.customer_id);
+        
+        customerStats = {
+          totalRepairs: repairCount || 0,
+          totalAppointments: appointmentCount || 0
+        };
+      } catch (statsError) {
+        console.error('Failed to get customer stats:', statsError);
+      }
+    }
+
     return successResponse({
       ...ticket,
-      notes
+      notes,
+      customerStats
     });
   } catch (error) {
     return handleApiError(error);

@@ -356,6 +356,7 @@ export class AppointmentService {
       customer_id: appointment.customer_id,
       device_id: appointment.device_id,
       customer_device_id: appointment.customer_device_id,
+      appointment_id: appointmentId, // Link the appointment to the ticket
       device_brand: fullAppointment?.devices?.manufacturer?.name || fullAppointment?.customer_devices?.devices?.manufacturer?.name || 'Unknown',
       device_model: fullAppointment?.devices?.model_name || fullAppointment?.customer_devices?.devices?.model_name || 'Unknown',
       serial_number: serialNumber,

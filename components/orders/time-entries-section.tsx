@@ -191,69 +191,90 @@ export function TimeEntriesSection({ entries, totalMinutes, canDelete = false, o
       <div className="space-y-4">
         {/* Time Tracking Chart - only show if there are 2+ entries */}
         {chartData.length >= 2 && (
-          <div className="pt-2">
-            <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
-                <XAxis 
-                  dataKey="sessionNumber" 
-                  className="text-xs"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis 
-                  className="text-xs"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  label={{ value: 'Hours', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))', fontSize: 10 } }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Line 
-                  type="monotone" 
-                  dataKey="cumulativeHours" 
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={{ r: 3, fill: 'hsl(var(--primary))' }}
-                  activeDot={{ r: 5, fill: 'hsl(var(--primary))' }}
-                  name="Total Hours"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="hours" 
-                  stroke="hsl(var(--orange))"
-                  strokeWidth={1.5}
-                  strokeDasharray="3 3"
-                  dot={{ r: 2, fill: 'hsl(var(--orange))' }}
-                  name="Session Hours"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-            <div className="flex items-center justify-center gap-6 mt-2 text-xs text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-0.5 bg-primary rounded-full"></div>
-                <span>Cumulative</span>
+          <Card className="border border-gray-200 dark:border-gray-700">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-semibold">Time Tracking Overview</CardTitle>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-[2px] bg-primary"></div>
+                    <span>Cumulative</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-[2px] bg-orange-500" style={{backgroundImage: 'repeating-linear-gradient(90deg, rgb(251 146 60), rgb(251 146 60) 3px, transparent 3px, transparent 6px)'}}></div>
+                    <span>Session</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-0.5 bg-orange-500 border-dashed rounded-full"></div>
-                <span>Session</span>
-              </div>
-            </div>
-          </div>
+            </CardHeader>
+            <CardContent className="pt-2">
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
+                  <XAxis 
+                    dataKey="sessionNumber" 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                    label={{ value: 'Hours', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))', fontSize: 10 } }}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="cumulativeHours" 
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: 'hsl(var(--primary))' }}
+                    activeDot={{ r: 5, fill: 'hsl(var(--primary))' }}
+                    name="Total Hours"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="hours" 
+                    stroke="rgb(251 146 60)"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={{ r: 3, fill: 'rgb(251 146 60)' }}
+                    activeDot={{ r: 5, fill: 'rgb(251 146 60)' }}
+                    name="Session Hours"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
         )}
 
         {/* Time Entries List */}
-        <div className="space-y-4">
-          {Object.entries(groupedEntries).map(([date, dateEntries]) => (
-            <div key={date} className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Calendar className="h-3.5 w-3.5" />
-                {date}
-                <span className="text-xs">
-                  ({dateEntries.length} {dateEntries.length === 1 ? 'entry' : 'entries'})
-                </span>
-              </div>
+        <Card className="border border-gray-200 dark:border-gray-700">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-semibold">Time Entries</CardTitle>
+              <Badge variant="secondary" className="ml-auto">
+                {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Object.entries(groupedEntries).map(([date, dateEntries]) => (
+              <div key={date} className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {date}
+                  <span className="text-xs">
+                    ({dateEntries.length} {dateEntries.length === 1 ? 'entry' : 'entries'})
+                  </span>
+                </div>
               
               {dateEntries.map((entry) => (
                 <div 
@@ -321,7 +342,8 @@ export function TimeEntriesSection({ entries, totalMinutes, canDelete = false, o
               ))}
             </div>
           ))}
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Delete Confirmation Dialog */}

@@ -14,6 +14,8 @@ import { TimeEntriesSection } from "@/components/orders/time-entries-section";
 import { TicketPhotosSidebar } from "@/components/orders/ticket-photos-sidebar";
 import { AddDeviceToProfileDialog } from "@/components/orders/add-device-to-profile-dialog";
 import { MetricCard } from "@/components/premium/ui/cards/metric-card";
+import { CustomerInfoCard, AssigneeCard } from "@/components/premium/features/appointments/ui";
+import { DeviceDetailCard } from "@/components/premium/features/appointments/ui/device-detail-card-premium";
 import { SkeletonPremium } from "@/components/premium/ui/feedback/skeleton-premium";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -288,459 +290,369 @@ export function TicketDetailPremium({
       badge={<StatusBadge status={order.status as RepairStatus} />}
       actions={headerActions}
     >
-      {/* Key Metrics Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        {/* Total Time - Primary metric with cyan accent */}
-        <div className="bg-white dark:bg-slate-900 rounded-lg p-4 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-1.5 rounded-md bg-primary/10">
-              <Clock className="h-4 w-4 text-primary" />
-            </div>
-            <span className="text-2xl font-bold text-foreground">
-              {Math.floor(totalTimeMinutes / 60)}h {totalTimeMinutes % 60}m
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-            Total Time
-          </p>
-        </div>
+      {/* Ticket Status Flow - Matching appointments page style */}
+      <div className="mb-6">
+        <Card className="border border-gray-200 dark:border-gray-700">
+          <CardContent className="pt-6 pb-4">
+            <div className="relative">
+              {/* Progress line - matching appointments style */}
+              <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700">
+                <div 
+                  className="h-full bg-cyan-500 transition-all duration-500"
+                  style={{
+                    width: order.status === 'cancelled' ? '0%' : 
+                           order.status === 'new' ? '0%' :
+                           order.status === 'in_progress' ? '50%' :
+                           order.status === 'completed' ? '100%' : '0%'
+                  }}
+                />
+              </div>
 
-        {/* Services - Neutral with subtle emphasis */}
-        <div className="bg-white dark:bg-slate-900 rounded-lg p-4 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-1.5 rounded-md bg-slate-100 dark:bg-slate-800">
-              <Wrench className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-            </div>
-            <span className="text-2xl font-bold text-foreground">
-              {order.ticket_services?.length || 0}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-            Services
-          </p>
-        </div>
+              {/* Steps - matching appointments style */}
+              <div className="relative flex justify-between">
+                {[
+                  { key: 'new', label: 'New', icon: Clock, description: 'Ticket created' },
+                  { key: 'in_progress', label: 'In Progress', icon: Wrench, description: 'Being repaired' },
+                  { key: 'completed', label: 'Completed', icon: CheckCircle2, description: 'Ready for pickup' }
+                ].map((step, index) => {
+                  const isActive = order.status === step.key;
+                  const isPast = ['new', 'in_progress', 'completed'].indexOf(order.status) > 
+                                ['new', 'in_progress', 'completed'].indexOf(step.key);
+                  const isCompleted = isPast || (order.status === 'completed' && step.key === 'completed');
+                  const Icon = step.icon;
+                  
+                  return (
+                    <div key={step.key} className="flex flex-col items-center">
+                      {/* Step circle - matching appointments style */}
+                      <div className={cn(
+                        "relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-300",
+                        isCompleted || isActive
+                          ? "border-cyan-500 bg-cyan-500 text-white" 
+                          : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500",
+                        isActive && "ring-4 ring-cyan-100 dark:ring-cyan-900/50 scale-110"
+                      )}>
+                        <Icon className="h-5 w-5" />
+                      </div>
 
-        {/* Notes - Neutral */}
-        <div className="bg-white dark:bg-slate-900 rounded-lg p-4 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-1.5 rounded-md bg-slate-100 dark:bg-slate-800">
-              <FileText className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-            </div>
-            <span className="text-2xl font-bold text-foreground">
-              {order.ticket_notes?.length || 0}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-            Notes
-          </p>
-        </div>
-
-        {/* Created Date - High priority gets red accent, otherwise neutral */}
-        <div
-          className={cn(
-            "bg-white dark:bg-slate-900 rounded-lg p-4 border shadow-sm",
-            order.priority === "high"
-              ? "border-red-200 dark:border-red-900/50"
-              : "border-slate-200 dark:border-slate-700"
-          )}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div
-              className={cn(
-                "p-1.5 rounded-md",
-                order.priority === "high"
-                  ? "bg-red-50 dark:bg-red-950/50"
-                  : "bg-slate-100 dark:bg-slate-800"
-              )}
-            >
-              {order.priority === "high" ? (
-                <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-              ) : (
-                <Calendar className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-              )}
-            </div>
-            <span className="text-sm font-bold text-foreground">
-              {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-            Created
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Content - Left Side */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Appointment Information (if ticket was created from appointment) */}
-          {appointmentData && (
-            <Card className="overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-slate-100 dark:bg-slate-800">
-                    <Calendar className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                  </div>
-                  <span className="text-foreground">
-                    Created from Appointment
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Appointment Number
-                    </p>
-                    <p className="font-medium">
-                      {appointmentData.appointment_number}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Scheduled Date & Time
-                    </p>
-                    <p className="font-medium">
-                      {appointmentData.scheduled_date ? new Date(
-                        appointmentData.scheduled_date
-                      ).toLocaleDateString() : 'N/A'}{" "}
-                      at {appointmentData.scheduled_time || 'N/A'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Source</p>
-                    <Badge variant="outline">{appointmentData.source}</Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Priority</p>
-                    <Badge
-                      variant={
-                        appointmentData.urgency === "emergency"
-                          ? "destructive"
-                          : "secondary"
-                      }
-                    >
-                      {appointmentData.urgency}
-                    </Badge>
-                  </div>
-                </div>
-
-                {appointmentData.issues &&
-                  appointmentData.issues.length > 0 && (
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Reported Issues
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {appointmentData.issues.map(
-                          (issue: string, index: number) => (
-                            <Badge key={index} variant="secondary">
-                              {issue.replace(/_/g, " ")}
-                            </Badge>
-                          )
+                      {/* Step label - matching appointments style */}
+                      <div className="mt-2 text-center">
+                        <p className={cn(
+                          "text-sm font-medium",
+                          isCompleted || isActive ? "text-gray-900 dark:text-gray-100" : "text-gray-500 dark:text-gray-400"
+                        )}>
+                          {step.label}
+                        </p>
+                        {step.description && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            {step.description}
+                          </p>
                         )}
                       </div>
                     </div>
-                  )}
+                  );
+                })}
+              </div>
 
-                {appointmentData.description && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Appointment Description
-                    </p>
-                    <p className="text-sm bg-muted/50 p-3 rounded-lg">
-                      {appointmentData.description}
-                    </p>
-                  </div>
+              {/* Edge case indicator for cancelled status */}
+              {order.status === 'cancelled' && (
+                <div className="mt-4 p-3 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                  <p className="text-sm text-center text-gray-600 dark:text-gray-400">
+                    ❌ This ticket was cancelled
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Status Notification Banner - Converted from Appointment */}
+      {appointmentData && appointmentData.id && (
+        <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                <Calendar className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-green-900 dark:text-green-100">Converted from Appointment</p>
+                <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
+                  Appointment #{appointmentData.appointment_number} • 
+                  Scheduled for {appointmentData.scheduled_date ? new Date(appointmentData.scheduled_date).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+            </div>
+            <ButtonPremium
+              onClick={() => router.push(`/appointments/${appointmentData.id}`)}
+              variant="default"
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+            >
+              <Calendar className="h-4 w-4 mr-1.5" />
+              View Appointment
+            </ButtonPremium>
+          </div>
+        </div>
+      )}
+
+      {/* Key Metrics Row - Matching appointments page style */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-6">
+        {/* Total Time */}
+        <div className="relative overflow-hidden group hover:-translate-y-0.5 transition-transform">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <MetricCard
+            title="Time Logged"
+            value={`${Math.floor(totalTimeMinutes / 60)}h ${totalTimeMinutes % 60}m`}
+            subtitle={totalTimeMinutes > 0 ? 'Total work time' : 'No time logged yet'}
+            icon={<Clock className="h-4 w-4" />}
+            variant="primary"
+          />
+        </div>
+        
+        {/* Services */}
+        <div className="relative overflow-hidden group hover:-translate-y-0.5 transition-transform">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <MetricCard
+            title="Services"
+            value={order.ticket_services?.length || '0'}
+            subtitle={
+              order.ticket_services?.length > 0 
+                ? `${order.ticket_services.length} service${order.ticket_services.length !== 1 ? 's' : ''} selected`
+                : 'No services added'
+            }
+            icon={<Wrench className="h-4 w-4" />}
+            variant={order.ticket_services?.length > 0 ? "success" : "default"}
+            badge={order.ticket_services?.length > 0 ? (
+              <div className="flex gap-1 mt-2">
+                {order.ticket_services
+                  .slice(0, 2)
+                  .map((ts: any) => (
+                    <Badge key={ts.id} variant="secondary" className="text-[10px] px-1.5 py-0">
+                      {ts.services?.name?.split(' ').slice(0, 2).join(' ')}
+                    </Badge>
+                  ))}
+                {order.ticket_services.length > 2 && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    +{order.ticket_services.length - 2}
+                  </Badge>
                 )}
+              </div>
+            ) : undefined}
+          />
+        </div>
+        
+        {/* Total Cost */}
+        <div className="relative overflow-hidden group hover:-translate-y-0.5 transition-transform">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <MetricCard
+            title="Total Cost"
+            value={`$${(() => {
+              // Calculate total from services if total_cost is not set
+              if (order.ticket_services && order.ticket_services.length > 0) {
+                const calculatedTotal = order.ticket_services.reduce((sum: number, ts: any) => {
+                  const service = ts.service || ts.services;
+                  const price = service?.base_price || ts.price || 0;
+                  return sum + price;
+                }, 0);
+                return (calculatedTotal || order.total_cost || 0).toFixed(2);
+              }
+              return (order.total_cost || 0).toFixed(2);
+            })()}`}
+            subtitle={
+              order.ticket_services?.length > 0 
+                ? `${order.ticket_services.length} service${order.ticket_services.length !== 1 ? 's' : ''}`
+                : 'No cost calculated'
+            }
+            icon={<DollarSign className="h-4 w-4" />}
+            variant={order.ticket_services?.length > 0 ? "primary" : "default"}
+          />
+        </div>
+        
+        {/* Priority & Date */}
+        <div className="relative overflow-hidden group hover:-translate-y-0.5 transition-transform">
+          <div className={cn(
+            "absolute inset-0 bg-gradient-to-br to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500",
+            order.priority === "high" ? "from-red-500/5" : "from-blue-500/5"
+          )} />
+          <MetricCard
+            title="Priority"
+            value={order.priority?.charAt(0).toUpperCase() + order.priority?.slice(1) || 'Medium'}
+            subtitle={
+              order.created_at 
+                ? format(new Date(order.created_at), 'MMM d, yyyy')
+                : 'No date set'
+            }
+            icon={order.priority === "high" ? <AlertCircle className="h-4 w-4" /> : <Calendar className="h-4 w-4" />}
+            variant={order.priority === "high" ? "destructive" : "default"}
+          />
+        </div>
+      </div>
 
-                {appointmentData.notes && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Appointment Notes
-                    </p>
-                    <p className="text-sm bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700">
-                      {appointmentData.notes}
-                    </p>
+
+      <div className="grid gap-8 lg:grid-cols-3">
+        {/* Main Content - Left Side */}
+        <div className="lg:col-span-2 space-y-6">
+          
+          {/* Appointment Details (if ticket was created from appointment) */}
+          {appointmentData && appointmentData.notes && (
+            <Card className="border border-gray-200 dark:border-gray-700">
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-semibold">
+                    Appointment Notes
+                  </CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                <p className="text-sm text-muted-foreground">
+                  {appointmentData.notes}
+                </p>
+                {appointmentData.issues && appointmentData.issues.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs text-muted-foreground mb-2">Reported Issues:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {appointmentData.issues.map((issue: string, index: number) => (
+                        <Badge key={index} variant="secondary" className="text-xs">
+                          {issue.replace(/_/g, " ")}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 )}
               </CardContent>
             </Card>
           )}
 
-          {/* Device Information - Completely Redesigned */}
-          <div className="relative">
-            {/* Device Status Badge */}
-            {matchingCustomerDevice ? (
-              <div className="absolute -top-2 right-4 z-10">
-                <div className="bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  IN PROFILE
+          {/* Device Information - Premium Design */}
+          <DeviceDetailCard
+            device={{
+              id: order.device?.id || '',
+              modelName: order.device?.model_name || `${order.device_brand} ${order.device_model}`,
+              manufacturer: order.device?.manufacturer?.name || order.device_brand,
+              imageUrl: order.device?.image_url,
+              thumbnailUrl: order.device?.thumbnail_url,
+              serialNumber: order.serial_number || matchingCustomerDevice?.serial_number || '',
+              imei: order.imei || matchingCustomerDevice?.imei || '',
+              color: matchingCustomerDevice?.color || '',
+              storageSize: matchingCustomerDevice?.storage_size || '',
+              condition: matchingCustomerDevice?.condition || 'good',
+              issues: order.repair_issues || []
+            }}
+            isEditing={false}
+            isLocked={true}
+            isInProfile={!!matchingCustomerDevice}
+            onDeviceChange={() => {}}
+            onSave={() => {}}
+            deviceNickname={matchingCustomerDevice?.nickname}
+            showAddToProfile={!matchingCustomerDevice && (order.imei || order.serial_number)}
+            onAddToProfile={() => setShowAddDeviceDialog(true)}
+          />
+
+
+          {/* Services Section - Premium Design */}
+          <Card className="border border-gray-200 dark:border-gray-700">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wrench className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-semibold">
+                    Services Applied
+                  </CardTitle>
                 </div>
               </div>
-            ) : (
-              <div className="absolute -top-2 right-4 z-10">
-                <div className="bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
-                  <AlertCircle className="h-3.5 w-3.5" />
-                  NOT SAVED
-                </div>
-              </div>
-            )}
-
-            <Card className="overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm">
-              <div className="p-6">
-                {order.device ? (
-                  <div className="flex gap-6">
-                    {/* Device Image Section */}
-                    <div className="flex-shrink-0">
-                      {order.device.image_url ? (
-                        <div className="relative">
-                          <img
-                            src={order.device.image_url}
-                            alt={order.device.model_name}
-                            className="w-32 h-32 object-cover rounded-2xl shadow-xl"
-                          />
-                          <div className="absolute -bottom-2 -right-2 bg-primary text-white rounded-full p-2 shadow-lg">
-                            <Smartphone className="h-4 w-4" />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-32 h-32 rounded-2xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-                          <Smartphone className="h-12 w-12 text-slate-400" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Device Details Section */}
-                    <div className="flex-1 space-y-4">
-                      <div>
-                        <div className="flex items-start justify-between mb-1">
-                          <div>
-                            <h3 className="text-2xl font-bold text-foreground">
-                              {order.device.manufacturer?.name || order.device_brand}{" "}
-                              {order.device.model_name || order.device_model}
-                            </h3>
-                            {matchingCustomerDevice?.nickname && (
-                              <p className="text-sm text-primary font-medium mt-0.5">
-                                "{matchingCustomerDevice.nickname}"
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Device Specs Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                          {order.device?.device_type && (
-                            <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border">
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
-                                Type
-                              </p>
-                              <p className="text-sm font-semibold">
-                                {order.device.device_type}
-                              </p>
-                            </div>
-                          )}
-                          {matchingCustomerDevice?.color && (
-                            <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border">
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
-                                Color
-                              </p>
-                              <p className="text-sm font-semibold">
-                                {matchingCustomerDevice.color}
-                              </p>
-                            </div>
-                          )}
-                          {matchingCustomerDevice?.storage_size && (
-                            <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border">
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
-                                Storage
-                              </p>
-                              <p className="text-sm font-semibold">
-                                {matchingCustomerDevice.storage_size}
-                              </p>
-                            </div>
-                          )}
-                          {order.device?.release_year && (
-                            <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border">
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
-                                Year
-                              </p>
-                              <p className="text-sm font-semibold">
-                                {order.device.release_year}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* IMEI/Serial Section */}
-                      <div className="flex gap-3">
-                        {(order.imei || matchingCustomerDevice?.imei) && (
-                          <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 border border-slate-200 dark:border-slate-700 relative group">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 font-semibold">
-                              IMEI
-                            </p>
-                            <div className="flex items-center justify-between">
-                              <p className="text-sm font-mono">
-                                {order.imei || matchingCustomerDevice?.imei}
-                              </p>
-                              <button
-                                onClick={() =>
-                                  copyToClipboard(
-                                    order.imei || matchingCustomerDevice?.imei || "",
-                                    "IMEI"
-                                  )
-                                }
-                                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <Copy className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        {(order.serial_number || matchingCustomerDevice?.serial_number) && (
-                          <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 border border-slate-200 dark:border-slate-700 relative group">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 font-semibold">
-                              Serial Number
-                            </p>
-                            <div className="flex items-center justify-between">
-                              <p className="text-sm font-mono">
-                                {order.serial_number || matchingCustomerDevice?.serial_number}
-                              </p>
-                              <button
-                                onClick={() =>
-                                  copyToClipboard(
-                                    order.serial_number || matchingCustomerDevice?.serial_number || "",
-                                    "Serial Number"
-                                  )
-                                }
-                                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <Copy className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Add to Profile Button */}
-                      {!matchingCustomerDevice && (order.imei || order.serial_number) && (
-                        <Button
-                          onClick={() => setShowAddDeviceDialog(true)}
-                          className="w-full"
-                          variant="outline"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Device to Customer Profile
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Smartphone className="h-12 w-12 text-slate-400 mx-auto mb-3" />
-                    <p className="text-muted-foreground">
-                      Device: {order.device_brand} {order.device_model}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </Card>
-          </div>
-
-          {/* Repair Issues */}
-          <Card className="overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-slate-100 dark:bg-slate-800">
-                  <AlertCircle className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                </div>
-                <span className="text-foreground">Repair Issues</span>
-              </CardTitle>
             </CardHeader>
-            <CardContent>
-              {order.repair_issues && order.repair_issues.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {order.repair_issues.map((issue: string, index: number) => (
-                    <Badge key={index} variant="secondary">
-                      {issue.replace(/_/g, " ")}
-                    </Badge>
-                  ))}
+            <CardContent className="p-4 pt-0">
+              {order.ticket_services && order.ticket_services.length > 0 ? (
+                <div className="space-y-2">
+                  {order.ticket_services.map((ticketService: any) => {
+                    // Handle both 'service' and 'services' field names
+                    const service = ticketService.service || ticketService.services;
+                    const price = service?.base_price || ticketService.price || 0;
+                    const duration = service?.estimated_duration_minutes || ticketService.duration_minutes || 0;
+                    
+                    return (
+                      <div key={ticketService.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                        <div>
+                          <p className="text-sm font-medium">{service?.name || 'Unknown Service'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {service?.category?.replace(/_/g, ' ') || 'General'}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold">
+                            ${price.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {duration} min
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="pt-2 mt-2 border-t">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Total</span>
+                      <div className="text-right">
+                        <p className="text-base font-bold text-primary">
+                          ${(() => {
+                            // Calculate total from services
+                            const calculatedTotal = order.ticket_services.reduce((sum: number, ts: any) => {
+                              const service = ts.service || ts.services;
+                              const price = service?.base_price || ts.price || 0;
+                              return sum + price;
+                            }, 0);
+                            // Use calculated total or fallback to order.total_cost
+                            return (calculatedTotal || order.total_cost || 0).toFixed(2);
+                          })()}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {order.ticket_services.reduce((sum: number, ts: any) => {
+                            const service = ts.service || ts.services;
+                            const duration = service?.estimated_duration_minutes || ts.duration_minutes || 0;
+                            return sum + duration;
+                          }, 0)} min total
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  No issues reported
-                </p>
+                <div className="text-center py-8">
+                  <Wrench className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground mb-3">No services added</p>
+                </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Services Section */}
-          {order.ticket_services && order.ticket_services.length > 0 && (
-            <Card className="overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-slate-100 dark:bg-slate-800">
-                    <Wrench className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                  </div>
-                  <span className="text-foreground">Services</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {order.ticket_services.map((service: any) => (
-                    <div
-                      key={service.id}
-                      className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700"
-                    >
-                      <div>
-                        <p className="font-medium">{service.service?.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {service.service?.category?.replace(/_/g, " ")}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">
-                          ${service.service?.base_price?.toFixed(2)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {service.service?.estimated_duration_minutes} min
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Notes Section */}
+          {/* Notes Section - Premium Design */}
           {order.ticket_notes && order.ticket_notes.length > 0 && (
-            <Card className="overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-slate-100 dark:bg-slate-800">
-                    <MessageSquare className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                  </div>
-                  <span className="text-foreground">Notes</span>
-                </CardTitle>
+            <Card className="border border-gray-200 dark:border-gray-700">
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-semibold">
+                    Technician Notes
+                  </CardTitle>
+                </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 pt-0">
                 <div className="space-y-3">
                   {order.ticket_notes.map((note: any) => (
                     <div
                       key={note.id}
-                      className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700"
+                      className="p-3 rounded-lg bg-muted/30 border border-muted"
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">
+                        <span className="text-sm font-medium text-foreground">
                           {note.user?.full_name || note.user?.email || "Unknown"}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {note.created_at ? formatDate(note.created_at) : ''}
                         </span>
                       </div>
-                      <p className="text-sm">{note.content}</p>
+                      <p className="text-sm leading-relaxed">{note.content}</p>
                     </div>
                   ))}
                 </div>
@@ -751,8 +663,12 @@ export function TicketDetailPremium({
           {/* Time Entries Section */}
           <TimeEntriesSection 
             entries={order.time_entries || []} 
-            ticketId={orderId}
-            isAdmin={isAdmin}
+            totalMinutes={totalTimeMinutes}
+            canDelete={isAdmin}
+            onDelete={async (entryId: string) => {
+              // Delete functionality can be implemented here
+              console.log('Delete time entry:', entryId);
+            }}
           />
         </div>
 
@@ -761,117 +677,60 @@ export function TicketDetailPremium({
           {/* Timer Control */}
           <TimerControl
             ticketId={orderId}
-            isRunning={order.timer_is_running || false}
-            startedAt={order.timer_started_at}
-            totalMinutes={totalTimeMinutes}
-            canControl={
-              order.status !== "completed" && order.status !== "cancelled"
-            }
-            onClearTimer={
-              isAdmin
-                ? async () => {
-                    if (confirm("Are you sure you want to clear the timer?")) {
-                      clearTimerMutation.mutate(orderId);
-                    }
-                  }
-                : undefined
+            ticketNumber={order.ticket_number}
+            customerName={order.customer_name || order.customers?.name}
+            isDisabled={order.status === "completed" || order.status === "cancelled"}
+            disabledReason={
+              order.status === "completed" ? "Ticket is completed" :
+              order.status === "cancelled" ? "Ticket is cancelled" : undefined
             }
           />
 
-          {/* Assignment & Status Controls */}
+          {/* Assignee Card */}
           {isAdmin && (
-            <Card className="overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-sm font-medium">
-                  Assignment & Status
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-1.5 block">
-                    Assigned To
-                  </Label>
-                  <Select value={assignedTechId || "unassigned"} onValueChange={(value) => handleAssignmentChange(value === "unassigned" ? "" : value)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Unassigned" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
-                      {technicians.map((tech) => (
-                        <SelectItem key={tech.id} value={tech.id}>
-                          {tech.name} ({tech.role})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="flex flex-col gap-2">
-                  {quickStatusActions
-                    .filter((action) => action.show)
-                    .map((action, index) => (
-                      <Button
-                        key={index}
-                        onClick={action.action}
-                        variant={action.variant}
-                        className="w-full justify-start"
-                      >
-                        {action.icon}
-                        <span className="ml-2">{action.label}</span>
-                      </Button>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
+            <AssigneeCard
+              assignee={order.assigned_to ? {
+                id: order.assigned_to,
+                name: technicians.find(t => t.id === order.assigned_to)?.name || 'Unknown',
+                email: technicians.find(t => t.id === order.assigned_to)?.email,
+                role: technicians.find(t => t.id === order.assigned_to)?.role,
+                // TODO: Add real stats from database
+                stats: {
+                  totalAppointments: 24,
+                  completedToday: 3,
+                  avgDuration: 45,
+                  satisfactionRate: 98
+                }
+              } : null}
+              technicians={technicians}
+              isEditing={false}
+              isLocked={order.status === 'completed' || order.status === 'cancelled'}
+              onAssigneeChange={(techId) => handleAssignmentChange(techId || '')}
+            />
           )}
 
-          {/* Customer Information */}
-          <Card className="overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-slate-100 dark:bg-slate-800">
-                  <User className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                </div>
-                <span className="text-foreground">Customer</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Name</p>
-                <p className="font-medium">
-                  {order.customer_name || order.customers?.name || "Unknown"}
-                </p>
-              </div>
-              {order.customer_phone && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Phone</p>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <p className="font-medium">{order.customer_phone}</p>
-                  </div>
-                </div>
-              )}
-              {order.customers?.email && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <p className="font-medium text-sm truncate">
-                      {order.customers.email}
-                    </p>
-                  </div>
-                </div>
-              )}
-              {order.customer_id && (
-                <Link
-                  href={`/customers/${order.customer_id}`}
-                  className="inline-flex items-center text-sm text-primary hover:text-primary/90 font-medium"
-                >
-                  View Profile →
-                </Link>
-              )}
-            </CardContent>
-          </Card>
+          {/* Customer Information Card */}
+          <CustomerInfoCard
+            customer={{
+              id: order.customer_id || '',
+              name: order.customer_name || order.customers?.name || 'Unknown',
+              email: order.customers?.email || '',
+              phone: order.customer_phone || order.customers?.phone || '',
+              previousAppointments: order.customerStats?.totalAppointments || order.customers?.total_appointments || 0,
+              totalRepairs: order.customerStats?.totalRepairs || order.customers?.total_orders || 1, // At least 1 since this is a repair
+              memberSince: order.customers?.created_at || '',
+              notificationPreference: 'email',
+              // Add ticket-specific context
+              currentTicket: {
+                number: order.ticket_number,
+                status: order.status,
+                device: `${order.device_brand} ${order.device_model}`
+              }
+            }}
+            isEditing={false}
+            isLocked={true}
+            onCustomerChange={() => {}}
+          />
 
           {/* Photos Section */}
           <TicketPhotosSidebar ticketId={orderId} />

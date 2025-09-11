@@ -219,8 +219,18 @@ export const DeviceDetailCard = React.forwardRef<HTMLDivElement, DeviceDetailCar
           {/* Header */}
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Smartphone className="h-4 w-4 text-primary" />
+              <div className={cn(
+                "p-2 rounded-lg",
+                (device.nickname || (device.serialNumber && device.imei))
+                  ? "bg-green-100 dark:bg-green-900/30"
+                  : "bg-primary/10"
+              )}>
+                <Smartphone className={cn(
+                  "h-4 w-4",
+                  (device.nickname || (device.serialNumber && device.imei))
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-primary"
+                )} />
               </div>
               <div>
                 <h3 className="text-base font-semibold">Device Information</h3>
@@ -233,16 +243,16 @@ export const DeviceDetailCard = React.forwardRef<HTMLDivElement, DeviceDetailCar
             {/* Condition Badge and Customer Device Indicator */}
             {!isEditing && (
               <div className="flex items-center gap-2">
-                {/* Customer Device Indicator */}
-                {device.nickname && (
+                {/* Sync Status Indicator */}
+                {(device.nickname || (device.serialNumber && device.imei)) && (
                   <StatusBadge
                     type="general"
                     status="success"
                     variant="soft"
                     className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"
                   >
-                    <User className="h-3 w-3 mr-1" />
-                    Customer Device
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Sync'd with Profile
                   </StatusBadge>
                 )}
                 {device.condition && (
@@ -282,7 +292,7 @@ export const DeviceDetailCard = React.forwardRef<HTMLDivElement, DeviceDetailCar
                 "relative overflow-hidden rounded-lg p-4",
                 device.nickname 
                   ? "bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-2 border-green-200 dark:border-green-800"
-                  : "bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20"
+                  : "bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-950/10 dark:to-emerald-950/10 border border-green-200/50 dark:border-green-800/50"
               )}>
                 <div className="flex items-start gap-4">
                   {/* Device Icon/Thumbnail */}

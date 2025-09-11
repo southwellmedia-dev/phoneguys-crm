@@ -116,11 +116,11 @@ export default async function OrderDetailPage({
 
       // Update the repair ticket with customer_device_id
       const ticketRepo = new RepairTicketRepository(true);
-      await ticketRepo.update(params.id, {
+      await ticketRepo.update(resolvedParams.id, {
         customer_device_id: newDevice.id
       });
 
-      revalidatePath(`/orders/${params.id}`);
+      revalidatePath(`/orders/${resolvedParams.id}`);
       return { success: true, data: newDevice };
     } catch (error) {
       console.error('Error adding device to profile:', error);
@@ -178,12 +178,24 @@ export default async function OrderDetailPage({
 
   // Fetch appointment data if this ticket was created from an appointment
   let appointmentData = null;
+  
+  // Debug logging
+  console.log('Order data:', {
+    id: order.id,
+    ticket_number: order.ticket_number,
+    appointment_id: order.appointment_id,
+    hasAppointmentId: !!order.appointment_id
+  });
+  
   if (order.appointment_id) {
     try {
       const appointmentRepo = new AppointmentRepository(true);
       const appointment = await appointmentRepo.findById(order.appointment_id);
+      console.log('Found appointment:', appointment);
+      
       if (appointment) {
         appointmentData = {
+          id: appointment.id || order.appointment_id,  // Include the ID!
           appointment_number: appointment.appointment_number,
           scheduled_date: appointment.scheduled_date,
           scheduled_time: appointment.scheduled_time,
@@ -194,10 +206,13 @@ export default async function OrderDetailPage({
           source: appointment.source,
           created_at: appointment.created_at
         };
+        console.log('Created appointmentData:', appointmentData);
       }
     } catch (error) {
       console.error('Error fetching appointment:', error);
     }
+  } else {
+    console.log('No appointment_id found on order');
   }
 
   return (

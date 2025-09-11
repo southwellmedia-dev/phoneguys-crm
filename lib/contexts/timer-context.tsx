@@ -18,6 +18,7 @@ export interface TimerContextType {
   stopTimer: (notes: string) => Promise<boolean>;
   pauseTimer: () => Promise<boolean>;
   refreshTimer: () => Promise<void>;
+  recoverTimer: (ticketId: string) => Promise<boolean>;
   clearError: () => void;
 }
 
@@ -75,13 +76,28 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
       if (!stored) return null;
 
       const { savedAt, ...timer } = JSON.parse(stored);
+      
+      // Validate timer data structure
+      if (!timer.ticketId || !timer.startTime) {
+        console.warn('Invalid timer data in localStorage, clearing');
+        localStorage.removeItem(TIMER_STORAGE_KEY);
+        return null;
+      }
+
       const now = new Date();
       const savedTime = new Date(savedAt);
       const additionalSeconds = Math.floor((now.getTime() - savedTime.getTime()) / 1000);
+      
+      // Sanity check - if timer was saved more than 24 hours ago, it's probably stale
+      if (additionalSeconds > 86400) {
+        console.warn('Timer data is more than 24 hours old, clearing');
+        localStorage.removeItem(TIMER_STORAGE_KEY);
+        return null;
+      }
 
       return {
         ...timer,
-        elapsedSeconds: timer.elapsedSeconds + additionalSeconds
+        elapsedSeconds: (timer.elapsedSeconds || 0) + additionalSeconds
       };
     } catch (error) {
       console.error('Failed to load timer from localStorage:', error);
@@ -266,6 +282,49 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
     }
   }, [activeTimer, getTimerStatus, saveTimerToStorage]);
 
+  // Recover timer from database
+  const recoverTimer = useCallback(async (ticketId: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Get timer status from database
+      const status = await getTimerStatus(ticketId);
+      
+      if (!status.data || !status.data.isTimerActive) {
+        setError('No active timer found for this ticket');
+        return false;
+      }
+
+      // Get ticket info for display
+      const ticketInfo = await getTicketInfo(ticketId);
+      
+      // Calculate elapsed seconds from start time
+      const startTime = new Date(status.data.timerStartedAt);
+      const now = new Date();
+      const elapsedSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+
+      const recoveredTimer: ActiveTimer = {
+        ticketId,
+        ticketNumber: ticketInfo.ticketNumber,
+        customerName: ticketInfo.customerName,
+        startTime: status.data.timerStartedAt,
+        elapsedSeconds
+      };
+
+      setActiveTimer(recoveredTimer);
+      saveTimerToStorage(recoveredTimer);
+      
+      console.log('Timer recovered from database');
+      return true;
+    } catch (error: any) {
+      setError(error.message || 'Failed to recover timer');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getTimerStatus, getTicketInfo, saveTimerToStorage]);
+
   // Clear error
   const clearError = useCallback(() => {
     setError(null);
@@ -273,27 +332,39 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
 
   // Initialize timer from localStorage on mount and validate it
   useEffect(() => {
-    const storedTimer = loadTimerFromStorage();
-    if (storedTimer) {
-      // Validate that the timer still exists in the database
-      getTimerStatus(storedTimer.ticketId)
-        .then(status => {
-          if (status.data && status.data.isTimerActive) {
-            setActiveTimer(storedTimer);
-          } else {
-            // Timer no longer exists in database, clear it
-            console.log('Timer no longer exists in database, clearing local storage');
-            localStorage.removeItem(TIMER_STORAGE_KEY);
-            setActiveTimer(null);
-          }
-        })
-        .catch(error => {
-          // If we can't verify the timer (e.g., ticket doesn't exist), clear it
-          console.error('Failed to verify timer, clearing:', error);
+    const initializeTimer = async () => {
+      const storedTimer = loadTimerFromStorage();
+      if (!storedTimer) return;
+
+      try {
+        // Validate that the timer still exists in the database
+        const status = await getTimerStatus(storedTimer.ticketId);
+        
+        if (status.data && status.data.isTimerActive) {
+          // Timer is valid, restore it
+          setActiveTimer(storedTimer);
+          console.log('Timer restored from local storage');
+        } else {
+          // Timer no longer active in database
+          console.log('Timer no longer active in database, clearing local storage');
           localStorage.removeItem(TIMER_STORAGE_KEY);
           setActiveTimer(null);
-        });
-    }
+          
+          // Set an error so user knows what happened
+          if (status.data && !status.data.isTimerActive) {
+            setError('Timer was stopped externally. Local timer cleared.');
+          }
+        }
+      } catch (error) {
+        // If we can't verify the timer, try to keep it running locally
+        // This handles temporary network issues
+        console.warn('Could not verify timer status, keeping local timer:', error);
+        setActiveTimer(storedTimer);
+        setError('Unable to verify timer status. Timer running locally.');
+      }
+    };
+
+    initializeTimer();
   }, [loadTimerFromStorage, getTimerStatus]);
 
   // Update timer every second
@@ -349,6 +420,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
     stopTimer,
     pauseTimer,
     refreshTimer,
+    recoverTimer,
     clearError
   };
 

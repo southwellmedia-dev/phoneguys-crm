@@ -157,35 +157,55 @@ export async function POST(request: NextRequest) {
     }
 
     // Create appointment with the customer device FIRST
-    console.log('Creating appointment with:', {
+    const appointmentData = {
       customer_id: customer.id,
-      device_id: data.device.deviceId,
+      device_id: data.device.deviceId || null,
       customer_device_id: customerDevice.id,
-      source: 'website'
-    });
+      scheduled_date: data.appointmentDate,
+      scheduled_time: normalizedTime,
+      duration_minutes: data.duration || 30,
+      issues: data.issues || null,
+      description: data.issueDescription || null,
+      source: 'website', // This must be 'website' for RLS policy
+      urgency: 'scheduled',
+      notes: data.notes || null,
+      status: 'scheduled'
+    };
+    
+    console.log('Creating appointment with full data:', JSON.stringify(appointmentData, null, 2));
     
     // Create appointment directly using Supabase client to ensure proper anon access
     const publicClient = createPublicClient();
+    
+    // First, let's test if we can even access the appointments table
+    console.log('Testing appointments table access...');
+    const { error: testError } = await publicClient
+      .from('appointments')
+      .select('id')
+      .limit(1);
+    
+    if (testError) {
+      console.error('Cannot SELECT from appointments table:', testError);
+    } else {
+      console.log('SELECT test passed - can read appointments table');
+    }
+    
+    // Now try the actual insert
+    console.log('Attempting to insert appointment...');
     const { data: appointment, error: appointmentError } = await publicClient
       .from('appointments')
-      .insert({
-        customer_id: customer.id,
-        device_id: data.device.deviceId || null,
-        customer_device_id: customerDevice.id,
-        scheduled_date: data.appointmentDate,
-        scheduled_time: normalizedTime,
-        duration_minutes: data.duration || 30,
-        issues: data.issues || null,
-        description: data.issueDescription || null,
-        source: 'website', // This must be 'website' for RLS policy
-        urgency: 'scheduled',
-        notes: data.notes || null,
-        status: 'scheduled'
-      })
+      .insert(appointmentData)
       .select()
       .single();
 
     if (appointmentError) {
+      console.error('Detailed appointment creation error:', {
+        message: appointmentError.message,
+        details: appointmentError.details,
+        hint: appointmentError.hint,
+        code: appointmentError.code,
+        appointmentData
+      });
       throw new Error(`Failed to create appointment: ${appointmentError.message}`);
     }
 
@@ -283,12 +303,52 @@ export async function POST(request: NextRequest) {
 
 /**
  * GET /api/public/appointments
- * Check appointment status by appointment number
+ * Check appointment status by appointment number OR run debug diagnostics
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const appointmentNumber = searchParams.get('appointmentNumber');
+    const debug = searchParams.get('debug');
+    
+    // Debug mode - run RLS diagnostics
+    if (debug === 'true') {
+      const publicClient = createPublicClient();
+      
+      // Run the diagnostic function
+      const { data: diagnostic, error: diagError } = await publicClient
+        .rpc('debug_appointment_insert', {
+          p_customer_id: 'a462e5b4-76e7-4762-9bbd-bdcad2963f46',
+          p_device_id: '3813aef0-341c-4555-a57b-79aaf1c60ae6',
+          p_customer_device_id: 'eae34363-535b-499d-98b4-51007a738bed',
+          p_scheduled_date: '2025-01-15',
+          p_scheduled_time: '10:00',
+          p_source: 'website'
+        });
+      
+      if (diagError) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Diagnostic failed',
+            details: diagError
+          },
+          { 
+            status: 500,
+            headers: corsHeaders
+          }
+        );
+      }
+      
+      return NextResponse.json(
+        {
+          success: true,
+          diagnostic: diagnostic,
+          message: 'Diagnostic results - check the diagnostic object for details'
+        },
+        { headers: corsHeaders }
+      );
+    }
     
     if (!appointmentNumber) {
       return NextResponse.json(

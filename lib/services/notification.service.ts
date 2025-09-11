@@ -3,6 +3,10 @@ import { CustomerRepository } from '../repositories/customer.repository';
 import { RepairTicketRepository } from '../repositories/repair-ticket.repository';
 import { Notification, CreateNotificationDto, NotificationType, NotificationStatus } from '../types/database.types';
 import { Customer, RepairTicket } from '../types/database.types';
+import { getSMSService, SMSMessage } from './sms.service';
+import { processSMSTemplate, getSMSTemplateByStatus, SMSTemplateVariables } from '../templates/sms-templates';
+import { createServiceClient } from '../supabase/service';
+import { CustomerWithSMSPreferences, NotificationResult } from '../types/sms.types';
 
 // Email templates
 const EMAIL_TEMPLATES = {
@@ -165,6 +169,245 @@ export class NotificationService {
       subject: template.subject.replace('{ticketNumber}', ticket.ticket_number),
       body: emailContent,
       status: 'pending'
+    });
+  }
+
+  /**
+   * Send SMS notification for status change with email fallback
+   */
+  async notifyStatusChangeWithSMS(
+    ticket: RepairTicket,
+    newStatus: string,
+    message?: string
+  ): Promise<NotificationResult> {
+    const customer = await this.customerRepo.findById(ticket.customer_id);
+    if (!customer) {
+      throw new Error('Customer not found');
+    }
+
+    const result: NotificationResult = { 
+      success: false, 
+      method: 'none' 
+    };
+
+    // Check customer SMS preferences
+    const shouldSendSMS = this.shouldSendSMS(customer as CustomerWithSMSPreferences, newStatus);
+    const shouldSendEmail = this.shouldSendEmail(customer as CustomerWithSMSPreferences, newStatus);
+
+    let smsSuccess = false;
+    let emailSuccess = false;
+
+    // Send SMS if enabled and phone available
+    if (shouldSendSMS && customer.phone) {
+      try {
+        result.smsResult = await this.sendSMSNotification(ticket, customer, newStatus, message);
+        smsSuccess = result.smsResult.success;
+      } catch (error) {
+        console.error('SMS notification failed:', error);
+        result.smsResult = { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'SMS failed',
+          to: customer.phone
+        };
+      }
+    }
+
+    // Send email as fallback or if preferred
+    if (shouldSendEmail) {
+      try {
+        result.emailResult = await this.notifyStatusChange(ticket, newStatus, message);
+        emailSuccess = true;
+      } catch (error) {
+        console.error('Email notification failed:', error);
+        // If SMS also failed, throw error
+        if (!smsSuccess) {
+          throw error;
+        }
+      }
+    }
+
+    // Determine method and success
+    if (smsSuccess && emailSuccess) {
+      result.method = 'both';
+      result.success = true;
+    } else if (smsSuccess) {
+      result.method = 'sms';
+      result.success = true;
+    } else if (emailSuccess) {
+      result.method = 'email';
+      result.success = true;
+    }
+
+    return result;
+  }
+
+  /**
+   * Send SMS notification for ticket status update
+   */
+  private async sendSMSNotification(
+    ticket: RepairTicket,
+    customer: Customer,
+    newStatus: string,
+    message?: string
+  ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const smsService = getSMSService();
+    
+    if (!smsService.isReady()) {
+      throw new Error('SMS service not configured');
+    }
+
+    // Get SMS settings from database
+    const settings = await this.getSMSSettings();
+    
+    // Prepare template variables
+    const templateVariables: SMSTemplateVariables = {
+      customerName: customer.name,
+      ticketNumber: ticket.ticket_number,
+      deviceBrand: ticket.device_brand,
+      deviceModel: ticket.device_model,
+      status: this.formatStatus(newStatus),
+      businessName: settings.businessName,
+      businessPhone: settings.businessPhone,
+      totalCost: ticket.total_cost?.toFixed(2) || '0.00',
+      holdReason: message || 'awaiting parts'
+    };
+
+    // Get appropriate SMS template
+    const templateKey = getSMSTemplateByStatus(newStatus);
+    const processedTemplate = processSMSTemplate(
+      templateKey,
+      templateVariables,
+      settings.useDetailedTemplates
+    );
+
+    // Send SMS
+    const smsMessage: SMSMessage = {
+      to: customer.phone!,
+      message: processedTemplate.message
+    };
+
+    const result = await smsService.sendSMS(smsMessage);
+    
+    // Log SMS notification to database
+    await this.logSMSNotification(
+      ticket.id,
+      customer.id,
+      customer.phone!,
+      processedTemplate.message,
+      templateKey,
+      result.success ? 'sent' : 'failed',
+      result.messageId,
+      result.error
+    );
+
+    return result;
+  }
+
+  /**
+   * Check if customer should receive SMS notifications
+   */
+  private shouldSendSMS(customer: CustomerWithSMSPreferences, status: string): boolean {
+    // Only send SMS for important status changes
+    const smsStatuses = ['completed', 'in_progress'];
+    
+    if (!smsStatuses.includes(status)) {
+      return false;
+    }
+
+    // Check customer SMS preferences
+    if (customer.sms_notifications_enabled === false) {
+      return false;
+    }
+
+    // Check notification preferences JSON
+    if (customer.notification_preferences) {
+      const prefs = typeof customer.notification_preferences === 'string' 
+        ? JSON.parse(customer.notification_preferences)
+        : customer.notification_preferences;
+      
+      return prefs.sms === true;
+    }
+
+    // Default to enabled if no explicit preference
+    return true;
+  }
+
+  /**
+   * Check if customer should receive email notifications
+   */
+  private shouldSendEmail(customer: CustomerWithSMSPreferences, status: string): boolean {
+    // Check notification preferences JSON
+    if (customer.notification_preferences) {
+      const prefs = typeof customer.notification_preferences === 'string' 
+        ? JSON.parse(customer.notification_preferences)
+        : customer.notification_preferences;
+      
+      return prefs.email !== false; // Default to true unless explicitly disabled
+    }
+
+    // Default to enabled
+    return true;
+  }
+
+  /**
+   * Get SMS settings from database
+   */
+  private async getSMSSettings(): Promise<{
+    businessName: string;
+    businessPhone: string;
+    useDetailedTemplates: boolean;
+    enabled: boolean;
+  }> {
+    const supabase = createServiceClient();
+    
+    const { data: settings } = await supabase
+      .from('settings')
+      .select('key, value')
+      .in('key', [
+        'sms_business_name',
+        'sms_business_phone', 
+        'sms_use_detailed_templates',
+        'sms_notifications_enabled'
+      ]);
+
+    const settingsMap = (settings || []).reduce((acc, setting) => {
+      acc[setting.key] = setting.value;
+      return acc;
+    }, {} as Record<string, string>);
+
+    return {
+      businessName: settingsMap.sms_business_name || 'The Phone Guys',
+      businessPhone: settingsMap.sms_business_phone || '(555) 123-4567',
+      useDetailedTemplates: settingsMap.sms_use_detailed_templates === 'true',
+      enabled: settingsMap.sms_notifications_enabled !== 'false'
+    };
+  }
+
+  /**
+   * Log SMS notification to database for tracking
+   */
+  private async logSMSNotification(
+    ticketId: string,
+    customerId: string,
+    phoneNumber: string,
+    messageContent: string,
+    templateUsed: string,
+    status: string,
+    twilioMessageId?: string,
+    errorMessage?: string
+  ): Promise<void> {
+    const supabase = createServiceClient();
+    
+    await supabase.from('sms_notifications').insert({
+      ticket_id: ticketId,
+      customer_id: customerId,
+      phone_number: phoneNumber,
+      message_content: messageContent,
+      template_used: templateUsed,
+      status,
+      twilio_message_id: twilioMessageId,
+      error_message: errorMessage,
+      sent_at: status === 'sent' ? new Date().toISOString() : null
     });
   }
 

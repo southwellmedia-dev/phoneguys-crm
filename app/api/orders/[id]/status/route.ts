@@ -54,9 +54,15 @@ async function updateStatus(request: NextRequest, params: RouteParams) {
     const ticket = updatedTicket;
 
     if (ticket) {
-      // Send email notification - skip for reopening to avoid spam
+      // Send SMS/email notifications - skip for reopening to avoid spam
       if (status !== 'in_progress' || reason !== 'Order reopened') {
-        await notificationService.notifyStatusChange(ticket, status, reason);
+        try {
+          // Try SMS notification first, with email fallback
+          await notificationService.notifyStatusChangeWithSMS(ticket, status, reason);
+        } catch (error) {
+          console.error('Failed to send customer notification:', error);
+          // Still proceed with internal notifications even if customer notification fails
+        }
       }
 
       // Create internal notifications for status changes

@@ -1,0 +1,216 @@
+/**
+ * SMS Templates for Customer Notifications
+ * 
+ * Note: SMS messages should be concise and informative.
+ * Standard SMS is 160 characters, but modern phones support up to 1600 characters.
+ * We aim for 160 characters when possible for maximum compatibility.
+ */
+
+export interface SMSTemplateVariables {
+  customerName: string;
+  ticketNumber: string;
+  deviceBrand: string;
+  deviceModel: string;
+  status: string;
+  businessName: string;
+  businessPhone: string;
+  businessHours?: string;
+  estimatedDate?: string;
+  totalCost?: string;
+  holdReason?: string;
+}
+
+export const SMS_TEMPLATES = {
+  // Ticket status: in_progress
+  status_in_progress: {
+    template: "Hi {customerName}! Good news - we've started working on your {deviceBrand} {deviceModel} (Ticket #{ticketNumber}). We'll keep you updated on progress. - {businessName}",
+    maxLength: 160,
+    description: "Sent when technician starts working on device"
+  },
+
+  // Ticket status: completed  
+  status_completed: {
+    template: "🎉 Your {deviceBrand} {deviceModel} is ready for pickup! Ticket #{ticketNumber} completed. Total: ${totalCost}. Visit us during business hours. - {businessName} {businessPhone}",
+    maxLength: 160,
+    description: "Sent when repair is completed and device is ready"
+  },
+
+  // Ticket status: on_hold
+  status_on_hold: {
+    template: "Your repair for {deviceBrand} {deviceModel} (#{ticketNumber}) is on hold: {holdReason}. We'll contact you soon with next steps. - {businessName} {businessPhone}",
+    maxLength: 160,
+    description: "Sent when repair is placed on hold"
+  },
+
+  // Alternative longer templates (if needed)
+  status_completed_detailed: {
+    template: "Great news {customerName}! Your {deviceBrand} {deviceModel} repair is complete. Ticket #{ticketNumber} - Total cost: ${totalCost}. Your device is ready for pickup at {businessName}. Please bring this message or your ticket number. Call us at {businessPhone} with any questions. Thanks for choosing us!",
+    maxLength: 320,
+    description: "Detailed completion message with more information"
+  },
+
+  status_in_progress_detailed: {
+    template: "Hello {customerName}, we've begun working on your {deviceBrand} {deviceModel} repair (Ticket #{ticketNumber}). Our technician is diagnosing the issue and will provide updates as we progress. Expected completion by {estimatedDate}. Questions? Call {businessPhone}. - {businessName}",
+    maxLength: 320,
+    description: "Detailed in-progress message with estimated completion"
+  },
+
+  // New ticket notification (optional)
+  new_ticket: {
+    template: "Thank you {customerName}! We've received your {deviceBrand} {deviceModel} repair request. Ticket #{ticketNumber}. We'll begin diagnosis soon and keep you updated. - {businessName}",
+    maxLength: 160,
+    description: "Acknowledgment when new ticket is created"
+  },
+
+  // Custom status messages
+  status_cancelled: {
+    template: "Your repair request for {deviceBrand} {deviceModel} (#{ticketNumber}) has been cancelled. Please contact us at {businessPhone} for details. - {businessName}",
+    maxLength: 160,
+    description: "Sent when repair is cancelled"
+  },
+
+  // Appointment related (if needed for future)
+  appointment_confirmed: {
+    template: "Appointment confirmed for {customerName}! Bringing your {deviceBrand} {deviceModel} for repair. See you soon at {businessName}. Questions? {businessPhone}",
+    maxLength: 160,
+    description: "Appointment confirmation"
+  }
+} as const;
+
+/**
+ * Process SMS template with provided variables
+ */
+export function processSMSTemplate(
+  templateKey: keyof typeof SMS_TEMPLATES,
+  variables: Partial<SMSTemplateVariables>,
+  useDetailedVersion: boolean = false
+): { message: string; characterCount: number; withinLimit: boolean } {
+  
+  // Select template based on detailed preference
+  let selectedTemplate = SMS_TEMPLATES[templateKey];
+  
+  // Check if detailed version exists and is requested
+  if (useDetailedVersion) {
+    const detailedKey = `${templateKey}_detailed` as keyof typeof SMS_TEMPLATES;
+    if (SMS_TEMPLATES[detailedKey]) {
+      selectedTemplate = SMS_TEMPLATES[detailedKey];
+    }
+  }
+
+  let message = selectedTemplate.template;
+
+  // Default values for common variables
+  const defaults: SMSTemplateVariables = {
+    customerName: variables.customerName || 'Customer',
+    ticketNumber: variables.ticketNumber || 'N/A',
+    deviceBrand: variables.deviceBrand || 'Device',
+    deviceModel: variables.deviceModel || '',
+    status: variables.status || 'unknown',
+    businessName: variables.businessName || 'The Phone Guys',
+    businessPhone: variables.businessPhone || '(555) 123-4567',
+    businessHours: variables.businessHours || '9AM-6PM Mon-Sat',
+    estimatedDate: variables.estimatedDate || '',
+    totalCost: variables.totalCost || '0.00',
+    holdReason: variables.holdReason || 'awaiting parts'
+  };
+
+  // Replace all template variables
+  Object.entries(defaults).forEach(([key, value]) => {
+    const regex = new RegExp(`{${key}}`, 'g');
+    message = message.replace(regex, value);
+  });
+
+  const characterCount = message.length;
+  const withinLimit = characterCount <= selectedTemplate.maxLength;
+
+  return {
+    message,
+    characterCount,
+    withinLimit
+  };
+}
+
+/**
+ * Get SMS template by ticket status
+ */
+export function getSMSTemplateByStatus(status: string): keyof typeof SMS_TEMPLATES {
+  const statusTemplateMap: Record<string, keyof typeof SMS_TEMPLATES> = {
+    'in_progress': 'status_in_progress',
+    'completed': 'status_completed',
+    'on_hold': 'status_on_hold',
+    'cancelled': 'status_cancelled'
+  };
+
+  return statusTemplateMap[status] || 'status_in_progress';
+}
+
+/**
+ * Preview all templates with sample data
+ */
+export function previewAllTemplates(): Array<{
+  templateKey: string;
+  description: string;
+  message: string;
+  characterCount: number;
+  withinLimit: boolean;
+}> {
+  const sampleVariables: SMSTemplateVariables = {
+    customerName: 'John Smith',
+    ticketNumber: 'TK001234',
+    deviceBrand: 'iPhone',
+    deviceModel: '14 Pro',
+    status: 'completed',
+    businessName: 'The Phone Guys',
+    businessPhone: '(555) 123-4567',
+    businessHours: '9AM-6PM Mon-Sat',
+    estimatedDate: 'tomorrow',
+    totalCost: '149.99',
+    holdReason: 'waiting for part delivery'
+  };
+
+  return Object.entries(SMS_TEMPLATES).map(([key, template]) => {
+    const processed = processSMSTemplate(key as keyof typeof SMS_TEMPLATES, sampleVariables);
+    return {
+      templateKey: key,
+      description: template.description,
+      message: processed.message,
+      characterCount: processed.characterCount,
+      withinLimit: processed.withinLimit
+    };
+  });
+}
+
+/**
+ * Validate template variables for completeness
+ */
+export function validateTemplateVariables(
+  templateKey: keyof typeof SMS_TEMPLATES,
+  variables: Partial<SMSTemplateVariables>
+): { isValid: boolean; missingVariables: string[] } {
+  const template = SMS_TEMPLATES[templateKey].template;
+  const requiredVariables: string[] = [];
+  const missingVariables: string[] = [];
+
+  // Extract all variables from template
+  const variableMatches = template.match(/{(\w+)}/g);
+  if (variableMatches) {
+    variableMatches.forEach(match => {
+      const varName = match.replace(/[{}]/g, '');
+      if (!requiredVariables.includes(varName)) {
+        requiredVariables.push(varName);
+      }
+    });
+  }
+
+  // Check for missing variables
+  requiredVariables.forEach(varName => {
+    if (!variables[varName as keyof SMSTemplateVariables]) {
+      missingVariables.push(varName);
+    }
+  });
+
+  return {
+    isValid: missingVariables.length === 0,
+    missingVariables
+  };
+}

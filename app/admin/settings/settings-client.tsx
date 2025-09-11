@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BusinessHoursSettings } from '@/components/settings/business-hours-settings';
 import { AppointmentSettings } from '@/components/settings/appointment-settings';
 import { StoreSettings } from '@/components/settings/store-settings';
+import { SMSSettings } from '@/components/settings/sms-settings';
 import { SkeletonPremium } from '@/components/premium/ui/feedback';
 import { useSettings, useUpdateAllBusinessHours, useUpdateStoreSettings, useUpdateAppointmentSettings } from '@/lib/hooks/use-settings';
-import { Clock, Calendar, Store, Settings, RefreshCw, BookOpen, Save } from 'lucide-react';
+import { Clock, Calendar, Store, Settings, RefreshCw, BookOpen, Save, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import type { 
   BusinessHours as BusinessHoursType, 
@@ -76,6 +77,11 @@ export function SettingsClient({
       label: 'Store',
       icon: <Store className="w-4 h-4" />,
     },
+    {
+      id: 'sms',
+      label: 'SMS Notifications',
+      icon: <MessageSquare className="w-4 h-4" />,
+    },
   ];
 
   const headerActions = [
@@ -129,7 +135,7 @@ export function SettingsClient({
                       System Configuration
                     </CardTitle>
                     <p className="text-sm text-muted-foreground mt-0.5">
-                      Configure business hours, appointments, and store settings
+                      Configure business hours, appointments, store settings, and SMS notifications
                     </p>
                   </div>
                 </div>
@@ -174,6 +180,29 @@ export function SettingsClient({
 
                 {activeTab === 'store' && (
                   <StoreSettings initialData={storeSettings} />
+                )}
+
+                {activeTab === 'sms' && (
+                  <SMSSettings 
+                    onSave={(settings) => {
+                      console.log('SMS settings saved:', settings);
+                      setHasChanges(false);
+                    }}
+                    onTest={async (phoneNumber) => {
+                      try {
+                        // Test SMS sending
+                        const response = await fetch('/api/admin/sms/test', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ phoneNumber })
+                        });
+                        return response.ok;
+                      } catch (error) {
+                        console.error('SMS test failed:', error);
+                        return false;
+                      }
+                    }}
+                  />
                 )}
               </>
             )}

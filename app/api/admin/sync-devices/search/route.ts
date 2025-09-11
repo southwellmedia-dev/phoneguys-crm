@@ -15,6 +15,10 @@ export async function POST(request: NextRequest) {
     
     // Check if user is admin
     const userRepo = getRepository.users();
+    console.log('UserRepo type:', typeof userRepo, 'Constructor:', userRepo.constructor.name);
+    console.log('UserRepo methods:', Object.getOwnPropertyNames(userRepo));
+    console.log('Has findByEmail:', typeof userRepo.findByEmail);
+    
     const userData = await userRepo.findByEmail(user.email || '');
     
     if (!userData || userData.role !== 'admin') {

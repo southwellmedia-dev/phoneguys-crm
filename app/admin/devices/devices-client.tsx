@@ -389,19 +389,13 @@ export function DevicesClient({
 
   const headerActions = [
     {
-      component: (
-        <ButtonPremium
-          variant="gradient"
-          size="sm"
-          icon={<Database className="h-4 w-4" />}
-          onClick={() => {
-            console.log('Sync button clicked, opening modal');
-            setShowSyncModal(true);
-          }}
-        >
-          Sync Devices
-        </ButtonPremium>
-      ),
+      label: "Sync Devices",
+      icon: <Database className="h-4 w-4" />,
+      variant: "default" as const,
+      onClick: () => {
+        console.log('Sync button clicked, opening modal');
+        setShowSyncModal(true);
+      }
     },
     {
       label: "Refresh",
@@ -410,20 +404,14 @@ export function DevicesClient({
       onClick: () => refetch(),
     },
     {
-      label: "Import",
-      icon: <Upload className="h-4 w-4" />,
-      variant: "outline" as const,
-      onClick: () => console.log("Import devices"),
-    },
-    {
-      label: "Export", 
-      icon: <Download className="h-4 w-4" />,
-      variant: "outline" as const,
-      onClick: () => console.log("Export devices"),
-    },
-    {
       component: (
         <DeviceDialogEnhanced 
+          trigger={
+            <Button size="sm" variant="default" className="inline-flex items-center gap-1">
+              <Plus className="h-4 w-4" />
+              New Device
+            </Button>
+          }
           manufacturers={manufacturers} 
           onSuccess={handleDeviceUpdate} 
           apiKey={techSpecsConfig.apiKey}

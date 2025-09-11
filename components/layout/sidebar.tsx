@@ -25,6 +25,7 @@ import {
 import { useTimer } from "@/lib/contexts/timer-context";
 import { StopTimerDialog } from "@/components/orders/stop-timer-dialog";
 import { UserRole } from "@/lib/types/database.types";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -327,7 +328,7 @@ export function Sidebar({ user }: SidebarProps) {
         <div className="p-4 border-t border-white/20 dark:border-border flex-shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/10 dark:hover:bg-muted/30 transition-colors group">
+              <Button variant="ghost" className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/10 dark:hover:bg-muted/30 transition-colors group h-auto">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 rounded-full bg-white/20 dark:bg-primary flex items-center justify-center backdrop-blur-sm">
                     <span className="text-white dark:text-primary-foreground text-sm font-medium">
@@ -344,7 +345,7 @@ export function Sidebar({ user }: SidebarProps) {
                   </div>
                 </div>
                 <ChevronUp className="h-4 w-4 text-white/60 dark:text-muted-foreground group-hover:text-white dark:group-hover:text-foreground transition-colors" />
-              </button>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" side="top" className="w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>

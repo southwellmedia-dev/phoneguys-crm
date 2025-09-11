@@ -634,7 +634,7 @@ export function AppointmentDetailPremium({
                   : 'No device selected'
               }
               icon={<Smartphone className="h-4 w-4" />}
-              variant={deviceData.id ? "accent-purple" : "default"}
+              variant={deviceData.id ? "accent-primary" : "default"}
             />
           </div>
           

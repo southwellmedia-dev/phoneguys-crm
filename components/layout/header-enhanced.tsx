@@ -51,7 +51,15 @@ export function HeaderEnhanced({ title, description, actions }: HeaderEnhancedPr
             <>
               <div className="flex items-center gap-2 px-3">
                 {actions.map((action, index) => (
-                  action.href ? (
+                  action.component ? (
+                    <div key={index}>
+                      {action.component}
+                    </div>
+                  ) : action.customComponent ? (
+                    <div key={index}>
+                      {action.customComponent}
+                    </div>
+                  ) : action.href ? (
                     <Button
                       key={index}
                       variant={action.variant || "outline"}

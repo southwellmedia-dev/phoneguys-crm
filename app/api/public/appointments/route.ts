@@ -136,6 +136,27 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Convert service IDs to service names for the issues field
+    let issueNames: string[] = [];
+    if (data.issues && data.issues.length > 0) {
+      // Fetch service names from the services table
+      const { data: services, error: servicesError } = await publicClient
+        .from('services')
+        .select('id, name')
+        .in('id', data.issues);
+      
+      if (servicesError) {
+        console.error('Error fetching services:', servicesError);
+        // Fall back to using the IDs if we can't fetch names
+        issueNames = data.issues;
+      } else if (services) {
+        // Convert service names to snake_case format for consistency
+        issueNames = services.map(service => 
+          service.name.toLowerCase().replace(/\s+/g, '_')
+        );
+      }
+    }
+
     // Create or find customer device
     let customerDevice = null;
     
@@ -173,7 +194,8 @@ export async function POST(request: NextRequest) {
       scheduled_date: data.appointmentDate,
       scheduled_time: normalizedTime,
       duration_minutes: data.duration || 30,
-      issues: data.issues || null,
+      issues: issueNames.length > 0 ? issueNames : null, // Use service names instead of IDs
+      service_ids: data.issues || null, // Store the actual service IDs separately if needed
       description: data.issueDescription || null,
       source: 'website', // This must be 'website' for RLS policy
       urgency: 'scheduled',

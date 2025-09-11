@@ -20,27 +20,58 @@ export async function updateAppointmentDetails(appointmentId: string, details: a
       throw new Error('Appointment not found');
     }
     
-    // Update the appointment with new details
-    // Combine both notes into a JSON structure
-    const notesData = {
-      customer_notes: details.customer_notes || '',
-      technician_notes: details.technician_notes || ''
-    };
+    // Build update data object - only include fields that were actually provided
+    const updateData: any = {};
     
-    const updateData: any = {
-      device_id: details.device_id || null,
-      customer_device_id: details.customer_device_id || null,
-      service_ids: details.selected_services || details.service_ids || [],
-      estimated_cost: details.estimated_cost || 0,
-      notes: JSON.stringify(notesData),
-    };
-
-    console.log('Update data being sent to repository:', updateData);
+    // Only update device fields if they were provided
+    if (details.device_id !== undefined) {
+      updateData.device_id = details.device_id;
+    }
+    
+    if (details.customer_device_id !== undefined) {
+      updateData.customer_device_id = details.customer_device_id;
+    }
+    
+    // Only update services if explicitly provided
+    if (details.selected_services !== undefined || details.service_ids !== undefined) {
+      updateData.service_ids = details.selected_services || details.service_ids || [];
+    }
+    
+    // Only update estimated cost if provided
+    if (details.estimated_cost !== undefined) {
+      updateData.estimated_cost = details.estimated_cost;
+    }
+    
+    // Only update notes if customer_notes or technician_notes were provided
+    if (details.customer_notes !== undefined || details.technician_notes !== undefined) {
+      // Parse existing notes if they exist
+      let existingNotes = { customer_notes: '', technician_notes: '' };
+      if (currentAppointment.notes) {
+        try {
+          if (typeof currentAppointment.notes === 'string' && currentAppointment.notes.startsWith('{')) {
+            existingNotes = JSON.parse(currentAppointment.notes);
+          } else if (typeof currentAppointment.notes === 'object') {
+            existingNotes = currentAppointment.notes;
+          }
+        } catch (e) {
+          // If parsing fails, treat as plain text in customer_notes
+          existingNotes = { customer_notes: currentAppointment.notes, technician_notes: '' };
+        }
+      }
+      
+      const notesData = {
+        customer_notes: details.customer_notes !== undefined ? details.customer_notes : existingNotes.customer_notes || '',
+        technician_notes: details.technician_notes !== undefined ? details.technician_notes : existingNotes.technician_notes || ''
+      };
+      updateData.notes = JSON.stringify(notesData);
+    }
 
     // Handle assigned_to field if provided
     if (details.assigned_to !== undefined) {
       updateData.assigned_to = details.assigned_to;
     }
+
+    console.log('Update data being sent to repository:', updateData);
     
     // If a customer device is selected but no device_id, get the device_id from customer device
     if (details.customer_device_id && !details.device_id) {
@@ -56,8 +87,11 @@ export async function updateAppointmentDetails(appointmentId: string, details: a
     }
     
     // Add any additional issues to the issues array
-    if (details.additional_issues) {
-      updateData.issues = [...(currentAppointment.issues || []), ...details.additional_issues.split(',').map((i: string) => i.trim())];
+    if (details.additional_issues !== undefined && details.additional_issues !== '') {
+      const newIssues = details.additional_issues.split(',').map((i: string) => i.trim()).filter((i: string) => i);
+      if (newIssues.length > 0) {
+        updateData.issues = [...(currentAppointment.issues || []), ...newIssues];
+      }
     }
     
     const updatedAppointment = await appointmentRepo.update(appointmentId, updateData);

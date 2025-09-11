@@ -10,6 +10,7 @@ import {
   ServiceSelectorCard,
   NotesCard,
   AssigneeCard,
+  ScheduleCard,
   type CustomerData,
   type Service,
   type NotesData
@@ -49,6 +50,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { 
   convertAppointmentToTicket, 
   confirmAppointment, 
@@ -618,82 +620,275 @@ export function AppointmentDetailPremium({
       )}
       
       <div className="space-y-6">
-        {/* Appointment Status Flow */}
-        {currentStatus === 'arrived' ? (
-          <Card className="border-green-400 bg-gradient-to-r from-green-50 to-emerald-50">
-            <CardContent className="pt-6">
-              <div className="text-center space-y-4">
+        {/* Appointment Status Flow - Colored based on status */}
+        <Card className={cn(
+          "border-2 transition-all shadow-sm",
+          currentStatus === 'scheduled' && "border-blue-300 dark:border-blue-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30",
+          currentStatus === 'confirmed' && "border-green-300 dark:border-green-700 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30",
+          currentStatus === 'arrived' && "border-purple-300 dark:border-purple-700 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-950/30 dark:to-violet-950/30",
+          currentStatus === 'converted' && "border-teal-300 dark:border-teal-700 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-950/30 dark:to-cyan-950/30",
+          currentStatus === 'cancelled' && "border-red-300 dark:border-red-700 bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/30",
+          currentStatus === 'no_show' && "border-orange-300 dark:border-orange-700 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30"
+        )}>
+          <CardContent className="pt-6 pb-4">
+            {currentStatus === 'arrived' && (
+              <div className="text-center space-y-3 mb-4">
                 <div className="flex justify-center">
-                  <div className="p-3 bg-green-100 rounded-full">
-                    <UserCheck className="h-8 w-8 text-green-600" />
+                  <div className={cn(
+                    "p-2.5 rounded-full",
+                    "bg-purple-100 dark:bg-purple-900/30"
+                  )}>
+                    <UserCheck className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-green-800">Active Appointment</h3>
-                  <p className="text-sm text-green-600 mt-1">Customer has checked in and is being assisted</p>
+                  <h3 className="text-base font-semibold">Customer Checked In</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Ready to convert to repair ticket</p>
                 </div>
+              </div>
+            )}
+            <AppointmentStatusFlow 
+              currentStatus={currentStatus as any} 
+            />
+            {isAdmin && (currentStatus === 'scheduled' || currentStatus === 'confirmed' || currentStatus === 'arrived') && (
+              <div className="mt-4 pt-3 border-t border-current/10 flex justify-center">
                 <ButtonPremium
-                  variant="gradient-success"
-                  size="lg"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => router.push(`/appointments/${appointmentId}/assistant`)}
-                  className="mt-4"
+                  className="text-xs"
                 >
-                  <Wrench className="h-5 w-5 mr-2" />
-                  Open Appointment Assistant
+                  <Wrench className="h-3 w-3 mr-1.5" />
+                  Appointment Assistant
                 </ButtonPremium>
-                <div className="mt-6 pt-4 border-t border-green-200">
-                  <AppointmentStatusFlow 
-                    currentStatus={currentStatus as any} 
-                  />
-                </div>
               </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50">
-            <CardContent className="pt-6">
-              <AppointmentStatusFlow 
-                currentStatus={currentStatus as any} 
-              />
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </CardContent>
+        </Card>
 
-        {/* Key Metrics Row */}
-        <div className="grid gap-4 md:grid-cols-3">
+        {/* Schedule and Metrics Row */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          {/* Schedule Card - Prominent Date/Time Display */}
+          <ScheduleCard
+            scheduledDate={appointment.scheduled_date}
+            scheduledTime={appointment.scheduled_time}
+            duration={appointment.duration_minutes}
+            location={appointment.location || undefined}
+            className="lg:col-span-1"
+          />
+          
+          {/* Services Summary Card */}
           <MetricCard
-            title="Scheduled Date/Time"
-            value={showSkeleton ? <SkeletonPremium className="h-5 w-32" /> : (
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold">
-                  {appointment.scheduled_date 
-                    ? format(new Date(appointment.scheduled_date), 'MMM d, yyyy')
-                    : 'Not scheduled'}
-                </span>
-                <span className="text-xs text-muted-foreground">{formattedTime}</span>
+            title="Services & Duration"
+            value={
+              showSkeleton ? (
+                <SkeletonPremium className="h-8 w-20" />
+              ) : (
+                <div className="space-y-1">
+                  <div className="text-2xl font-bold">
+                    {selectedServices.length}
+                  </div>
+                  <div className="text-xs opacity-75">
+                    service{selectedServices.length !== 1 ? 's' : ''} selected
+                  </div>
+                </div>
+              )
+            }
+            description={
+              selectedServices.length > 0 ? (
+                <div className="space-y-2 mt-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Total Time:</span>
+                    <span className="font-medium">
+                      {availableServices
+                        .filter(s => selectedServices.includes(s.id))
+                        .reduce((sum, s) => sum + s.estimated_duration_minutes, 0)} min
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Est. Cost:</span>
+                    <span className="font-semibold text-primary">
+                      ${availableServices
+                        .filter(s => selectedServices.includes(s.id))
+                        .reduce((sum, s) => sum + s.base_price, 0)
+                        .toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground mt-2">
+                  No services selected yet
+                </div>
+              )
+            }
+            variant={selectedServices.length > 0 ? "accent-success" : "default"}
+            icon={<Wrench />}
+            size="md"
+            badge={selectedServices.length > 0 && (
+              <Badge variant="success" className="text-xs">
+                Ready
+              </Badge>
+            )}
+          />
+          
+          {/* Quick Actions Card - Premium Styled */}
+          <Card className={cn(
+            "border-2 transition-all shadow-md hover:shadow-lg",
+            currentStatus === 'scheduled' && "border-blue-300 dark:border-blue-700 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30",
+            currentStatus === 'confirmed' && "border-green-300 dark:border-green-700 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30",
+            currentStatus === 'arrived' && "border-purple-300 dark:border-purple-700 bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/30 dark:to-violet-950/30",
+            currentStatus === 'converted' && "border-teal-300 dark:border-teal-700 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-950/30 dark:to-cyan-950/30",
+            currentStatus === 'cancelled' && "border-red-300 dark:border-red-700 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/30",
+            currentStatus === 'no_show' && "border-orange-300 dark:border-orange-700 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30"
+          )}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    currentStatus === 'scheduled' && "bg-blue-500/10",
+                    currentStatus === 'confirmed' && "bg-green-500/10",
+                    currentStatus === 'arrived' && "bg-purple-500/10",
+                    (currentStatus === 'converted' || currentStatus === 'cancelled' || currentStatus === 'no_show') && "bg-gray-500/10"
+                  )}>
+                    {currentStatus === 'scheduled' && <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+                    {currentStatus === 'confirmed' && <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />}
+                    {currentStatus === 'arrived' && <UserCheck className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
+                    {(currentStatus === 'converted' || currentStatus === 'cancelled' || currentStatus === 'no_show') && <AlertCircle className="h-4 w-4 text-gray-600 dark:text-gray-400" />}
+                  </div>
+                  <CardTitle className="text-base font-semibold">Quick Actions</CardTitle>
+                </div>
+                <AppointmentStatusBadge status={currentStatus} size="sm" />
               </div>
-            )}
-            variant={currentStatus === 'confirmed' || currentStatus === 'arrived' ? "accent-success" : "accent-primary"}
-            icon={<Calendar />}
-            size="sm"
-            badge={currentStatus === 'confirmed' && (
-              <Badge variant="success" className="text-xs">Confirmed</Badge>
-            )}
-          />
-          <MetricCard
-            title="Duration"
-            value={showSkeleton ? <SkeletonPremium className="h-5 w-12" /> : `${appointment.duration_minutes} min`}
-            variant="default"
-            icon={<Clock />}
-            size="sm"
-          />
-          <MetricCard
-            title="Services"
-            value={showSkeleton ? <SkeletonPremium className="h-5 w-8" /> : selectedServices.length.toString()}
-            variant="default"
-            icon={<CheckCircle />}
-            size="sm"
-          />
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {showSkeleton ? (
+                <SkeletonPremium className="h-20 w-full" />
+              ) : (
+                <>
+                  {/* Show actions based on appointment status */}
+                  {currentStatus === 'scheduled' && (
+                    <>
+                      <ButtonPremium
+                        onClick={() => setShowConfirmModal(true)}
+                        disabled={actionLoading.confirm || isLocked}
+                        loading={actionLoading.confirm}
+                        variant="gradient"
+                        size="sm"
+                        className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white border-0 shadow-md"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Confirm Appointment
+                      </ButtonPremium>
+                      <ButtonPremium
+                        onClick={handleCancel}
+                        disabled={actionLoading.cancel || isLocked}
+                        loading={actionLoading.cancel}
+                        variant="outline"
+                        size="sm"
+                        className="w-full border-red-200 hover:bg-red-50 hover:border-red-300 hover:text-red-700 dark:border-red-800 dark:hover:bg-red-950/50"
+                      >
+                        Cancel Appointment
+                      </ButtonPremium>
+                    </>
+                  )}
+                  
+                  {currentStatus === 'confirmed' && (
+                    <>
+                      <ButtonPremium
+                        onClick={() => setShowCheckInModal(true)}
+                        disabled={actionLoading.arrived || isLocked}
+                        loading={actionLoading.arrived}
+                        variant="gradient"
+                        size="sm"
+                        className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-0 shadow-md"
+                      >
+                        <UserCheck className="h-4 w-4 mr-2" />
+                        Check-In Customer
+                      </ButtonPremium>
+                      <ButtonPremium
+                        onClick={handleCancel}
+                        disabled={actionLoading.cancel || isLocked}
+                        loading={actionLoading.cancel}
+                        variant="outline"
+                        size="sm"
+                        className="w-full border-red-200 hover:bg-red-50 hover:border-red-300 hover:text-red-700 dark:border-red-800 dark:hover:bg-red-950/50"
+                      >
+                        Cancel Appointment
+                      </ButtonPremium>
+                    </>
+                  )}
+                  
+                  {currentStatus === 'arrived' && (
+                    <ButtonPremium
+                      onClick={handleConvertToTicket}
+                      disabled={actionLoading.convert || isLocked || !deviceData.id || selectedServices.length === 0}
+                      loading={actionLoading.convert}
+                      variant="gradient"
+                      size="sm"
+                      className="w-full bg-gradient-to-r from-purple-500 to-violet-500 hover:from-purple-600 hover:to-violet-600 text-white border-0 shadow-md"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Convert to Ticket
+                    </ButtonPremium>
+                  )}
+                  
+                  {currentStatus === 'converted' && appointment.converted_to_ticket_id && (
+                    <div className="space-y-3">
+                      <div className="text-center py-3 px-4 rounded-lg bg-gradient-to-br from-teal-100 to-cyan-100 dark:from-teal-900/40 dark:to-cyan-900/40 border border-teal-200 dark:border-teal-800">
+                        <div className="p-2.5 rounded-full bg-teal-500/20 mx-auto w-fit mb-2">
+                          <CheckCircle className="h-6 w-6 text-teal-600 dark:text-teal-400" />
+                        </div>
+                        <p className="text-sm font-semibold text-teal-900 dark:text-teal-100">
+                          Successfully Converted
+                        </p>
+                        <p className="text-xs text-teal-700 dark:text-teal-300 mt-1">
+                          This appointment is now a repair ticket
+                        </p>
+                      </div>
+                      <ButtonPremium
+                        onClick={() => router.push(`/orders/${appointment.converted_to_ticket_id}`)}
+                        variant="gradient"
+                        size="sm"
+                        className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white border-0"
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        View Repair Ticket
+                      </ButtonPremium>
+                    </div>
+                  )}
+                  
+                  {currentStatus === 'cancelled' && (
+                    <div className="text-center py-3 px-4 rounded-lg bg-gradient-to-br from-red-100 to-rose-100 dark:from-red-900/40 dark:to-rose-900/40 border border-red-200 dark:border-red-800">
+                      <div className="p-2.5 rounded-full bg-red-500/20 mx-auto w-fit mb-2">
+                        <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                      </div>
+                      <p className="text-sm font-semibold text-red-900 dark:text-red-100">
+                        Appointment Cancelled
+                      </p>
+                      <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                        This appointment is no longer active
+                      </p>
+                    </div>
+                  )}
+                  
+                  {currentStatus === 'no_show' && (
+                    <div className="text-center py-3 px-4 rounded-lg bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/40 dark:to-amber-900/40 border border-orange-200 dark:border-orange-800">
+                      <div className="p-2.5 rounded-full bg-orange-500/20 mx-auto w-fit mb-2">
+                        <AlertCircle className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                      </div>
+                      <p className="text-sm font-semibold text-orange-900 dark:text-orange-100">
+                        Customer No-Show
+                      </p>
+                      <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">
+                        Customer did not arrive for appointment
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Main Content Grid */}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRepository } from '@/lib/repositories/repository-manager';
 import { requireAuth, handleApiError, successResponse } from '@/lib/auth/helpers';
 import { InternalNotificationService } from '@/lib/services/internal-notification.service';
+import { InternalNotificationType, InternalNotificationPriority } from '@/lib/types/internal-notification.types';
 
 interface RouteParams {
   params: Promise<{
@@ -98,16 +99,9 @@ export async function PATCH(request: NextRequest, params: RouteParams) {
     // Update appointment
     const updatedAppointment = await appointmentRepo.update(id, updateData);
 
-    // Send notification if appointment was assigned
-    console.log('🔔 Checking appointment assignment notification:', {
-      updateData_assigned_to: updateData.assigned_to,
-      existing_assigned_to: existingAppointment.assigned_to,
-      should_notify: updateData.assigned_to && updateData.assigned_to !== existingAppointment.assigned_to
-    });
-    
-    if (updateData.assigned_to && updateData.assigned_to !== existingAppointment.assigned_to) {
+    // Handle notifications for assignment changes
+    if (updateData.assigned_to !== undefined && updateData.assigned_to !== existingAppointment.assigned_to) {
       try {
-        console.log('📨 Creating appointment assignment notification for user:', updateData.assigned_to);
         const notificationService = new InternalNotificationService(true);
         
         // Get customer info for the notification
@@ -116,7 +110,7 @@ export async function PATCH(request: NextRequest, params: RouteParams) {
           ? await customerRepo.findById(existingAppointment.customer_id)
           : null;
         
-        console.log('👤 Customer found:', customer?.name || 'No customer');
+        const customerName = customer?.name || 'Unknown Customer';
         
         // Format appointment date and time
         const appointmentDate = new Date(existingAppointment.scheduled_date + 'T' + existingAppointment.scheduled_time);
@@ -129,24 +123,66 @@ export async function PATCH(request: NextRequest, params: RouteParams) {
           minute: '2-digit',
           hour12: true 
         });
+        const appointmentDateTime = `${formattedDate} at ${formattedTime}`;
         
-        console.log('📅 Formatted date/time:', `${formattedDate} at ${formattedTime}`);
+        // Check if this is an unassignment, transfer, or new assignment
+        const previousAssignee = existingAppointment.assigned_to;
+        const newAssignee = updateData.assigned_to;
         
-        const notification = await notificationService.notifyAppointmentAssignment(
-          id,
-          updateData.assigned_to,
-          customer?.name || 'Unknown Customer',
-          `${formattedDate} at ${formattedTime}`,
-          authResult.userId
-        );
+        if (!newAssignee && previousAssignee) {
+          // Appointment was unassigned - notify the previous assignee
+          console.log('📤 Creating appointment unassignment notification for:', previousAssignee);
+          await notificationService.createNotification({
+            user_id: previousAssignee,
+            type: InternalNotificationType.APPOINTMENT_UNASSIGNED,
+            title: `Unassigned from appointment`,
+            message: `You've been unassigned from ${customerName}'s appointment on ${appointmentDateTime}`,
+            priority: InternalNotificationPriority.NORMAL,
+            action_url: `/appointments/${id}`,
+            data: { appointment_id: id },
+            created_by: authResult.userId
+          });
+        } else if (newAssignee && previousAssignee && newAssignee !== previousAssignee) {
+          // Appointment was transferred - notify both users
+          console.log('🔄 Creating appointment transfer notifications');
+          
+          // Notify the previous assignee
+          await notificationService.createNotification({
+            user_id: previousAssignee,
+            type: InternalNotificationType.APPOINTMENT_TRANSFERRED,
+            title: `Appointment transferred`,
+            message: `${customerName}'s appointment on ${appointmentDateTime} has been reassigned`,
+            priority: InternalNotificationPriority.NORMAL,
+            action_url: `/appointments/${id}`,
+            data: { appointment_id: id, transferred_to: newAssignee },
+            created_by: authResult.userId
+          });
+          
+          // Notify the new assignee
+          await notificationService.notifyAppointmentAssignment(
+            id,
+            newAssignee,
+            customerName,
+            appointmentDateTime,
+            authResult.userId
+          );
+        } else if (newAssignee && !previousAssignee) {
+          // New assignment - just notify the new assignee
+          console.log('📨 Creating appointment assignment notification for:', newAssignee);
+          await notificationService.notifyAppointmentAssignment(
+            id,
+            newAssignee,
+            customerName,
+            appointmentDateTime,
+            authResult.userId
+          );
+        }
         
-        console.log('✅ Appointment assignment notification created:', notification);
+        console.log('✅ Appointment notification(s) created successfully');
       } catch (notifError) {
         console.error('❌ Failed to create assignment notification:', notifError);
         // Don't fail the request if notification fails
       }
-    } else {
-      console.log('⏭️ Skipping notification - no assignment change or same user');
     }
 
     return successResponse(

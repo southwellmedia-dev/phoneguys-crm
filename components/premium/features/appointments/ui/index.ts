@@ -11,3 +11,4 @@ export { ServiceSelectorCard, type ServiceSelectorCardProps, type Service } from
 export { NotesCard, type NotesCardProps, type NotesData } from './notes-card';
 export { ActionToolbar, type ActionToolbarProps } from './action-toolbar';
 export { AssigneeCard, type AssigneeCardProps } from './assignee-card';
+export { ScheduleCard, type ScheduleCardProps } from './schedule-card';

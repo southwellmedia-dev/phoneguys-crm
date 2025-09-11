@@ -132,7 +132,7 @@ const conditionOptions: SelectOption[] = [
   { value: 'poor', label: 'Poor', description: 'Significant damage or issues' }
 ];
 
-export const DeviceDetailCardPremium = React.forwardRef<HTMLDivElement, DeviceDetailCardProps>(
+export const DeviceDetailCard = React.forwardRef<HTMLDivElement, DeviceDetailCardProps>(
   ({ 
     device,
     availableDevices = [],
@@ -339,7 +339,7 @@ export const DeviceDetailCardPremium = React.forwardRef<HTMLDivElement, DeviceDe
                         Device not specified
                       </p>
                     )}
-                    {(device.nickname || device.color || device.storageSize) && (
+                    {(device.nickname || device.color || device.storageSize || device.serialNumber || device.imei) && (
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         {device.nickname && (
                           <StatusBadge 
@@ -371,6 +371,28 @@ export const DeviceDetailCardPremium = React.forwardRef<HTMLDivElement, DeviceDe
                           >
                             <HardDrive className="h-3 w-3 mr-1" />
                             {device.storageSize}
+                          </StatusBadge>
+                        )}
+                        {device.serialNumber && (
+                          <StatusBadge 
+                            type="general" 
+                            status="inactive" 
+                            variant="soft"
+                            className="text-xs"
+                          >
+                            <Hash className="h-3 w-3 mr-1" />
+                            SN: {device.serialNumber}
+                          </StatusBadge>
+                        )}
+                        {device.imei && (
+                          <StatusBadge 
+                            type="general" 
+                            status="inactive" 
+                            variant="soft"
+                            className="text-xs"
+                          >
+                            <Shield className="h-3 w-3 mr-1" />
+                            IMEI: {device.imei}
                           </StatusBadge>
                         )}
                       </div>
@@ -456,25 +478,6 @@ export const DeviceDetailCardPremium = React.forwardRef<HTMLDivElement, DeviceDe
               </FormGrid>
             )}
 
-            {/* Read-only Display */}
-            {!isEditing && (device.serialNumber || device.imei) && (
-              <div className="space-y-2 pt-2 border-t">
-                {device.serialNumber && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-muted-foreground">Serial:</span>
-                    <span className="font-mono">{device.serialNumber}</span>
-                  </div>
-                )}
-                {device.imei && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-muted-foreground">IMEI:</span>
-                    <span className="font-mono">{device.imei}</span>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -482,6 +485,6 @@ export const DeviceDetailCardPremium = React.forwardRef<HTMLDivElement, DeviceDe
   }
 );
 
-DeviceDetailCardPremium.displayName = 'DeviceDetailCardPremium';
+DeviceDetailCard.displayName = 'DeviceDetailCard';
 
-export { DeviceDetailCardPremium as DeviceDetailCard };
+export { DeviceDetailCard };

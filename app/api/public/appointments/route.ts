@@ -103,14 +103,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get repositories - use public client for proper anon access
-    // This ensures we're using the anon role without any cookie interference
+    // Create a single public client instance to use throughout this request
+    // This ensures all operations use the same connection/transaction context
+    const publicClient = createPublicClient();
+    
+    // Get repositories but override them to use our single client instance
     const customerRepo = getPublicRepository.customers();
     const customerDeviceRepo = getPublicRepository.customerDevices();
-    
-    // Create appointment service but we'll use the repositories directly
-    // since we can't override the service's internal repositories
     const appointmentRepo = getPublicRepository.appointments();
+    
+    // Override all repos to use the same client instance for consistency
+    (customerRepo as any).getClient = async () => publicClient;
+    (customerDeviceRepo as any).getClient = async () => publicClient;
+    (appointmentRepo as any).getClient = async () => publicClient;
     
     // Check if customer exists
     // Use findOne directly instead of findByEmail to avoid bundling issues
@@ -118,6 +123,7 @@ export async function POST(request: NextRequest) {
     
     if (!customer) {
       // Create new customer
+      console.log('Creating new customer:', data.customer.email);
       customer = await customerRepo.create({
         name: data.customer.name,
         email: data.customer.email,
@@ -125,6 +131,9 @@ export async function POST(request: NextRequest) {
         address: data.customer.address,
         created_at: new Date().toISOString()
       });
+      console.log('Customer created successfully with ID:', customer.id);
+    } else {
+      console.log('Existing customer found with ID:', customer.id);
     }
 
     // Create or find customer device
@@ -143,6 +152,7 @@ export async function POST(request: NextRequest) {
     
     if (!customerDevice) {
       // Create new customer device
+      console.log('Creating new customer device for customer:', customer.id);
       customerDevice = await customerDeviceRepo.create({
         customer_id: customer.id,
         device_id: data.device.deviceId,
@@ -154,6 +164,9 @@ export async function POST(request: NextRequest) {
         is_primary: existingDevices.length === 0, // First device is primary
         created_at: new Date().toISOString()
       });
+      console.log('Customer device created successfully with ID:', customerDevice.id);
+    } else {
+      console.log('Existing customer device found with ID:', customerDevice.id);
     }
 
     // Create appointment with the customer device FIRST
@@ -174,9 +187,7 @@ export async function POST(request: NextRequest) {
     
     console.log('Creating appointment with full data:', JSON.stringify(appointmentData, null, 2));
     
-    // Create appointment directly using Supabase client to ensure proper anon access
-    const publicClient = createPublicClient();
-    
+    // Use the same publicClient instance we created earlier
     // First, let's test if we can even access the appointments table
     console.log('Testing appointments table access...');
     const { error: testError } = await publicClient
@@ -190,7 +201,7 @@ export async function POST(request: NextRequest) {
       console.log('SELECT test passed - can read appointments table');
     }
     
-    // Now try the actual insert
+    // Now try the actual insert using the same client that created the customer
     console.log('Attempting to insert appointment...');
     const { data: appointment, error: appointmentError } = await publicClient
       .from('appointments')

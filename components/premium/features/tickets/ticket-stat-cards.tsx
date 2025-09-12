@@ -4,7 +4,7 @@ import React from 'react';
 import { DetailMetricCard } from '@/components/premium/ui/cards/detail-metric-card';
 import { CircularProgress } from '@/components/premium/ui/charts/circular-progress';
 import { MiniBarChart } from '@/components/premium/ui/charts/mini-bar-chart';
-import { Pill, Pills } from '@/components/premium/ui/pills';
+import { MiniPieChart } from '@/components/premium/ui/charts/mini-pie-chart';
 import { colors } from '@/components/premium/themes/colors';
 import { 
   Clock, 
@@ -60,19 +60,17 @@ export function TicketStatCards({
     return `${mins}m`;
   };
   
+  // Define consistent colors for services
+  const serviceColors = [
+    colors.brand.cyan,      // #0094CA
+    '#60A5FA',             // blue-400
+    '#A78BFA',             // violet-400
+    '#F59E0B',             // amber-500
+    '#10B981'              // emerald-500
+  ];
+
   // Calculate service breakdown for chart
   const serviceBreakdown = services.map((ticketService: any, index: number) => {
-    // Debug first service to see structure
-    if (index === 0 && services.length > 0) {
-      console.log('[TicketStatCards] Service structure:', {
-        full: ticketService,
-        service: ticketService.service,
-        services: ticketService.services,
-        directName: ticketService.name,
-        keys: Object.keys(ticketService)
-      });
-    }
-    
     // Handle nested service objects (ticket_services join table)
     // The structure matches ticket-details-tabs: ticket_services -> service (singular)
     const service = ticketService.service || ticketService.services;
@@ -90,18 +88,18 @@ export function TicketStatCards({
     };
   });
 
-  // Prepare data for service breakdown chart - show actual services
+  // Prepare data for service breakdown chart - use same colors for both pie and bar
   const serviceChartData = serviceBreakdown
     .filter(s => s.price > 0) // Only show services with a price
-    .slice(0, 3)
+    .slice(0, 5) // Show up to 5 services
     .map((service, idx) => ({
       label: service.name === 'Unknown Service' ? 'Service' : (service.name.split(' ')[0] || 'Service'), // First word of service name with fallback
       value: Number(service.price) || 0, // Ensure it's a number
-      color: [colors.brand.cyan, colors.brand.cyanLight, colors.semantic.info.base][idx] // Use design system colors
+      color: serviceColors[idx % serviceColors.length] // Use consistent colors
     }));
   
-  // If we have multiple services with prices, show them; otherwise don't show chart
-  const showCostChart = serviceChartData.length > 1 && totalCost > 0;
+  // Show cost chart if we have services with prices
+  const showCostChart = serviceChartData.length > 0 && totalCost > 0;
   
   // Calculate ticket age
   const ticketAge = createdAt ? formatDistanceToNow(new Date(createdAt), { addSuffix: true }) : '';
@@ -146,7 +144,7 @@ export function TicketStatCards({
         }
       />
       
-      {/* Services Card - With pills display */}
+      {/* Services Card - With pie chart display */}
       <DetailMetricCard
         title="Services"
         value={serviceCount.toString()}
@@ -157,23 +155,16 @@ export function TicketStatCards({
         size="lg"
         extra={
           serviceCount > 0 ? (
-            <div className="flex flex-col gap-1 max-w-[120px]">
-              {serviceBreakdown.slice(0, 2).map((service, idx) => (
-                <Pill 
-                  key={idx} 
-                  text={service.name === 'Unknown Service' 
-                    ? `Service ${idx + 1}` 
-                    : service.name.split(' ').slice(0, 2).join(' ') || `Service ${idx + 1}`}
-                  variant="soft"
-                  size="xs"
-                />
-              ))}
-              {serviceBreakdown.length > 2 && (
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  +{serviceBreakdown.length - 2} more
-                </span>
-              )}
-            </div>
+            <MiniPieChart
+              data={serviceBreakdown.map((service, idx) => ({
+                value: service.price || 1, // Use price as value, default to 1 if no price
+                color: serviceColors[idx % serviceColors.length],
+                label: service.name // Full service name for tooltip
+              }))}
+              size={80}
+              strokeWidth={2}
+              animate
+            />
           ) : (
             <div className="flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 dark:bg-gray-800">
               <Package className="w-8 h-8 text-gray-400" />
@@ -195,21 +186,15 @@ export function TicketStatCards({
         trendValue={totalCost > 500 ? 'High value' : undefined}
         extra={
           showCostChart ? (
-            <div className="w-20">
+            <div className="w-28 mt-2">
               <MiniBarChart 
                 data={serviceChartData}
-                height={50}
+                height={65}
                 variant="default"
                 showLabels={false}
+                showValues={false}
                 animate
               />
-              <div className="flex justify-around mt-1">
-                {serviceChartData.map((service, idx) => (
-                  <span key={idx} className="text-[9px] text-gray-500 dark:text-gray-400">
-                    ${service.value.toFixed(0)}
-                  </span>
-                ))}
-              </div>
             </div>
           ) : totalCost > 0 ? (
             <div className="flex items-center justify-center w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/20">

@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { colors } from '@/components/premium/themes/colors';
 
 interface BarData {
   label: string;
@@ -85,32 +86,39 @@ export function MiniBarChart({
 
   return (
     <div className={cn('w-full', className)}>
-      <div className="flex items-end gap-1" style={{ height }}>
+      <div className="relative flex items-end gap-1" style={{ height }}>
         {data.map((item, index) => {
-          const barHeight = maxValue > 0 ? (item.value / maxValue) * 100 : 0;
+          const barHeight = maxValue > 0 ? (item.value / maxValue) * height : 0;
           return (
             <div
               key={index}
-              className="flex-1 flex flex-col items-center justify-end"
+              className="flex-1 flex flex-col items-center justify-end relative"
+              style={{ height: '100%' }}
             >
-              {showValues && (
-                <span className="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                  {typeof item.value === 'number' ? item.value.toFixed(0) : item.value}
-                </span>
-              )}
               <div
                 className={cn(
-                  'w-full rounded-t-sm',
-                  animate && 'transition-all duration-500 ease-out',
-                  item.color ? '' : 'bg-cyan-500'
+                  'w-full rounded-t-sm absolute bottom-0',
+                  animate && 'transition-all duration-500 ease-out'
                 )}
                 style={{ 
-                  height: `${Math.max(barHeight, 5)}%`,
-                  backgroundColor: item.color,
+                  height: `${barHeight}px`,
+                  backgroundColor: item.color || colors.brand.cyan,
                   minHeight: '4px'
                 }}
-                title={`${item.label}: ${item.value}`}
+                title={`${item.label}: $${item.value}`}
               />
+              {showValues && (
+                <span 
+                  className="text-[10px] text-gray-600 dark:text-gray-400 absolute"
+                  style={{ 
+                    bottom: `${barHeight + 4}px`,
+                    fontSize: '10px',
+                    fontWeight: '500'
+                  }}
+                >
+                  ${item.value}
+                </span>
+              )}
             </div>
           );
         })}

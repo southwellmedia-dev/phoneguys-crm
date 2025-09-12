@@ -343,13 +343,19 @@ export function TimeTrackingEnhanced({
                 <span>{formatDuration(actualMinutes)} logged</span>
                 <span>{formatDuration(estimatedMinutes)} estimated</span>
               </div>
-              <Progress 
-                value={progressPercentage} 
-                className={cn(
-                  "h-2",
-                  progressPercentage >= 100 && "bg-red-100 dark:bg-red-900/20"
-                )}
-              />
+              <div className="relative h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                <div 
+                  className={cn(
+                    "h-full transition-all duration-300",
+                    progressPercentage >= 100 
+                      ? "bg-red-500 dark:bg-red-600" 
+                      : progressPercentage >= 80 
+                      ? "bg-amber-500 dark:bg-amber-600"
+                      : "bg-green-500 dark:bg-green-600"
+                  )}
+                  style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+                />
+              </div>
             </div>
           )}
         </CardHeader>
@@ -528,6 +534,61 @@ export function TimeTrackingEnhanced({
                   )}
                 </div>
               )}
+              
+              {/* Quick Start Timer Button at Bottom */}
+              {!isDisabled && !isThisTimerActive && (
+                <div className="mt-4 pt-4 border-t">
+                  <Button
+                    onClick={() => {
+                      handleStart();
+                      setActiveTab('timer'); // Switch to timer tab after starting
+                    }}
+                    disabled={isLoading || isOtherTimerActive || ticketData?.timer_is_running}
+                    className="w-full"
+                    size="lg"
+                    variant={isOtherTimerActive ? "outline" : "default"}
+                  >
+                    {isOtherTimerActive ? (
+                      <>
+                        <AlertCircle className="h-4 w-4 mr-2" />
+                        Timer Active on {activeTimer?.ticketNumber || 'Another Ticket'}
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 mr-2" />
+                        Start Timer
+                      </>
+                    )}
+                  </Button>
+                  {isOtherTimerActive && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 text-center mt-2">
+                      Stop the other timer first to track time here
+                    </p>
+                  )}
+                </div>
+              )}
+              {isThisTimerActive && (
+                <div className="mt-4 pt-4 border-t">
+                  <Button
+                    onClick={() => setActiveTab('timer')}
+                    className="w-full"
+                    size="lg"
+                    variant="outline"
+                  >
+                    <Timer className="h-4 w-4 mr-2 text-green-600 dark:text-green-400" />
+                    <span className="flex items-center gap-2">
+                      Timer Running - {formatTime(activeTimer?.elapsedSeconds || 0)}
+                      <span className="flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                      </span>
+                    </span>
+                  </Button>
+                  <p className="text-xs text-green-600 dark:text-green-400 text-center mt-2">
+                    Click to view timer controls
+                  </p>
+                </div>
+              )}
             </TabsContent>
             
             {/* Timer Tab */}
@@ -693,7 +754,9 @@ export function TimeTrackingEnhanced({
               <div className="max-h-[400px] overflow-y-auto">
                 {entries && entries.length > 0 ? (
                   <div className="divide-y">
-                    {entries.map((entry: any) => (
+                    {[...entries].sort((a, b) => 
+                      new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
+                    ).map((entry: any) => (
                       <div key={entry.id} className="group p-4 hover:bg-muted/50 transition-colors">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">

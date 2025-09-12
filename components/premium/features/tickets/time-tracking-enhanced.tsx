@@ -90,6 +90,7 @@ export function TimeTrackingEnhanced({
   
   const isThisTimerActive = activeTimer && activeTimer.ticketId === ticketId;
   const hasActiveTimer = !!activeTimer;
+  const isOtherTimerActive = hasActiveTimer && !isThisTimerActive;
   
   // Calculate progress percentage
   const progressPercentage = estimatedMinutes > 0 
@@ -282,15 +283,46 @@ export function TimeTrackingEnhanced({
 
   return (
     <>
-      <Card className={cn("overflow-hidden border border-gray-200 dark:border-gray-700", className)}>
+      <Card className={cn(
+        "overflow-hidden border transition-all duration-300",
+        isThisTimerActive 
+          ? "border-green-500 dark:border-green-400 bg-green-50/50 dark:bg-green-950/20 shadow-lg shadow-green-500/20" 
+          : isOtherTimerActive
+          ? "border-gray-300 dark:border-gray-600 opacity-60"
+          : "border-gray-200 dark:border-gray-700",
+        className
+      )}>
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-sm font-semibold">Time Tracking</CardTitle>
+              <Clock className={cn(
+                "h-4 w-4 transition-colors",
+                isThisTimerActive 
+                  ? "text-green-600 dark:text-green-400" 
+                  : "text-muted-foreground"
+              )} />
+              <CardTitle className="text-sm font-semibold">
+                Time Tracking
+                {isThisTimerActive && (
+                  <span className="ml-2 inline-flex items-center">
+                    <span className="flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                  </span>
+                )}
+              </CardTitle>
             </div>
             <div className="flex items-center gap-2">
-              {estimatedMinutes > 0 && (
+              {isOtherTimerActive && (
+                <Badge 
+                  variant="destructive" 
+                  className="text-xs animate-pulse"
+                >
+                  Timer Active Elsewhere
+                </Badge>
+              )}
+              {estimatedMinutes > 0 && !isOtherTimerActive && (
                 <Badge 
                   variant="outline" 
                   className={cn("text-xs", getProgressColor())}
@@ -324,16 +356,37 @@ export function TimeTrackingEnhanced({
         
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 rounded-none border-b">
-              <TabsTrigger value="overview" className="text-xs">
+            <TabsList className={cn(
+              "grid w-full grid-cols-3 rounded-none border-b",
+              isThisTimerActive && "bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/30 border-green-300 dark:border-green-800"
+            )}>
+              <TabsTrigger value="overview" className={cn(
+                "text-xs",
+                isThisTimerActive && "data-[state=active]:bg-green-200/50 dark:data-[state=active]:bg-green-900/50"
+              )}>
                 <TrendingUp className="h-3 w-3 mr-1" />
                 Overview
               </TabsTrigger>
-              <TabsTrigger value="timer" className="text-xs">
-                <Timer className="h-3 w-3 mr-1" />
+              <TabsTrigger value="timer" className={cn(
+                "text-xs",
+                isThisTimerActive && "font-semibold data-[state=active]:bg-green-200/50 dark:data-[state=active]:bg-green-900/50"
+              )}>
+                <Timer className={cn(
+                  "h-3 w-3 mr-1",
+                  isThisTimerActive && "text-green-600 dark:text-green-400"
+                )} />
                 Timer
+                {isThisTimerActive && (
+                  <span className="ml-1 inline-flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-500 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                  </span>
+                )}
               </TabsTrigger>
-              <TabsTrigger value="entries" className="text-xs">
+              <TabsTrigger value="entries" className={cn(
+                "text-xs",
+                isThisTimerActive && "data-[state=active]:bg-green-200/50 dark:data-[state=active]:bg-green-900/50"
+              )}>
                 <Activity className="h-3 w-3 mr-1" />
                 Entries
               </TabsTrigger>
@@ -458,15 +511,20 @@ export function TimeTrackingEnhanced({
                       ? 'No time entries yet' 
                       : 'Need at least 2 entries for chart'}
                   </p>
-                  {!isDisabled && (
+                  {!isDisabled && !isOtherTimerActive && (
                     <Button
                       size="sm"
                       onClick={handleStart}
-                      disabled={isLoading || ticketData?.timer_is_running}
+                      disabled={isLoading || ticketData?.timer_is_running || isOtherTimerActive}
                     >
                       <Play className="h-3 w-3 mr-1" />
                       Start Timer
                     </Button>
+                  )}
+                  {!isDisabled && isOtherTimerActive && (
+                    <div className="text-xs text-amber-600 dark:text-amber-400">
+                      Timer active on {activeTimer?.ticketNumber || 'another ticket'}
+                    </div>
                   )}
                 </div>
               )}
@@ -543,16 +601,20 @@ export function TimeTrackingEnhanced({
                     : "00:00:00"
                   }
                 </div>
-                {!isDisabled && hasActiveTimer && !isThisTimerActive && (
-                  <div className="mt-2 space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      Timer active on another ticket
+                {!isDisabled && isOtherTimerActive && (
+                  <div className="mt-2 space-y-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                    <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                      ⚠️ Timer active on another ticket
                     </p>
                     {activeTimer?.ticketNumber && (
-                      <p className="text-xs text-muted-foreground">
-                        Ticket: {activeTimer.ticketNumber}
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        Currently tracking: {activeTimer.ticketNumber}
+                        {activeTimer.customerName && ` - ${activeTimer.customerName}`}
                       </p>
                     )}
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Stop the other timer first to track time on this ticket
+                    </p>
                   </div>
                 )}
                 {isThisTimerActive && (
@@ -571,12 +633,16 @@ export function TimeTrackingEnhanced({
                 {!isThisTimerActive ? (
                   <Button
                     onClick={handleStart}
-                    disabled={isLoading || isDisabled || (ticketData?.timer_is_running && !isAdmin)}
+                    disabled={isLoading || isDisabled || isOtherTimerActive || (ticketData?.timer_is_running && !isAdmin)}
                     className="flex-1"
-                    variant={isDisabled ? "ghost" : "default"}
+                    variant={isDisabled || isOtherTimerActive ? "ghost" : "default"}
                   >
                     <Play className="mr-2 h-4 w-4" />
-                    {ticketData?.timer_is_running ? "Timer Already Running" : hasActiveTimer ? "Switch Timer" : "Start Timer"}
+                    {isOtherTimerActive 
+                      ? `Timer Active on ${activeTimer?.ticketNumber || 'Another Ticket'}` 
+                      : ticketData?.timer_is_running 
+                      ? "Timer Already Running" 
+                      : "Start Timer"}
                   </Button>
                 ) : (
                   <>

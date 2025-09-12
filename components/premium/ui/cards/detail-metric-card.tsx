@@ -66,25 +66,35 @@ export function DetailMetricCard({
   className,
   onClick
 }: DetailMetricCardProps) {
-  const isInverted = variant.startsWith('inverted');
-  const textColorClass = isInverted ? 'text-white' : '';
-  const mutedTextClass = isInverted 
-    ? 'text-white/80' 
-    : 'text-gray-500 dark:text-gray-400';
+  // Get value color based on variant
+  const getValueColor = () => {
+    switch(variant) {
+      case 'inverted-primary':
+        return colors.brand.cyan;
+      case 'inverted-success':
+        return colors.semantic.success.base;
+      case 'inverted-dark':
+        return colors.brand.navy;
+      case 'inverted-accent':
+        return colors.brand.red;
+      case 'inverted-warning':
+        return colors.semantic.warning.base;
+      default:
+        return undefined;
+    }
+  };
 
-  // Get background color for inverted variants
-  const backgroundColor = variant in variantColors ? variantColors[variant as keyof typeof variantColors] : undefined;
+  const valueColor = getValueColor();
+  const mutedTextClass = 'text-gray-500 dark:text-gray-400';
 
   return (
     <div
       className={cn(
-        'rounded-lg transition-all duration-200',
-        variantStyles[variant],
+        'rounded-lg transition-all duration-200 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800',
         sizeStyles[size],
         onClick && 'cursor-pointer hover:shadow-lg hover:scale-[1.02]',
         className
       )}
-      style={backgroundColor ? { backgroundColor } : undefined}
       onClick={onClick}
     >
       <div className="flex items-start justify-between">
@@ -99,7 +109,10 @@ export function DetailMetricCard({
           </div>
           
           <div className="flex items-baseline gap-2">
-            <p className={cn(valueSizeStyles[size], textColorClass)}>
+            <p 
+              className={cn(valueSizeStyles[size])}
+              style={valueColor ? { color: valueColor } : undefined}
+            >
               {value}
             </p>
             {subtitle && (

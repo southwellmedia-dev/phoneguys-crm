@@ -61,33 +61,32 @@ export function TicketStatCards({
   };
   
   // Calculate service breakdown for chart
-  const serviceBreakdown = services.map((ts: any) => {
+  const serviceBreakdown = services.map((ticketService: any, index: number) => {
+    // Debug first service to see structure
+    if (index === 0 && services.length > 0) {
+      console.log('[TicketStatCards] Service structure:', {
+        full: ticketService,
+        service: ticketService.service,
+        services: ticketService.services,
+        directName: ticketService.name,
+        keys: Object.keys(ticketService)
+      });
+    }
+    
     // Handle nested service objects (ticket_services join table)
-    // The structure is: ticket_services -> service (singular, the actual service)
-    const serviceData = ts.service || ts.services || ts;
+    // The structure matches ticket-details-tabs: ticket_services -> service (singular)
+    const service = ticketService.service || ticketService.services;
     
-    // Get the service name from various possible locations
-    const serviceName = 
-      serviceData?.name || 
-      serviceData?.service_name || 
-      ts.name || 
-      ts.service_name ||
-      'Unknown Service';
+    // Get the service name - same pattern as ticket-details-tabs component
+    const serviceName = service?.name || ticketService.name || 'Unknown Service';
     
-    // Get the price from various possible locations  
-    // Priority: unit_price from ticket_services, then base_price from service
-    const servicePrice = 
-      ts.unit_price ||
-      serviceData?.base_price || 
-      serviceData?.price || 
-      ts.price || 
-      ts.base_price ||
-      0;
+    // Get the price - priority: base_price from service, then fallback to ticket_service price
+    const servicePrice = service?.base_price || ticketService.unit_price || ticketService.price || 0;
     
     return {
       name: serviceName,
       price: servicePrice,
-      category: serviceData?.category?.replace(/_/g, ' ') || 'General'
+      category: service?.category?.replace(/_/g, ' ') || 'General'
     };
   });
 
@@ -96,7 +95,7 @@ export function TicketStatCards({
     .filter(s => s.price > 0) // Only show services with a price
     .slice(0, 3)
     .map((service, idx) => ({
-      label: service.name.split(' ')[0], // First word of service name
+      label: service.name === 'Unknown Service' ? 'Service' : (service.name.split(' ')[0] || 'Service'), // First word of service name with fallback
       value: Number(service.price) || 0, // Ensure it's a number
       color: [colors.brand.cyan, colors.brand.cyanLight, colors.semantic.info.base][idx] // Use design system colors
     }));
@@ -154,7 +153,7 @@ export function TicketStatCards({
         subtitle={serviceCount === 1 ? 'service' : 'services'}
         description={estimatedMinutes > 0 ? `~${formatMinutes(estimatedMinutes)} total` : 'Add services'}
         icon={Wrench}
-        variant={serviceCount > 0 ? "inverted-dark" : "ghost"}
+        variant={serviceCount > 0 ? "inverted-primary" : "default"}
         size="lg"
         extra={
           serviceCount > 0 ? (
@@ -162,13 +161,15 @@ export function TicketStatCards({
               {serviceBreakdown.slice(0, 2).map((service, idx) => (
                 <Pill 
                   key={idx} 
-                  text={service.name.split(' ').slice(0, 2).join(' ')}
+                  text={service.name === 'Unknown Service' 
+                    ? `Service ${idx + 1}` 
+                    : service.name.split(' ').slice(0, 2).join(' ') || `Service ${idx + 1}`}
                   variant="soft"
                   size="xs"
                 />
               ))}
               {serviceBreakdown.length > 2 && (
-                <span className="text-xs text-white/60">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                   +{serviceBreakdown.length - 2} more
                 </span>
               )}
@@ -188,7 +189,7 @@ export function TicketStatCards({
         subtitle={status === 'completed' ? 'Ready to invoice' : undefined}
         description={serviceCount > 0 ? `${serviceCount} service${serviceCount !== 1 ? 's' : ''}` : 'No charges yet'}
         icon={DollarSign}
-        variant={totalCost > 0 ? "inverted-success" : "ghost"}
+        variant={totalCost > 0 ? "inverted-success" : "default"}
         size="lg"
         trend={totalCost > 500 ? 'up' : undefined}
         trendValue={totalCost > 500 ? 'High value' : undefined}
@@ -204,15 +205,15 @@ export function TicketStatCards({
               />
               <div className="flex justify-around mt-1">
                 {serviceChartData.map((service, idx) => (
-                  <span key={idx} className="text-[9px] text-white/60">
+                  <span key={idx} className="text-[9px] text-gray-500 dark:text-gray-400">
                     ${service.value.toFixed(0)}
                   </span>
                 ))}
               </div>
             </div>
           ) : totalCost > 0 ? (
-            <div className="flex items-center justify-center w-20 h-20 rounded-full bg-green-500/20">
-              <CheckCircle2 className="w-10 h-10 text-white" />
+            <div className="flex items-center justify-center w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/20">
+              <CheckCircle2 className="w-10 h-10 text-green-600 dark:text-green-400" />
             </div>
           ) : (
             <div className="flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 dark:bg-gray-800">
@@ -231,7 +232,7 @@ export function TicketStatCards({
         icon={priority === "urgent" || priority === "high" ? AlertCircle : Calendar}
         variant={
           priority === "urgent" ? "inverted-accent" : 
-          priority === "high" ? "inverted-primary" : 
+          priority === "high" ? "inverted-warning" : 
           "default"
         }
         size="lg"

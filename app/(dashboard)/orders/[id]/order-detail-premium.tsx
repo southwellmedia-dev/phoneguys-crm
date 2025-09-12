@@ -395,58 +395,9 @@ export function TicketDetailPremium({
 
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Content - Left Side */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Combined Customer & Device Card */}
-          <CustomerDeviceCard
-            customer={{
-              id: order.customer_id || '',
-              name: order.customer_name || order.customers?.name || 'Unknown',
-              email: order.customers?.email || '',
-              phone: order.customer_phone || order.customers?.phone || '',
-              previousAppointments: order.customerStats?.totalAppointments || order.customers?.total_appointments || 0,
-              totalRepairs: order.customerStats?.totalRepairs || order.customers?.total_orders || 1,
-              memberSince: order.customers?.created_at || '',
-              notificationPreference: 'email',
-              currentTicket: {
-                number: order.ticket_number,
-                status: order.status,
-                device: `${order.device_brand} ${order.device_model}`
-              }
-            }}
-            device={{
-              id: order.device?.id || '',
-              modelName: order.device?.model_name || `${order.device_brand} ${order.device_model}`,
-              manufacturer: order.device?.manufacturer?.name || order.device_brand,
-              imageUrl: order.device?.image_url,
-              thumbnailUrl: order.device?.thumbnail_url,
-              serialNumber: order.serial_number || matchingCustomerDevice?.serial_number || '',
-              imei: order.imei || matchingCustomerDevice?.imei || '',
-              color: matchingCustomerDevice?.color || '',
-              storageSize: matchingCustomerDevice?.storage_size || '',
-              condition: matchingCustomerDevice?.condition || 'good',
-              issues: order.repair_issues || [],
-              nickname: matchingCustomerDevice?.nickname
-            }}
-            isInProfile={!!matchingCustomerDevice}
-            showAddToProfile={!matchingCustomerDevice && (order.imei || order.serial_number)}
-            onAddToProfile={() => setShowAddDeviceDialog(true)}
-            isLocked={order.status === 'completed' || order.status === 'cancelled'}
-          />
-
-          {/* Comments Section - Moved Up */}
-          <CommentThread
-            entityType="ticket"
-            entityId={orderId}
-            currentUserId={currentUserId}
-            allowCustomerComments={true}
-            className="border border-gray-200 dark:border-gray-700"
-          />
-        </div>
-
-        {/* Right Sidebar */}
+        {/* Left Sidebar (Time Tracking & Ticket Details) */}
         <div className="space-y-6">
-          {/* Enhanced Time Tracking Component - Moved to Top */}
+          {/* Enhanced Time Tracking Component */}
           <TimeTrackingEnhanced
             ticketId={orderId}
             ticketNumber={order.ticket_number}
@@ -489,6 +440,55 @@ export function TicketDetailPremium({
             isAdmin={isAdmin}
             isLocked={order.status === 'completed' || order.status === 'cancelled'}
             onAssignmentChange={handleAssignmentChange}
+          />
+        </div>
+
+        {/* Main Content - Right Side (Customer Info & Comments) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Combined Customer & Device Card */}
+          <CustomerDeviceCard
+            customer={{
+              id: order.customer_id || '',
+              name: order.customer_name || order.customers?.name || 'Unknown',
+              email: order.customers?.email || '',
+              phone: order.customer_phone || order.customers?.phone || '',
+              previousAppointments: order.customerStats?.totalAppointments || order.customers?.total_appointments || 0,
+              totalRepairs: order.customerStats?.totalRepairs || order.customers?.total_orders || 1,
+              memberSince: order.customers?.created_at || '',
+              notificationPreference: 'email',
+              currentTicket: {
+                number: order.ticket_number,
+                status: order.status,
+                device: `${order.device_brand} ${order.device_model}`
+              }
+            }}
+            device={{
+              id: order.device?.id || '',
+              modelName: order.device?.model_name || `${order.device_brand} ${order.device_model}`,
+              manufacturer: order.device?.manufacturer?.name || order.device_brand,
+              imageUrl: order.device?.image_url,
+              thumbnailUrl: order.device?.thumbnail_url,
+              serialNumber: order.serial_number || matchingCustomerDevice?.serial_number || '',
+              imei: order.imei || matchingCustomerDevice?.imei || '',
+              color: matchingCustomerDevice?.color || '',
+              storageSize: matchingCustomerDevice?.storage_size || '',
+              condition: matchingCustomerDevice?.condition || 'good',
+              issues: order.repair_issues || [],
+              nickname: matchingCustomerDevice?.nickname
+            }}
+            isInProfile={!!matchingCustomerDevice}
+            showAddToProfile={!matchingCustomerDevice && (order.imei || order.serial_number)}
+            onAddToProfile={() => setShowAddDeviceDialog(true)}
+            isLocked={order.status === 'completed' || order.status === 'cancelled'}
+          />
+
+          {/* Comments Section */}
+          <CommentThread
+            entityType="ticket"
+            entityId={orderId}
+            currentUserId={currentUserId}
+            allowCustomerComments={true}
+            className="border border-gray-200 dark:border-gray-700"
           />
         </div>
       </div>

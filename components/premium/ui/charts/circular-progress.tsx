@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { colors } from '@/components/premium/themes/colors';
 
 interface CircularProgressProps {
   value: number; // 0-100
@@ -20,12 +21,13 @@ const sizeMap = {
   xl: { size: 100, fontSize: 'text-lg', strokeWidth: 6 }
 };
 
-const variantMap = {
-  default: 'stroke-gray-600',
-  primary: 'stroke-cyan-500',
-  success: 'stroke-green-500',
-  warning: 'stroke-orange-500',
-  error: 'stroke-red-500'
+// Map variants to design system colors (using inline styles for exact colors)
+const variantColorMap = {
+  default: '#6B7280', // gray-500
+  primary: colors.brand.cyan,
+  success: colors.semantic.success.base,
+  warning: colors.semantic.warning.base,
+  error: colors.semantic.error.base
 };
 
 export function CircularProgress({
@@ -66,14 +68,13 @@ export function CircularProgress({
           cx={svgSize / 2}
           cy={svgSize / 2}
           r={radius}
-          stroke="currentColor"
+          stroke={variantColorMap[variant]}
           strokeWidth={stroke}
           fill="none"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap="round"
           className={cn(
-            variantMap[variant],
             animate && 'transition-all duration-500 ease-out'
           )}
         />

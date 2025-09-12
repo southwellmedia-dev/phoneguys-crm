@@ -3,6 +3,7 @@
 import { cn } from '@/lib/utils';
 import { LucideIcon } from 'lucide-react';
 import { ReactNode } from 'react';
+import { colors } from '@/components/premium/themes/colors';
 
 interface DetailMetricCardProps {
   title: string;
@@ -10,7 +11,7 @@ interface DetailMetricCardProps {
   subtitle?: string;
   description?: string;
   icon?: LucideIcon;
-  variant?: 'default' | 'inverted-primary' | 'inverted-success' | 'inverted-dark' | 'inverted-accent' | 'ghost';
+  variant?: 'default' | 'inverted-primary' | 'inverted-success' | 'inverted-dark' | 'inverted-accent' | 'inverted-warning' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   extra?: ReactNode; // For charts, progress indicators, etc.
   trend?: 'up' | 'down' | 'neutral';
@@ -19,13 +20,24 @@ interface DetailMetricCardProps {
   onClick?: () => void;
 }
 
+// Use our design system colors with inline styles for exact brand colors
 const variantStyles = {
   default: 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100',
-  'inverted-primary': 'bg-cyan-500 border-cyan-500 text-white',
-  'inverted-success': 'bg-green-500 border-green-500 text-white',
-  'inverted-dark': 'bg-gray-800 dark:bg-gray-900 border-gray-800 dark:border-gray-900 text-white',
-  'inverted-accent': 'bg-red-500 border-red-500 text-white',
+  'inverted-primary': 'border-0 text-white', // Will use style prop for brand cyan
+  'inverted-success': 'border-0 text-white', // Will use style prop for semantic success
+  'inverted-dark': 'border-0 text-white', // Will use style prop for brand navy
+  'inverted-accent': 'border-0 text-white', // Will use style prop for brand red
+  'inverted-warning': 'border-0 text-white', // Will use style prop for semantic warning
   ghost: 'bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100'
+};
+
+// Map variants to our design system colors
+const variantColors = {
+  'inverted-primary': colors.brand.cyan,
+  'inverted-success': colors.semantic.success.base,
+  'inverted-dark': colors.brand.navy,
+  'inverted-accent': colors.brand.red,
+  'inverted-warning': colors.semantic.warning.base,
 };
 
 const sizeStyles = {
@@ -60,6 +72,9 @@ export function DetailMetricCard({
     ? 'text-white/80' 
     : 'text-gray-500 dark:text-gray-400';
 
+  // Get background color for inverted variants
+  const backgroundColor = variant in variantColors ? variantColors[variant as keyof typeof variantColors] : undefined;
+
   return (
     <div
       className={cn(
@@ -69,6 +84,7 @@ export function DetailMetricCard({
         onClick && 'cursor-pointer hover:shadow-lg hover:scale-[1.02]',
         className
       )}
+      style={backgroundColor ? { backgroundColor } : undefined}
       onClick={onClick}
     >
       <div className="flex items-start justify-between">

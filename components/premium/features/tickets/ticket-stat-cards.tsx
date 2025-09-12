@@ -5,6 +5,7 @@ import { DetailMetricCard } from '@/components/premium/ui/cards/detail-metric-ca
 import { CircularProgress } from '@/components/premium/ui/charts/circular-progress';
 import { MiniBarChart } from '@/components/premium/ui/charts/mini-bar-chart';
 import { Pill, Pills } from '@/components/premium/ui/pills';
+import { colors } from '@/components/premium/themes/colors';
 import { 
   Clock, 
   Wrench, 
@@ -61,15 +62,32 @@ export function TicketStatCards({
   
   // Calculate service breakdown for chart
   const serviceBreakdown = services.map((ts: any) => {
-    // Handle both ticket_services and direct services structure
-    const service = ts.service || ts.services || ts;
-    const serviceName = service?.name || service?.service_name || ts.name || 'Unknown Service';
-    const servicePrice = service?.base_price || service?.price || ts.price || 0;
+    // Handle nested service objects (ticket_services join table)
+    // The structure is: ticket_services -> service (singular, the actual service)
+    const serviceData = ts.service || ts.services || ts;
+    
+    // Get the service name from various possible locations
+    const serviceName = 
+      serviceData?.name || 
+      serviceData?.service_name || 
+      ts.name || 
+      ts.service_name ||
+      'Unknown Service';
+    
+    // Get the price from various possible locations  
+    // Priority: unit_price from ticket_services, then base_price from service
+    const servicePrice = 
+      ts.unit_price ||
+      serviceData?.base_price || 
+      serviceData?.price || 
+      ts.price || 
+      ts.base_price ||
+      0;
     
     return {
       name: serviceName,
       price: servicePrice,
-      category: service?.category?.replace(/_/g, ' ') || 'General'
+      category: serviceData?.category?.replace(/_/g, ' ') || 'General'
     };
   });
 
@@ -80,7 +98,7 @@ export function TicketStatCards({
     .map((service, idx) => ({
       label: service.name.split(' ')[0], // First word of service name
       value: Number(service.price) || 0, // Ensure it's a number
-      color: ['#10b981', '#06b6d4', '#0891b2'][idx] // Green to cyan gradient
+      color: [colors.brand.cyan, colors.brand.cyanLight, colors.semantic.info.base][idx] // Use design system colors
     }));
   
   // If we have multiple services with prices, show them; otherwise don't show chart

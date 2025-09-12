@@ -410,3 +410,63 @@ export function useClearTimer() {
     },
   });
 }
+
+export function useDeleteTimeEntry(ticketId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (entryId: string) => {
+      const response = await fetch(`/api/orders/${ticketId}/time-entries/${entryId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete time entry');
+      }
+
+      return response.json();
+    },
+    onMutate: async (entryId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['ticket', ticketId] });
+
+      // Snapshot the previous value
+      const previousTicket = queryClient.getQueryData(['ticket', ticketId]);
+
+      // Optimistically update the ticket
+      queryClient.setQueryData(['ticket', ticketId], (old: any) => {
+        if (!old) return old;
+        
+        // Remove the deleted entry from time_entries
+        const updatedEntries = old.time_entries?.filter((e: any) => e.id !== entryId) || [];
+        
+        // Recalculate total time
+        const totalMinutes = updatedEntries.reduce((sum: number, entry: any) => {
+          return sum + (entry.duration_minutes || 0);
+        }, 0);
+        
+        return {
+          ...old,
+          time_entries: updatedEntries,
+          total_time_minutes: totalMinutes
+        };
+      });
+
+      // Return a context object with the snapshotted value
+      return { previousTicket };
+    },
+    onError: (err, entryId, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousTicket) {
+        queryClient.setQueryData(['ticket', ticketId], context.previousTicket);
+      }
+      toast.error('Failed to delete time entry');
+    },
+    onSuccess: () => {
+      toast.success('Time entry deleted');
+      // NO INVALIDATION - Let real-time handle any server-side changes
+    },
+    // REMOVED onSettled - NO INVALIDATION, follow our principles!
+  });
+}

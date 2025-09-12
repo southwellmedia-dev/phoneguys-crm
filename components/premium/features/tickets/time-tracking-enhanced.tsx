@@ -34,7 +34,8 @@ import {
   User,
   Calendar,
   Shield,
-  XCircle
+  XCircle,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTimer } from '@/lib/contexts/timer-context';
@@ -42,7 +43,7 @@ import { StopTimerDialog } from '@/components/orders/stop-timer-dialog';
 import { TimeEntry } from '@/lib/types/database.types';
 import { formatDuration } from '@/lib/utils';
 import { toast } from 'sonner';
-import { useClearTimer, useTicket } from '@/lib/hooks/use-tickets';
+import { useClearTimer, useTicket, useDeleteTimeEntry } from '@/lib/hooks/use-tickets';
 import { format } from 'date-fns';
 
 interface TimeTrackingEnhancedProps {
@@ -85,6 +86,7 @@ export function TimeTrackingEnhanced({
   
   const { data: ticketData } = useTicket(ticketId);
   const clearTimerMutation = useClearTimer();
+  const deleteTimeEntryMutation = useDeleteTimeEntry(ticketId);
   
   const isThisTimerActive = activeTimer && activeTimer.ticketId === ticketId;
   const hasActiveTimer = !!activeTimer;
@@ -214,6 +216,20 @@ export function TimeTrackingEnhanced({
     } catch (error) {
       toast.error("Failed to recover timer");
     }
+  };
+
+  const handleDeleteEntry = async (entryId: string) => {
+    if (!isAdmin) {
+      toast.error("Only administrators can delete time entries");
+      return;
+    }
+
+    if (!confirm("Are you sure you want to delete this time entry?")) {
+      return;
+    }
+
+    // Use the mutation with optimistic updates - no page refresh needed!
+    deleteTimeEntryMutation.mutate(entryId);
   };
 
   const formatTime = (totalSeconds: number) => {
@@ -612,7 +628,7 @@ export function TimeTrackingEnhanced({
                 {entries && entries.length > 0 ? (
                   <div className="divide-y">
                     {entries.map((entry: any) => (
-                      <div key={entry.id} className="p-4 hover:bg-muted/50 transition-colors">
+                      <div key={entry.id} className="group p-4 hover:bg-muted/50 transition-colors">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
@@ -647,14 +663,27 @@ export function TimeTrackingEnhanced({
                             </div>
                           </div>
                           
-                          <div className="text-right">
-                            <p className="text-sm font-semibold">
-                              {formatDuration(entry.duration_minutes || 0)}
-                            </p>
-                            {entry.rate && (
-                              <p className="text-xs text-muted-foreground">
-                                ${(entry.duration_minutes * entry.rate / 60).toFixed(2)}
+                          <div className="flex items-start gap-2">
+                            <div className="text-right">
+                              <p className="text-sm font-semibold">
+                                {formatDuration(entry.duration_minutes || 0)}
                               </p>
+                              {entry.rate && (
+                                <p className="text-xs text-muted-foreground">
+                                  ${(entry.duration_minutes * entry.rate / 60).toFixed(2)}
+                                </p>
+                              )}
+                            </div>
+                            {isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
+                                onClick={() => handleDeleteEntry(entry.id)}
+                                title="Delete time entry"
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
                             )}
                           </div>
                         </div>

@@ -38,6 +38,7 @@ export function CommentThread({
   const [showFilters, setShowFilters] = useState(false);
   const [replyingTo, setReplyingTo] = useState<{id: string, user: string, content: string} | null>(null);
   const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
+  const [displayCount, setDisplayCount] = useState(10); // Start with 10 comments
   const searchParams = useSearchParams();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
@@ -119,6 +120,17 @@ export function CommentThread({
     });
   }, [comments, activeTab]);
 
+  // Get only the comments to display based on displayCount
+  const displayedComments = React.useMemo(() => {
+    return filteredComments.slice(0, displayCount);
+  }, [filteredComments, displayCount]);
+
+  const hasMoreComments = filteredComments.length > displayCount;
+
+  const loadMoreComments = () => {
+    setDisplayCount(prev => Math.min(prev + 10, filteredComments.length));
+  };
+
   return (
     <Card className={cn("relative", className)}>
       <CardHeader className="pb-3">
@@ -157,7 +169,10 @@ export function CommentThread({
 
       <CardContent className="space-y-4">
         {/* Tabs for filtering */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+        <Tabs value={activeTab} onValueChange={(v) => {
+          setActiveTab(v as any);
+          setDisplayCount(10); // Reset to initial count when switching tabs
+        }}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="all" className="gap-2">
               All
@@ -207,7 +222,7 @@ export function CommentThread({
         />
 
         {/* Comments List */}
-        <ScrollArea className="w-full" style={{ maxHeight }}>
+        <ScrollArea className="w-full" style={{ height: maxHeight === 'none' ? 'auto' : maxHeight }}>
           <div className="space-y-4 pr-4">
             {showSkeleton ? (
               // Loading skeletons
@@ -236,22 +251,37 @@ export function CommentThread({
                 </p>
               </div>
             ) : (
-              // Comments
-              filteredComments.map((comment) => (
-                <CommentItem
-                  key={comment.id}
-                  comment={comment}
-                  currentUserId={currentUserId}
-                  onReply={() => setReplyingTo({
-                    id: comment.id,
-                    user: comment.user?.full_name || 'Unknown User',
-                    content: comment.content.substring(0, 100) + (comment.content.length > 100 ? '...' : '')
-                  })}
-                  showReplies
-                  depth={0}
-                  isHighlighted={highlightedCommentId === comment.id}
-                />
-              ))
+              <>
+                {/* Comments */}
+                {displayedComments.map((comment) => (
+                  <CommentItem
+                    key={comment.id}
+                    comment={comment}
+                    currentUserId={currentUserId}
+                    onReply={() => setReplyingTo({
+                      id: comment.id,
+                      user: comment.user?.full_name || 'Unknown User',
+                      content: comment.content.substring(0, 100) + (comment.content.length > 100 ? '...' : '')
+                    })}
+                    showReplies
+                    depth={0}
+                    isHighlighted={highlightedCommentId === comment.id}
+                  />
+                ))}
+                
+                {/* Load More Button */}
+                {hasMoreComments && (
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={loadMoreComments}
+                      className="w-full max-w-xs"
+                    >
+                      Load More Comments ({filteredComments.length - displayCount} remaining)
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </ScrollArea>

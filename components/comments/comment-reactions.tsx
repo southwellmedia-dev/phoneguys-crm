@@ -19,12 +19,14 @@ interface CommentReactionsProps {
   comment: Comment;
   currentUserId: string;
   className?: string;
+  compact?: boolean;
 }
 
 export function CommentReactions({
   comment,
   currentUserId,
-  className
+  className,
+  compact = false
 }: CommentReactionsProps) {
   const [showPicker, setShowPicker] = useState(false);
   const [hoveredReaction, setHoveredReaction] = useState<string | null>(null);
@@ -76,6 +78,39 @@ export function CommentReactions({
     
     setShowPicker(false);
   };
+
+  // In compact mode, just show quick reaction buttons
+  if (compact) {
+    return (
+      <div className={cn("flex items-center gap-0.5", className)}>
+        {/* Quick reaction buttons */}
+        {['👍', '❤️', '😄', '🎉', '👀'].map((emoji) => {
+          const hasReacted = comment.reactions?.some(
+            r => r.user_id === currentUserId && r.reaction === emoji
+          );
+          const reactionCount = comment.reactions?.filter(r => r.reaction === emoji).length || 0;
+          
+          return (
+            <Button
+              key={emoji}
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "h-6 px-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all",
+                hasReacted && "bg-blue-100 dark:bg-blue-900/50"
+              )}
+              onClick={() => handleReaction(emoji)}
+            >
+              <span className="text-sm">{emoji}</span>
+              {reactionCount > 0 && (
+                <span className="ml-0.5 text-xs font-medium">{reactionCount}</span>
+              )}
+            </Button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className={cn("flex items-center gap-1 flex-wrap", className)}>

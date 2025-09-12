@@ -4,7 +4,6 @@ import { AppointmentService } from "@/lib/services/appointment.service";
 import { AppointmentRepository } from "@/lib/repositories/appointment.repository";
 import { InternalNotificationService } from "@/lib/services/internal-notification.service";
 import { InternalNotificationPriority, InternalNotificationType } from "@/lib/types/internal-notification.types";
-import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
@@ -12,7 +11,7 @@ export async function updateAppointmentDetails(appointmentId: string, details: a
   try {
     console.log('🎯 SERVER ACTION: updateAppointmentDetails called with:', { appointmentId, details });
     const appointmentRepo = new AppointmentRepository(true);
-    const supabase = createServiceClient();
+    const supabase = await createClient();
     
     // Get the current appointment to check customer
     const currentAppointment = await appointmentRepo.findById(appointmentId);
@@ -287,26 +286,57 @@ export async function convertAppointmentToTicket(appointmentId: string, addition
   }
 }
 
-export async function confirmAppointment(appointmentId: string, confirmationNotes?: string) {
+export async function confirmAppointment(appointmentId: string, confirmationNotes?: string, assigneeId?: string) {
   try {
-    const supabase = createServiceClient();
+    const supabase = await createClient();
     
     // Get current user
     const { data: { user } } = await supabase.auth.getUser();
     
+    // Build update object
+    const updateData: any = {
+      status: 'confirmed',
+      confirmed_at: new Date().toISOString(),
+      confirmed_by: user?.id || null,
+      confirmation_notes: confirmationNotes || null,
+      updated_at: new Date().toISOString()
+    };
+    
+    // Add assignee if provided
+    if (assigneeId) {
+      updateData.assigned_to = assigneeId;
+    }
+    
     // Update appointment with confirmed status and tracking fields
-    const { error } = await supabase
+    const { error: updateError } = await supabase
       .from('appointments')
-      .update({
-        status: 'confirmed',
-        confirmed_at: new Date().toISOString(),
-        confirmed_by: user?.id || null,
-        confirmation_notes: confirmationNotes || null,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', appointmentId);
     
-    if (error) throw error;
+    if (updateError) throw updateError;
+    
+    // If confirmation notes were provided, also create a comment
+    if (confirmationNotes && confirmationNotes.trim()) {
+      const { error: commentError } = await supabase
+        .from('comments')
+        .insert({
+          entity_type: 'appointment',
+          entity_id: appointmentId,
+          content: `Appointment confirmed: ${confirmationNotes}`,
+          visibility: 'internal', // Internal staff note
+          is_public: true, // But visible to customer on status page
+          user_id: user?.id || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select('*, user:users(id, email, full_name, username)')
+        .single();
+      
+      if (commentError) {
+        console.error('Error creating confirmation comment:', commentError);
+        // Don't fail the whole operation if comment creation fails
+      }
+    }
     
     revalidatePath('/appointments');
     revalidatePath(`/appointments/${appointmentId}`);
@@ -323,13 +353,13 @@ export async function confirmAppointment(appointmentId: string, confirmationNote
 
 export async function markAppointmentArrived(appointmentId: string, checkInNotes?: string) {
   try {
-    const supabase = createServiceClient();
+    const supabase = await createClient();
     
     // Get current user
     const { data: { user } } = await supabase.auth.getUser();
     
     // Update appointment with arrived status and tracking fields
-    const { error } = await supabase
+    const { error: updateError } = await supabase
       .from('appointments')
       .update({
         status: 'arrived',
@@ -340,7 +370,30 @@ export async function markAppointmentArrived(appointmentId: string, checkInNotes
       })
       .eq('id', appointmentId);
     
-    if (error) throw error;
+    if (updateError) throw updateError;
+    
+    // If check-in notes were provided, also create a comment
+    if (checkInNotes && checkInNotes.trim()) {
+      const { error: commentError } = await supabase
+        .from('comments')
+        .insert({
+          entity_type: 'appointment',
+          entity_id: appointmentId,
+          content: `Customer checked in: ${checkInNotes}`,
+          visibility: 'internal', // Internal staff note
+          is_public: true, // But visible to customer on status page
+          user_id: user?.id || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select('*, user:users(id, email, full_name, username)')
+        .single();
+      
+      if (commentError) {
+        console.error('Error creating check-in comment:', commentError);
+        // Don't fail the whole operation if comment creation fails
+      }
+    }
     
     revalidatePath('/appointments');
     revalidatePath(`/appointments/${appointmentId}`);

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Calendar, Clock, CheckCircle, MessageSquare, Mail, Phone } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, MessageSquare, Mail, Phone, User } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -29,8 +29,10 @@ interface ConfirmationModalProps {
   scheduledDate: string;
   scheduledTime: string;
   services?: string[];
+  currentAssignee?: string | null;
   onConfirm: (data: {
     notes?: string;
+    assigneeId?: string;
     notificationMethod?: 'email' | 'sms' | 'phone' | 'none';
   }) => Promise<void>;
 }
@@ -48,17 +50,56 @@ export function ConfirmationModal({
   scheduledDate,
   scheduledTime,
   services = [],
+  currentAssignee,
   onConfirm
 }: ConfirmationModalProps) {
   const [notes, setNotes] = useState('');
   const [notificationMethod, setNotificationMethod] = useState<'email' | 'sms' | 'phone' | 'none'>('email');
   const [isConfirming, setIsConfirming] = useState(false);
+  const [assigneeId, setAssigneeId] = useState<string>('');
+  const [technicians, setTechnicians] = useState<Array<{ id: string; full_name: string; email: string; role?: string }>>([]);
+  const [loadingTechnicians, setLoadingTechnicians] = useState(false);
+
+  // Fetch available users through API
+  useEffect(() => {
+    async function fetchTechnicians() {
+      setLoadingTechnicians(true);
+      try {
+        const response = await fetch('/api/users/technicians');
+        if (!response.ok) throw new Error('Failed to fetch users');
+        
+        const { data } = await response.json();
+        setTechnicians(data || []);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        toast.error('Failed to load users');
+      } finally {
+        setLoadingTechnicians(false);
+      }
+    }
+
+    if (isOpen) {
+      fetchTechnicians();
+      // Set current assignee when modal opens
+      if (currentAssignee) {
+        setAssigneeId(currentAssignee);
+      }
+    }
+  }, [isOpen]);
+  
+  // Reset assigneeId when currentAssignee changes
+  useEffect(() => {
+    if (currentAssignee) {
+      setAssigneeId(currentAssignee);
+    }
+  }, [currentAssignee]);
 
   const handleConfirm = async () => {
     setIsConfirming(true);
     try {
       await onConfirm({
         notes: notes.trim() || undefined,
+        assigneeId: assigneeId || undefined,
         notificationMethod
       });
       
@@ -132,6 +173,34 @@ export function ConfirmationModal({
               )}
             </div>
           </CardPremium>
+
+          {/* Assignee Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="assignee">
+              <User className="inline h-4 w-4 mr-1" />
+              Assign User
+            </Label>
+            <select
+              id="assignee"
+              value={assigneeId}
+              onChange={(e) => setAssigneeId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              disabled={loadingTechnicians}
+            >
+              <option value="">Select a user...</option>
+              {technicians.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.full_name || user.email}
+                  {user.role && ` (${user.role})`}
+                </option>
+              ))}
+            </select>
+            {!assigneeId && (
+              <p className="text-xs text-amber-600">
+                No user assigned. Consider assigning someone for better tracking.
+              </p>
+            )}
+          </div>
 
           {/* Notification Method */}
           <div className="space-y-2">

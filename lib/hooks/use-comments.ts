@@ -81,13 +81,20 @@ export function useComments(
           event: 'INSERT',
           schema: 'public',
           table: 'comments',
-          filter: `entity_type=eq.${entityType},entity_id=eq.${entityId}`
+          filter: `entity_id=eq.${entityId}`
         },
         (payload) => {
+          // Only process if it's for the right entity type
+          if (payload.new.entity_type !== entityType) return;
+          
           // Update cache directly - no loading states
           queryClient.setQueryData(
             ['comments', entityType, entityId, options],
             (old: Comment[] = []) => {
+              // Check if comment already exists (prevent duplicates)
+              const exists = old.some(c => c.id === payload.new.id);
+              if (exists) return old;
+              
               // Add new comment to the beginning
               return [payload.new as Comment, ...old];
             }
@@ -100,9 +107,12 @@ export function useComments(
           event: 'UPDATE',
           schema: 'public',
           table: 'comments',
-          filter: `entity_type=eq.${entityType},entity_id=eq.${entityId}`
+          filter: `entity_id=eq.${entityId}`
         },
         (payload) => {
+          // Only process if it's for the right entity type
+          if (payload.new.entity_type !== entityType) return;
+          
           queryClient.setQueryData(
             ['comments', entityType, entityId, options],
             (old: Comment[] = []) => {
@@ -119,16 +129,19 @@ export function useComments(
           event: 'DELETE',
           schema: 'public',
           table: 'comments',
-          filter: `entity_type=eq.${entityType},entity_id=eq.${entityId}`
+          filter: `entity_id=eq.${entityId}`
         },
         (payload) => {
+          // Only process if it's for the right entity type
+          if (payload.old.entity_type !== entityType) return;
+          
           // Handle soft delete - update the comment instead of removing
           queryClient.setQueryData(
             ['comments', entityType, entityId, options],
             (old: Comment[] = []) => {
               return old.map(comment => 
                 comment.id === payload.old.id 
-                  ? { ...comment, deleted_at: payload.new.deleted_at }
+                  ? { ...comment, deleted_at: payload.new?.deleted_at || new Date().toISOString() }
                   : comment
               );
             }

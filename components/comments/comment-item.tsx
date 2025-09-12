@@ -37,6 +37,7 @@ import {
 import { cn } from '@/lib/utils';
 import { parseCommentContent } from '@/lib/utils/comment-utils';
 import { CommentReactions } from './comment-reactions';
+import { useAddReaction, useRemoveReaction } from '@/lib/hooks/use-comments';
 
 interface CommentItemProps {
   comment: Comment;
@@ -62,12 +63,19 @@ export function CommentItem({
   
   const updateComment = useUpdateComment();
   const deleteComment = useDeleteComment();
+  const addReaction = useAddReaction();
+  const removeReaction = useRemoveReaction();
 
   const isOwner = comment.user_id === currentUserId;
   const isDeleted = !!comment.deleted_at;
   const isEdited = !!comment.edited_at;
   const isSystemImport = comment.metadata?.is_system_import === true;
   const noteType = comment.metadata?.note_type;
+  
+  // Parse system status messages
+  const systemStatusMatch = comment.content.match(/^(Appointment confirmed|Customer checked in|Appointment cancelled|Appointment rescheduled):\s*(.*)/);
+  const systemStatus = systemStatusMatch ? systemStatusMatch[1] : null;
+  const actualContent = systemStatusMatch ? systemStatusMatch[2] : comment.content;
   
   // Get user initials for avatar
   const userInitials = comment.user?.full_name
@@ -96,6 +104,19 @@ export function CommentItem({
     }
   };
 
+  const handleReaction = (reaction: string) => {
+    // Check if user already reacted with this
+    const existingReaction = comment.reactions?.find(
+      r => r.user_id === currentUserId && r.reaction === reaction
+    );
+    
+    if (existingReaction) {
+      removeReaction.mutate({ commentId: comment.id, reaction });
+    } else {
+      addReaction.mutate({ commentId: comment.id, reaction });
+    }
+  };
+
 
   if (isDeleted) {
     return (
@@ -113,28 +134,26 @@ export function CommentItem({
     <div 
       id={`comment-${comment.id}`}
       className={cn(
-        "group relative transition-all duration-300",
+        "group relative transition-all duration-200",
         depth > 0 && "ml-12",
-        isSystemImport && "bg-muted/30 p-3 rounded-lg border-l-4 border-blue-500",
-        isHighlighted && "ring-2 ring-purple-500 ring-offset-2 bg-purple-50 dark:bg-purple-950/20 rounded-lg p-3 animate-pulse-once",
         className
       )}>
-      {/* Thread line for replies */}
-      {depth > 0 && (
-        <div className="absolute left-[-28px] top-0 bottom-0 w-px bg-border" />
-      )}
       
       <div className="flex gap-3">
-        {/* Avatar */}
-        <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarImage src={comment.user?.avatar_url} />
-          <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
-        </Avatar>
+        {/* Avatar with timeline */}
+        <div className="relative flex flex-col items-center">
+          <Avatar className="h-8 w-8 flex-shrink-0 z-10 bg-white dark:bg-gray-900 ring-2 ring-gray-100 dark:ring-gray-800">
+            <AvatarImage src={comment.user?.avatar_url} />
+            <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
+          </Avatar>
+          {/* Timeline line - connects to next comment */}
+          <div className="absolute top-8 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700" />
+        </div>
 
-        {/* Comment Content */}
-        <div className="flex-1 space-y-1">
+        {/* Comment Content Card */}
+        <div className="flex-1 bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-100 dark:border-gray-800 hover:border-gray-200 dark:hover:border-gray-700 transition-all duration-200 hover:shadow-sm">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-medium text-sm">
                 {comment.user?.full_name || 'Unknown User'}
@@ -198,10 +217,10 @@ export function CommentItem({
 
             {/* Actions Menu - Hide for system imports */}
             {!isSystemImport && (
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="opacity-0 group-hover:opacity-100 transition-all duration-200">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-gray-100 dark:hover:bg-gray-800">
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -270,9 +289,36 @@ export function CommentItem({
             </div>
           ) : (
             <>
+              {/* System status pill if applicable */}
+              {systemStatus && (
+                <div className="mb-2">
+                  <Badge 
+                    variant={
+                      systemStatus === 'Appointment confirmed' ? 'default' :
+                      systemStatus === 'Customer checked in' ? 'secondary' :
+                      systemStatus === 'Appointment cancelled' ? 'destructive' :
+                      'outline'
+                    }
+                    className={cn(
+                      "text-xs",
+                      systemStatus === 'Appointment confirmed' && "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+                      systemStatus === 'Customer checked in' && "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+                      systemStatus === 'Appointment cancelled' && "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+                      systemStatus === 'Appointment rescheduled' && "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300"
+                    )}
+                  >
+                    {systemStatus === 'Appointment confirmed' && '✅ '}
+                    {systemStatus === 'Customer checked in' && '📍 '}
+                    {systemStatus === 'Appointment cancelled' && '❌ '}
+                    {systemStatus === 'Appointment rescheduled' && '📅 '}
+                    {systemStatus}
+                  </Badge>
+                </div>
+              )}
+              
               {/* Render content with basic markdown support */}
               <div className="text-sm whitespace-pre-wrap">
-                {parseCommentContent(comment.content)}
+                {parseCommentContent(actualContent)}
               </div>
               
               {/* Attachments */}
@@ -292,19 +338,66 @@ export function CommentItem({
                 </div>
               )}
               
-              {/* Reactions and Actions */}
-              <div className="flex items-center gap-2 mt-2">
-                <CommentReactions 
-                  comment={comment} 
-                  currentUserId={currentUserId} 
-                />
+              {/* Reactions Footer - Always render but control visibility */}
+              <div className={cn(
+                "flex items-center justify-between transition-all duration-200 overflow-hidden",
+                (comment.reactions && comment.reactions.length > 0) 
+                  ? "mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 max-h-20 opacity-100" 
+                  : "max-h-0 opacity-0 group-hover:mt-3 group-hover:pt-3 group-hover:border-t group-hover:border-gray-100 dark:group-hover:border-gray-800 group-hover:max-h-20 group-hover:opacity-100"
+              )}>
+                {/* Existing reactions or add reaction prompt */}
+                <div className="flex items-center gap-2">
+                  {(comment.reactions && comment.reactions.length > 0) ? (
+                    <div className="flex items-center gap-1">
+                      {comment.reactions.reduce((acc: any[], reaction) => {
+                        const existing = acc.find(r => r.reaction === reaction.reaction);
+                        if (existing) {
+                          existing.count++;
+                          existing.users.push(reaction.user?.full_name || reaction.user?.email || 'Unknown');
+                          existing.hasCurrentUser = existing.hasCurrentUser || reaction.user_id === currentUserId;
+                        } else {
+                          acc.push({
+                            reaction: reaction.reaction,
+                            count: 1,
+                            users: [reaction.user?.full_name || reaction.user?.email || 'Unknown'],
+                            hasCurrentUser: reaction.user_id === currentUserId
+                          });
+                        }
+                        return acc;
+                      }, []).map((group) => (
+                        <Button
+                          key={group.reaction}
+                          variant="ghost"
+                          size="sm"
+                          className={cn(
+                            "h-7 px-2 py-0.5 text-xs",
+                            group.hasCurrentUser ? "bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30" : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                          )}
+                          onClick={() => handleReaction(group.reaction)}
+                        >
+                          <span className="text-base mr-1">{group.reaction}</span>
+                          <span className="font-semibold">{group.count}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  ) : null}
+                  
+                  {/* Add reaction section */}
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <CommentReactions 
+                      comment={comment} 
+                      currentUserId={currentUserId}
+                      compact={true}
+                    />
+                  </div>
+                </div>
                 
-                {/* Reply button */}
+                {/* Reply button on the right */}
                 {onReply && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="h-7 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     onClick={onReply}
                   >
                     <Reply className="h-3 w-3 mr-1" />

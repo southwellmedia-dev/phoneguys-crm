@@ -318,13 +318,14 @@ export function AppointmentDetailPremium({
     }
   };
 
-  const handleConfirm = async (data: { notes?: string; notificationMethod?: 'email' | 'sms' | 'phone' | 'none' }) => {
+  const handleConfirm = async (data: { notes?: string; assigneeId?: string; notificationMethod?: 'email' | 'sms' | 'phone' | 'none' }) => {
     setActionLoading(prev => ({ ...prev, confirm: true }));
     try {
-      await confirmAppointment(appointmentId, data.notes);
+      await confirmAppointment(appointmentId, data.notes, data.assigneeId);
       toast.success('Appointment confirmed');
       setCurrentStatus('confirmed');
       setShowConfirmModal(false);
+      // The appointment data will be refreshed via real-time updates
     } catch (error) {
       toast.error('Failed to confirm appointment');
       throw error;
@@ -899,6 +900,7 @@ export function AppointmentDetailPremium({
               currentUserId={currentUserId}
               allowCustomerComments={true}
               className="border border-gray-200 dark:border-gray-700"
+              maxHeight="600px"
             />
           </div>
 
@@ -991,6 +993,7 @@ export function AppointmentDetailPremium({
         services={availableServices
           .filter(s => selectedServices.includes(s.id))
           .map(s => s.name)}
+        currentAssignee={appointment.assigned_to}
         onConfirm={handleConfirm}
       />
       

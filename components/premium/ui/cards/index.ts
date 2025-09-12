@@ -10,3 +10,4 @@ export * from './glass-card';
 export * from './stat-card';
 export * from './card-premium';
 export * from './info-card';
+export * from './detail-metric-card';

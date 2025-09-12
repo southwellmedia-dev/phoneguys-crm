@@ -8,62 +8,32 @@ import { useRealtime } from "@/lib/hooks/use-realtime";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageContainer } from "@/components/layout/page-container";
 import { StatusBadge, RepairStatus } from "@/components/orders/status-badge";
-import { TimerControl } from "@/components/orders/timer-control";
 import { StatusChangeDialog } from "@/components/orders/status-change-dialog";
-import { TimeEntriesMinimal } from "@/components/orders/time-entries-minimal";
-import { TimeTrackingChart } from "@/components/orders/time-tracking-chart";
-import { TicketPhotosSidebar } from "@/components/orders/ticket-photos-sidebar";
 import { AddDeviceToProfileDialog } from "@/components/orders/add-device-to-profile-dialog";
 import { CommentThread } from "@/components/comments/comment-thread";
-import { MetricCard } from "@/components/premium/ui/cards/metric-card";
-import { CustomerInfoCard, AssigneeCard } from "@/components/premium/features/appointments/ui";
-import { DeviceDetailCard } from "@/components/premium/features/appointments/ui/device-detail-card-premium";
+import { TimeTrackingEnhanced } from "@/components/premium/features/tickets/time-tracking-enhanced";
+import { TicketStatCards } from "@/components/premium/features/tickets/ticket-stat-cards";
+import { CustomerDeviceCard } from "@/components/premium/features/tickets/customer-device-card";
+import { TicketDetailsTabs } from "@/components/premium/features/tickets/ticket-details-tabs";
 import { SkeletonPremium } from "@/components/premium/ui/feedback/skeleton-premium";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ButtonPremium } from "@/components/premium/ui/buttons/button-premium";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 import { 
   ArrowLeft,
   Edit,
   Mail,
-  Phone,
-  User,
   Calendar,
   Clock,
-  Smartphone,
   AlertCircle,
-  FileText,
   Printer,
   CheckCircle2,
   Pause,
   MoreHorizontal,
-  Timer,
-  Trash2,
   Wrench,
-  RotateCcw,
-  Plus,
-  Copy,
-  Package2,
-  Edit3,
-  DollarSign,
-  MessageSquare,
+  RotateCcw
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { RepairTicketWithRelations } from "@/lib/types/repair-ticket";
@@ -397,108 +367,53 @@ export function TicketDetailPremium({
         </div>
       )}
 
-      {/* Key Metrics Row - Matching appointments page style */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-6">
-        {/* Total Time */}
-        <div className="relative overflow-hidden group hover:-translate-y-0.5 transition-transform">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <MetricCard
-            title="Time Logged"
-            value={`${Math.floor(totalTimeMinutes / 60)}h ${totalTimeMinutes % 60}m`}
-            subtitle={totalTimeMinutes > 0 ? 'Total work time' : 'No time logged yet'}
-            icon={<Clock className="h-4 w-4" />}
-            variant="primary"
-          />
-        </div>
-        
-        {/* Services */}
-        <div className="relative overflow-hidden group hover:-translate-y-0.5 transition-transform">
-          <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <MetricCard
-            title="Services"
-            value={order.ticket_services?.length || '0'}
-            subtitle={
-              order.ticket_services?.length > 0 
-                ? `${order.ticket_services.length} service${order.ticket_services.length !== 1 ? 's' : ''} selected`
-                : 'No services added'
-            }
-            icon={<Wrench className="h-4 w-4" />}
-            variant={order.ticket_services?.length > 0 ? "success" : "default"}
-            badge={order.ticket_services?.length > 0 ? (
-              <div className="flex gap-1 mt-2">
-                {order.ticket_services
-                  .slice(0, 2)
-                  .map((ts: any) => (
-                    <Badge key={ts.id} variant="secondary" className="text-[10px] px-1.5 py-0">
-                      {ts.services?.name?.split(' ').slice(0, 2).join(' ')}
-                    </Badge>
-                  ))}
-                {order.ticket_services.length > 2 && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                    +{order.ticket_services.length - 2}
-                  </Badge>
-                )}
-              </div>
-            ) : undefined}
-          />
-        </div>
-        
-        {/* Total Cost */}
-        <div className="relative overflow-hidden group hover:-translate-y-0.5 transition-transform">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <MetricCard
-            title="Total Cost"
-            value={`$${(() => {
-              // Calculate total from services if total_cost is not set
-              if (order.ticket_services && order.ticket_services.length > 0) {
-                const calculatedTotal = order.ticket_services.reduce((sum: number, ts: any) => {
-                  const service = ts.service || ts.services;
-                  const price = service?.base_price || ts.price || 0;
-                  return sum + price;
-                }, 0);
-                return (calculatedTotal || order.total_cost || 0).toFixed(2);
-              }
-              return (order.total_cost || 0).toFixed(2);
-            })()}`}
-            subtitle={
-              order.ticket_services?.length > 0 
-                ? `${order.ticket_services.length} service${order.ticket_services.length !== 1 ? 's' : ''}`
-                : 'No cost calculated'
-            }
-            icon={<DollarSign className="h-4 w-4" />}
-            variant={order.ticket_services?.length > 0 ? "primary" : "default"}
-          />
-        </div>
-        
-        {/* Priority & Date */}
-        <div className="relative overflow-hidden group hover:-translate-y-0.5 transition-transform">
-          <div className={cn(
-            "absolute inset-0 bg-gradient-to-br to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500",
-            order.priority === "high" ? "from-red-500/5" : "from-blue-500/5"
-          )} />
-          <MetricCard
-            title="Priority"
-            value={order.priority?.charAt(0).toUpperCase() + order.priority?.slice(1) || 'Medium'}
-            subtitle={
-              order.created_at 
-                ? format(new Date(order.created_at), 'MMM d, yyyy')
-                : 'No date set'
-            }
-            icon={order.priority === "high" ? <AlertCircle className="h-4 w-4" /> : <Calendar className="h-4 w-4" />}
-            variant={order.priority === "high" ? "destructive" : "default"}
-          />
-        </div>
-      </div>
+      {/* Enhanced Stat Cards with Progress Indicators */}
+      <TicketStatCards
+        actualMinutes={totalTimeMinutes}
+        estimatedMinutes={order.ticket_services?.reduce((sum: number, ts: any) => {
+          const service = ts.service || ts.services;
+          return sum + (service?.estimated_duration_minutes || ts.duration_minutes || 0);
+        }, 0) || 0}
+        serviceCount={order.ticket_services?.length || 0}
+        services={order.ticket_services || []}
+        totalCost={(() => {
+          if (order.ticket_services && order.ticket_services.length > 0) {
+            const calculatedTotal = order.ticket_services.reduce((sum: number, ts: any) => {
+              const service = ts.service || ts.services;
+              const price = service?.base_price || ts.price || 0;
+              return sum + price;
+            }, 0);
+            return calculatedTotal || order.total_cost || 0;
+          }
+          return order.total_cost || 0;
+        })()}
+        priority={order.priority || 'medium'}
+        createdAt={order.created_at}
+        status={order.status}
+        className="mb-6"
+      />
 
 
-      <div className="grid gap-8 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Content - Left Side */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Time Tracking Chart - Show at top if there are entries */}
-          <TimeTrackingChart entries={order.time_entries || []} />
-          
-          {/* Device Information - Premium Design */}
-          <DeviceDetailCard
+          {/* Combined Customer & Device Card */}
+          <CustomerDeviceCard
+            customer={{
+              id: order.customer_id || '',
+              name: order.customer_name || order.customers?.name || 'Unknown',
+              email: order.customers?.email || '',
+              phone: order.customer_phone || order.customers?.phone || '',
+              previousAppointments: order.customerStats?.totalAppointments || order.customers?.total_appointments || 0,
+              totalRepairs: order.customerStats?.totalRepairs || order.customers?.total_orders || 1,
+              memberSince: order.customers?.created_at || '',
+              notificationPreference: 'email',
+              currentTicket: {
+                number: order.ticket_number,
+                status: order.status,
+                device: `${order.device_brand} ${order.device_model}`
+              }
+            }}
             device={{
               id: order.device?.id || '',
               modelName: order.device?.model_name || `${order.device_brand} ${order.device_model}`,
@@ -510,97 +425,16 @@ export function TicketDetailPremium({
               color: matchingCustomerDevice?.color || '',
               storageSize: matchingCustomerDevice?.storage_size || '',
               condition: matchingCustomerDevice?.condition || 'good',
-              issues: order.repair_issues || []
+              issues: order.repair_issues || [],
+              nickname: matchingCustomerDevice?.nickname
             }}
-            isEditing={false}
-            isLocked={true}
             isInProfile={!!matchingCustomerDevice}
-            onDeviceChange={() => {}}
-            onSave={() => {}}
-            deviceNickname={matchingCustomerDevice?.nickname}
             showAddToProfile={!matchingCustomerDevice && (order.imei || order.serial_number)}
             onAddToProfile={() => setShowAddDeviceDialog(true)}
+            isLocked={order.status === 'completed' || order.status === 'cancelled'}
           />
 
-
-          {/* Services Section - Premium Design */}
-          <Card className="border border-gray-200 dark:border-gray-700">
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Wrench className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-sm font-semibold">
-                    Services Applied
-                  </CardTitle>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              {order.ticket_services && order.ticket_services.length > 0 ? (
-                <div className="space-y-2">
-                  {order.ticket_services.map((ticketService: any) => {
-                    // Handle both 'service' and 'services' field names
-                    const service = ticketService.service || ticketService.services;
-                    const price = service?.base_price || ticketService.price || 0;
-                    const duration = service?.estimated_duration_minutes || ticketService.duration_minutes || 0;
-                    
-                    return (
-                      <div key={ticketService.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
-                        <div>
-                          <p className="text-sm font-medium">{service?.name || 'Unknown Service'}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {service?.category?.replace(/_/g, ' ') || 'General'}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold">
-                            ${price.toFixed(2)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {duration} min
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div className="pt-2 mt-2 border-t">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Total</span>
-                      <div className="text-right">
-                        <p className="text-base font-bold text-primary">
-                          ${(() => {
-                            // Calculate total from services
-                            const calculatedTotal = order.ticket_services.reduce((sum: number, ts: any) => {
-                              const service = ts.service || ts.services;
-                              const price = service?.base_price || ts.price || 0;
-                              return sum + price;
-                            }, 0);
-                            // Use calculated total or fallback to order.total_cost
-                            return (calculatedTotal || order.total_cost || 0).toFixed(2);
-                          })()}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {order.ticket_services.reduce((sum: number, ts: any) => {
-                            const service = ts.service || ts.services;
-                            const duration = service?.estimated_duration_minutes || ts.duration_minutes || 0;
-                            return sum + duration;
-                          }, 0)} min total
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Wrench className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground mb-3">No services added</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-
-          {/* Comments Section - Unified System */}
+          {/* Comments Section - Moved Up */}
           <CommentThread
             entityType="ticket"
             entityId={orderId}
@@ -612,81 +446,50 @@ export function TicketDetailPremium({
 
         {/* Right Sidebar */}
         <div className="space-y-6">
-          {/* Timer Control */}
-          <TimerControl
+          {/* Enhanced Time Tracking Component - Moved to Top */}
+          <TimeTrackingEnhanced
             ticketId={orderId}
             ticketNumber={order.ticket_number}
             customerName={order.customer_name || order.customers?.name}
+            entries={order.time_entries || []}
+            estimatedMinutes={order.ticket_services?.reduce((sum: number, ts: any) => {
+              const service = ts.service || ts.services;
+              return sum + (service?.estimated_duration_minutes || ts.duration_minutes || 0);
+            }, 0) || 0}
+            actualMinutes={totalTimeMinutes}
             isDisabled={order.status === "completed" || order.status === "cancelled"}
             disabledReason={
               order.status === "completed" ? "Ticket is completed" :
               order.status === "cancelled" ? "Ticket is cancelled" : undefined
             }
+            isAdmin={isAdmin}
           />
 
-          {/* Recent Time Entries */}
-          <Card className="border border-gray-200 dark:border-gray-700">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold">Recent Time Entries</CardTitle>
-                <Badge variant="secondary" className="text-xs">
-                  {order.time_entries?.length || 0} total
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <TimeEntriesMinimal entries={order.time_entries || []} />
-            </CardContent>
-          </Card>
-
-          {/* Customer Information Card */}
-          <CustomerInfoCard
-            customer={{
-              id: order.customer_id || '',
-              name: order.customer_name || order.customers?.name || 'Unknown',
-              email: order.customers?.email || '',
-              phone: order.customer_phone || order.customers?.phone || '',
-              previousAppointments: order.customerStats?.totalAppointments || order.customers?.total_appointments || 0,
-              totalRepairs: order.customerStats?.totalRepairs || order.customers?.total_orders || 1, // At least 1 since this is a repair
-              memberSince: order.customers?.created_at || '',
-              notificationPreference: 'email',
-              // Add ticket-specific context
-              currentTicket: {
-                number: order.ticket_number,
-                status: order.status,
-                device: `${order.device_brand} ${order.device_model}`
+          {/* Ticket Details Tabs */}
+          <TicketDetailsTabs
+            services={order.ticket_services || []}
+            totalCost={(() => {
+              if (order.ticket_services && order.ticket_services.length > 0) {
+                const calculatedTotal = order.ticket_services.reduce((sum: number, ts: any) => {
+                  const service = ts.service || ts.services;
+                  const price = service?.base_price || ts.price || 0;
+                  return sum + price;
+                }, 0);
+                return calculatedTotal || order.total_cost || 0;
               }
-            }}
-            isEditing={false}
-            isLocked={true}
-            onCustomerChange={() => {}}
+              return order.total_cost || 0;
+            })()}
+            estimatedMinutes={order.ticket_services?.reduce((sum: number, ts: any) => {
+              const service = ts.service || ts.services;
+              return sum + (service?.estimated_duration_minutes || ts.duration_minutes || 0);
+            }, 0) || 0}
+            assignedTo={order.assigned_to}
+            technicians={technicians}
+            ticketId={orderId}
+            isAdmin={isAdmin}
+            isLocked={order.status === 'completed' || order.status === 'cancelled'}
+            onAssignmentChange={handleAssignmentChange}
           />
-
-          {/* Assignee Card */}
-          {isAdmin && (
-            <AssigneeCard
-              assignee={order.assigned_to ? {
-                id: order.assigned_to,
-                name: technicians.find(t => t.id === order.assigned_to)?.name || 'Unknown',
-                email: technicians.find(t => t.id === order.assigned_to)?.email,
-                role: technicians.find(t => t.id === order.assigned_to)?.role,
-                // TODO: Add real stats from database
-                stats: {
-                  totalAppointments: 24,
-                  completedToday: 3,
-                  avgDuration: 45,
-                  satisfactionRate: 98
-                }
-              } : null}
-              technicians={technicians}
-              isEditing={false}
-              isLocked={order.status === 'completed' || order.status === 'cancelled'}
-              onAssigneeChange={(techId) => handleAssignmentChange(techId || '')}
-            />
-          )}
-
-          {/* Photos Section */}
-          <TicketPhotosSidebar ticketId={orderId} />
         </div>
       </div>
 

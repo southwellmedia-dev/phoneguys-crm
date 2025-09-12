@@ -35,9 +35,10 @@ import { TicketPhoto } from '@/lib/services/ticket-photo.service';
 
 interface TicketPhotosSidebarProps {
   ticketId: string;
-  ticketNumber: string;
-  userId: string;
+  ticketNumber?: string;
+  userId?: string;
   ticketServices?: any[];
+  embedded?: boolean;
 }
 
 // Pre-defined tags
@@ -58,9 +59,10 @@ const PREDEFINED_TAGS = [
 
 export function TicketPhotosSidebar({ 
   ticketId, 
-  ticketNumber, 
-  userId,
-  ticketServices = []
+  ticketNumber = '', 
+  userId = '',
+  ticketServices = [],
+  embedded = false
 }: TicketPhotosSidebarProps) {
   const [photos, setPhotos] = useState<TicketPhoto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -195,6 +197,13 @@ export function TicketPhotosSidebar({
   };
 
   if (loading) {
+    if (embedded) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+      );
+    }
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-8">
@@ -204,45 +213,9 @@ export function TicketPhotosSidebar({
     );
   }
 
-  return (
+  const photosContent = (
     <>
-      <Card className="overflow-hidden">
-        <CardHeader className="pb-3 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 dark:from-pink-500/5 dark:via-purple-500/5 dark:to-indigo-500/5 border-b border-pink-200/20 dark:border-purple-800/30">
-          <CardTitle className="flex items-center justify-between">
-            <span className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-pink-500/20 to-purple-500/20 dark:from-pink-500/10 dark:to-purple-500/10">
-                <Camera className="h-4 w-4 text-pink-600 dark:text-pink-400" />
-              </div>
-              <div>
-                <span className="text-sm font-semibold bg-gradient-to-r from-pink-600 to-purple-600 dark:from-pink-400 dark:to-purple-400 bg-clip-text text-transparent">
-                  Photos
-                </span>
-                {photos.length > 0 && (
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {photos.length} {photos.length === 1 ? 'photo' : 'photos'} uploaded
-                  </p>
-                )}
-              </div>
-            </span>
-            <label htmlFor="photo-upload-sidebar">
-              <Button size="sm" variant="outline" className="hover:bg-pink-50 dark:hover:bg-pink-950/30 border-pink-200 dark:border-pink-800" asChild>
-                <span className="flex items-center gap-1.5">
-                  <Upload className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline text-xs">Upload</span>
-                </span>
-              </Button>
-            </label>
-            <input
-              id="photo-upload-sidebar"
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
+      <div className="p-4">
           {photos.length === 0 ? (
             <div className="text-center py-8">
               <div className="p-4 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900/20 dark:to-purple-900/20 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
@@ -308,6 +281,78 @@ export function TicketPhotosSidebar({
               )}
             </div>
           )}
+      </div>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <>
+        <div className="flex items-center justify-between p-4 border-b">
+          <span className="text-sm font-medium">Photos ({photos.length})</span>
+          <label htmlFor="photo-upload-embedded">
+            <Button size="sm" variant="outline" asChild>
+              <span className="flex items-center gap-1.5">
+                <Upload className="h-3.5 w-3.5" />
+                <span className="text-xs">Upload</span>
+              </span>
+            </Button>
+          </label>
+          <input
+            id="photo-upload-embedded"
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+        </div>
+        {photosContent}
+      </>
+    );
+  }
+
+  // Non-embedded view with Card wrapper
+  return (
+    <>
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-3 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 dark:from-pink-500/5 dark:via-purple-500/5 dark:to-indigo-500/5 border-b border-pink-200/20 dark:border-purple-800/30">
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-pink-500/20 to-purple-500/20 dark:from-pink-500/10 dark:to-purple-500/10">
+                <Camera className="h-4 w-4 text-pink-600 dark:text-pink-400" />
+              </div>
+              <div>
+                <span className="text-sm font-semibold bg-gradient-to-r from-pink-600 to-purple-600 dark:from-pink-400 dark:to-purple-400 bg-clip-text text-transparent">
+                  Photos
+                </span>
+                {photos.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {photos.length} {photos.length === 1 ? 'photo' : 'photos'} uploaded
+                  </p>
+                )}
+              </div>
+            </span>
+            <label htmlFor="photo-upload-sidebar">
+              <Button size="sm" variant="outline" className="hover:bg-pink-50 dark:hover:bg-pink-950/30 border-pink-200 dark:border-pink-800" asChild>
+                <span className="flex items-center gap-1.5">
+                  <Upload className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline text-xs">Upload</span>
+                </span>
+              </Button>
+            </label>
+            <input
+              id="photo-upload-sidebar"
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          {photosContent}
         </CardContent>
       </Card>
 

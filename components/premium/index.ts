@@ -36,6 +36,9 @@ export * from './ui/forms';
 // Data Display Components
 export * from './ui/data-display';
 
+// Chart Components
+export * from './ui/charts';
+
 // Navigation Components
 export * from './ui/navigation';
 

@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Phone, MessageSquare, Settings, TestTube, CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
 import { toast } from 'sonner';
-import { getSMSService } from '@/lib/services/sms.service';
 import { previewAllTemplates } from '@/lib/templates/sms-templates';
 
 interface SMSSettingsProps {
@@ -73,10 +72,19 @@ export function SMSSettings({ onSave, onTest }: SMSSettingsProps) {
     }
   };
 
-  const checkTwilioConfig = () => {
-    const smsService = getSMSService();
-    const isReady = smsService.isReady();
-    setConfigStatus(isReady ? 'configured' : 'missing');
+  const checkTwilioConfig = async () => {
+    try {
+      const response = await fetch('/api/sms/status');
+      if (response.ok) {
+        const data = await response.json();
+        setConfigStatus(data.isConfigured ? 'configured' : 'missing');
+      } else {
+        setConfigStatus('missing');
+      }
+    } catch (error) {
+      console.error('Failed to check SMS configuration:', error);
+      setConfigStatus('unknown');
+    }
   };
 
   const handleSettingChange = (key: keyof SMSSettings, value: any) => {

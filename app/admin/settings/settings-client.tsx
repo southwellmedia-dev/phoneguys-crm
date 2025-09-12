@@ -191,12 +191,13 @@ export function SettingsClient({
                     onTest={async (phoneNumber) => {
                       try {
                         // Test SMS sending
-                        const response = await fetch('/api/admin/sms/test', {
+                        const response = await fetch('/api/sms/test', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ phoneNumber })
                         });
-                        return response.ok;
+                        const result = await response.json();
+                        return result.success || false;
                       } catch (error) {
                         console.error('SMS test failed:', error);
                         return false;

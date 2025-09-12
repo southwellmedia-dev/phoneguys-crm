@@ -43,13 +43,13 @@ const variantColors = {
 const sizeStyles = {
   sm: 'p-3',
   md: 'p-4',
-  lg: 'p-6'
+  lg: 'p-5'
 };
 
 const valueSizeStyles = {
   sm: 'text-xl font-bold',
   md: 'text-2xl font-bold',
-  lg: 'text-3xl font-bold'
+  lg: 'text-2xl font-bold'
 };
 
 export function DetailMetricCard({
@@ -87,6 +87,8 @@ export function DetailMetricCard({
   const valueColor = getValueColor();
   const mutedTextClass = 'text-gray-500 dark:text-gray-400';
 
+  const isFlexColumn = className?.includes('flex flex-col');
+  
   return (
     <div
       className={cn(
@@ -97,60 +99,119 @@ export function DetailMetricCard({
       )}
       onClick={onClick}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            {Icon && (
-              <Icon className={cn('w-4 h-4', mutedTextClass)} />
+      {isFlexColumn ? (
+        // Flex column layout - text content at bottom, icon at top
+        <div className="flex justify-between h-full">
+          <div className="flex flex-col justify-end flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              {Icon && (
+                <Icon className={cn('w-4 h-4', mutedTextClass)} />
+              )}
+              <p className={cn('text-sm font-medium', mutedTextClass)}>
+                {title}
+              </p>
+            </div>
+            
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <p 
+                className={cn(valueSizeStyles[size], 'whitespace-nowrap')}
+                style={valueColor ? { color: valueColor } : undefined}
+              >
+                {value}
+              </p>
+              {subtitle && (
+                <span className={cn('text-sm whitespace-nowrap', mutedTextClass)}>
+                  {subtitle}
+                </span>
+              )}
+            </div>
+
+            {description && (
+              <p className={cn('text-sm mt-1 leading-tight', mutedTextClass)}>
+                {description}
+              </p>
             )}
-            <p className={cn('text-sm font-medium', mutedTextClass)}>
-              {title}
-            </p>
+
+            {trend && trendValue && (
+              <div className="flex items-center gap-1 mt-2">
+                <span className={cn(
+                  'text-xs font-medium',
+                  trend === 'up' && 'text-green-400',
+                  trend === 'down' && 'text-red-400',
+                  trend === 'neutral' && mutedTextClass
+                )}>
+                  {trend === 'up' && '↑'}
+                  {trend === 'down' && '↓'}
+                  {trend === 'neutral' && '→'}
+                  {' '}{trendValue}
+                </span>
+              </div>
+            )}
           </div>
           
-          <div className="flex items-baseline gap-2">
-            <p 
-              className={cn(valueSizeStyles[size])}
-              style={valueColor ? { color: valueColor } : undefined}
-            >
-              {value}
-            </p>
-            {subtitle && (
-              <span className={cn('text-sm', mutedTextClass)}>
-                {subtitle}
-              </span>
-            )}
-          </div>
-
-          {description && (
-            <p className={cn('text-sm mt-1', mutedTextClass)}>
-              {description}
-            </p>
-          )}
-
-          {trend && trendValue && (
-            <div className="flex items-center gap-1 mt-2">
-              <span className={cn(
-                'text-xs font-medium',
-                trend === 'up' && 'text-green-400',
-                trend === 'down' && 'text-red-400',
-                trend === 'neutral' && mutedTextClass
-              )}>
-                {trend === 'up' && '↑'}
-                {trend === 'down' && '↓'}
-                {trend === 'neutral' && '→'}
-                {' '}{trendValue}
-              </span>
+          {extra && (
+            <div className="ml-4 flex items-start flex-shrink-0">
+              {extra}
             </div>
           )}
         </div>
+      ) : (
+        // Original horizontal layout
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              {Icon && (
+                <Icon className={cn('w-4 h-4', mutedTextClass)} />
+              )}
+              <p className={cn('text-sm font-medium', mutedTextClass)}>
+                {title}
+              </p>
+            </div>
+            
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <p 
+                className={cn(valueSizeStyles[size], 'whitespace-nowrap')}
+                style={valueColor ? { color: valueColor } : undefined}
+              >
+                {value}
+              </p>
+              {subtitle && (
+                <span className={cn('text-sm whitespace-nowrap', mutedTextClass)}>
+                  {subtitle}
+                </span>
+              )}
+            </div>
 
-        {extra && (
-          <div className="ml-4">
-            {extra}
+            {description && (
+              <p className={cn('text-sm mt-1 leading-tight', mutedTextClass)}>
+                {description}
+              </p>
+            )}
+
+            {trend && trendValue && (
+              <div className="flex items-center gap-1 mt-2">
+                <span className={cn(
+                  'text-xs font-medium',
+                  trend === 'up' && 'text-green-400',
+                  trend === 'down' && 'text-red-400',
+                  trend === 'neutral' && mutedTextClass
+                )}>
+                  {trend === 'up' && '↑'}
+                  {trend === 'down' && '↓'}
+                  {trend === 'neutral' && '→'}
+                  {' '}{trendValue}
+                </span>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+
+          {extra && (
+            <div className="ml-4">
+              {extra}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

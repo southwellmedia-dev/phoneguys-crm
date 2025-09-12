@@ -162,9 +162,14 @@ export function TimeEntriesSection({ entries, totalMinutes, canDelete = false, o
     return null;
   };
 
-  // Group entries by date for the list view
+  // Group entries by date for the list view - sort latest first
   const groupedEntries = useMemo(() => {
-    return entries.reduce((acc, entry) => {
+    // Sort entries by start time (latest first)
+    const sortedEntries = [...entries].sort((a, b) => 
+      new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
+    );
+
+    return sortedEntries.reduce((acc, entry) => {
       const date = formatDate(entry.start_time);
       if (!acc[date]) {
         acc[date] = [];
@@ -176,9 +181,9 @@ export function TimeEntriesSection({ entries, totalMinutes, canDelete = false, o
 
   if (entries.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-8 text-center">
-        <div className="p-4 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/20 dark:to-amber-900/20 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-          <Timer className="h-8 w-8 text-orange-500 dark:text-orange-400" />
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="p-3 rounded-full bg-muted/50 mb-4">
+          <Timer className="h-6 w-6 text-muted-foreground" />
         </div>
         <h3 className="font-medium text-sm mb-1">No time entries yet</h3>
         <p className="text-xs text-muted-foreground">Start the timer to begin tracking work time</p>
@@ -268,76 +273,96 @@ export function TimeEntriesSection({ entries, totalMinutes, canDelete = false, o
           <CardContent className="space-y-4">
             {Object.entries(groupedEntries).map(([date, dateEntries]) => (
               <div key={date} className="space-y-3">
-                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {date}
-                  <span className="text-xs">
-                    ({dateEntries.length} {dateEntries.length === 1 ? 'entry' : 'entries'})
-                  </span>
+                <div className="flex items-center gap-3 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-semibold text-foreground">{date}</span>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {dateEntries.length} {dateEntries.length === 1 ? 'entry' : 'entries'}
+                  </Badge>
                 </div>
               
               {dateEntries.map((entry) => (
                 <div 
                   key={entry.id}
-                  className={`flex items-start gap-3 p-3 rounded-lg border transition-colors hover:bg-muted/50 ${
-                    !entry.end_time ? 'border-primary/50 bg-primary/5' : 'bg-card'
+                  className={`relative rounded-lg border transition-all hover:shadow-sm ${
+                    !entry.end_time 
+                      ? 'border-primary bg-primary/5 shadow-sm' 
+                      : 'border-border bg-card hover:bg-accent/5'
                   }`}
                 >
-                  {/* Time Duration Badge */}
-                  <div className="flex items-center gap-2 min-w-[80px]">
-                    <Clock className="h-3.5 w-3.5 text-primary" />
-                    <span className="font-medium">
-                      {entry.duration_minutes ? 
-                        formatDuration(entry.duration_minutes) : 
-                        'Active'}
-                    </span>
-                  </div>
-
-                  {/* Main Content */}
-                  <div className="flex-1 space-y-1">
-                    {/* Time Range and Technician */}
-                    <div className="flex items-center gap-3 text-sm">
-                      <span className="text-muted-foreground">
-                        {formatTimeRange(entry)}
-                      </span>
-                      <span className="text-muted-foreground">•</span>
-                      <div className="flex items-center gap-1.5">
-                        <User className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="font-medium">
-                          {entry.user?.full_name || 'Unknown User'}
-                        </span>
-                        {entry.user?.role && (
-                          <Badge variant="outline" className="h-5 text-xs ml-1">
-                            {entry.user.role}
-                          </Badge>
+                  <div className="p-4">
+                    {/* Header Row */}
+                    <div className="flex items-start justify-between mb-3">
+                      {/* Left: Duration and Status */}
+                      <div className="flex items-center gap-3">
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${
+                          !entry.end_time 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'bg-muted text-foreground'
+                        }`}>
+                          <Timer className="h-3.5 w-3.5" />
+                          <span className="font-semibold text-sm">
+                            {entry.duration_minutes ? 
+                              formatDuration(entry.duration_minutes) : 
+                              'Tracking'}
+                          </span>
+                        </div>
+                        {!entry.end_time && (
+                          <div className="flex items-center gap-1.5">
+                            <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                            <span className="text-xs font-medium text-green-600 dark:text-green-400">Live</span>
+                          </div>
                         )}
                       </div>
-                      {!entry.end_time && (
-                        <Badge variant="default" className="h-5 text-xs animate-pulse">
-                          Active
+
+                      {/* Right: Delete Button */}
+                      {canDelete && entry.end_time && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 -mr-1 text-muted-foreground hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                          onClick={() => setDeleteEntry(entry.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Time Range Row */}
+                    <div className="flex items-center gap-2 text-sm mb-2">
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-medium text-foreground">
+                        {formatTimeRange(entry)}
+                      </span>
+                    </div>
+
+                    {/* Technician Row */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <User className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-sm text-foreground font-medium">
+                        {entry.user?.full_name || 'Unknown User'}
+                      </span>
+                      {entry.user?.role && (
+                        <Badge variant="secondary" className="h-5 text-xs">
+                          {entry.user.role}
                         </Badge>
                       )}
                     </div>
 
                     {/* Description */}
                     {entry.description && (
-                      <p className="text-sm text-muted-foreground">
-                        {entry.description}
-                      </p>
+                      <div className="pt-3 border-t">
+                        <div className="flex items-start gap-2">
+                          <FileText className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                          <p className="text-sm text-muted-foreground leading-relaxed flex-1">
+                            {entry.description}
+                          </p>
+                        </div>
+                      </div>
                     )}
                   </div>
-
-                  {/* Actions */}
-                  {canDelete && entry.end_time && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:bg-destructive hover:text-white"
-                      onClick={() => setDeleteEntry(entry.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
                 </div>
               ))}
             </div>

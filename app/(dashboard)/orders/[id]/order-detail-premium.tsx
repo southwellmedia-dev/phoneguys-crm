@@ -10,7 +10,8 @@ import { PageContainer } from "@/components/layout/page-container";
 import { StatusBadge, RepairStatus } from "@/components/orders/status-badge";
 import { TimerControl } from "@/components/orders/timer-control";
 import { StatusChangeDialog } from "@/components/orders/status-change-dialog";
-import { TimeEntriesSection } from "@/components/orders/time-entries-section";
+import { TimeEntriesMinimal } from "@/components/orders/time-entries-minimal";
+import { TimeTrackingChart } from "@/components/orders/time-tracking-chart";
 import { TicketPhotosSidebar } from "@/components/orders/ticket-photos-sidebar";
 import { AddDeviceToProfileDialog } from "@/components/orders/add-device-to-profile-dialog";
 import { CommentThread } from "@/components/comments/comment-thread";
@@ -493,6 +494,9 @@ export function TicketDetailPremium({
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Main Content - Left Side */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Time Tracking Chart - Show at top if there are entries */}
+          <TimeTrackingChart entries={order.time_entries || []} />
+          
           {/* Device Information - Premium Design */}
           <DeviceDetailCard
             device={{
@@ -595,16 +599,6 @@ export function TicketDetailPremium({
             </CardContent>
           </Card>
 
-          {/* Time Entries Section */}
-          <TimeEntriesSection 
-            entries={order.time_entries || []} 
-            totalMinutes={totalTimeMinutes}
-            canDelete={isAdmin}
-            onDelete={async (entryId: string) => {
-              // Delete functionality can be implemented here
-              console.log('Delete time entry:', entryId);
-            }}
-          />
 
           {/* Comments Section - Unified System */}
           <CommentThread
@@ -630,28 +624,20 @@ export function TicketDetailPremium({
             }
           />
 
-          {/* Assignee Card */}
-          {isAdmin && (
-            <AssigneeCard
-              assignee={order.assigned_to ? {
-                id: order.assigned_to,
-                name: technicians.find(t => t.id === order.assigned_to)?.name || 'Unknown',
-                email: technicians.find(t => t.id === order.assigned_to)?.email,
-                role: technicians.find(t => t.id === order.assigned_to)?.role,
-                // TODO: Add real stats from database
-                stats: {
-                  totalAppointments: 24,
-                  completedToday: 3,
-                  avgDuration: 45,
-                  satisfactionRate: 98
-                }
-              } : null}
-              technicians={technicians}
-              isEditing={false}
-              isLocked={order.status === 'completed' || order.status === 'cancelled'}
-              onAssigneeChange={(techId) => handleAssignmentChange(techId || '')}
-            />
-          )}
+          {/* Recent Time Entries */}
+          <Card className="border border-gray-200 dark:border-gray-700">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold">Recent Time Entries</CardTitle>
+                <Badge variant="secondary" className="text-xs">
+                  {order.time_entries?.length || 0} total
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <TimeEntriesMinimal entries={order.time_entries || []} />
+            </CardContent>
+          </Card>
 
           {/* Customer Information Card */}
           <CustomerInfoCard
@@ -675,6 +661,29 @@ export function TicketDetailPremium({
             isLocked={true}
             onCustomerChange={() => {}}
           />
+
+          {/* Assignee Card */}
+          {isAdmin && (
+            <AssigneeCard
+              assignee={order.assigned_to ? {
+                id: order.assigned_to,
+                name: technicians.find(t => t.id === order.assigned_to)?.name || 'Unknown',
+                email: technicians.find(t => t.id === order.assigned_to)?.email,
+                role: technicians.find(t => t.id === order.assigned_to)?.role,
+                // TODO: Add real stats from database
+                stats: {
+                  totalAppointments: 24,
+                  completedToday: 3,
+                  avgDuration: 45,
+                  satisfactionRate: 98
+                }
+              } : null}
+              technicians={technicians}
+              isEditing={false}
+              isLocked={order.status === 'completed' || order.status === 'cancelled'}
+              onAssigneeChange={(techId) => handleAssignmentChange(techId || '')}
+            />
+          )}
 
           {/* Photos Section */}
           <TicketPhotosSidebar ticketId={orderId} />

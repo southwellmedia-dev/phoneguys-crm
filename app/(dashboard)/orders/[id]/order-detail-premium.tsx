@@ -13,6 +13,7 @@ import { StatusChangeDialog } from "@/components/orders/status-change-dialog";
 import { TimeEntriesSection } from "@/components/orders/time-entries-section";
 import { TicketPhotosSidebar } from "@/components/orders/ticket-photos-sidebar";
 import { AddDeviceToProfileDialog } from "@/components/orders/add-device-to-profile-dialog";
+import { CommentThread } from "@/components/comments/comment-thread";
 import { MetricCard } from "@/components/premium/ui/cards/metric-card";
 import { CustomerInfoCard, AssigneeCard } from "@/components/premium/features/appointments/ui";
 import { DeviceDetailCard } from "@/components/premium/features/appointments/ui/device-detail-card-premium";
@@ -492,38 +493,6 @@ export function TicketDetailPremium({
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Main Content - Left Side */}
         <div className="lg:col-span-2 space-y-6">
-          
-          {/* Appointment Details (if ticket was created from appointment) */}
-          {appointmentData && appointmentData.notes && (
-            <Card className="border border-gray-200 dark:border-gray-700">
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-sm font-semibold">
-                    Appointment Notes
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <p className="text-sm text-muted-foreground">
-                  {appointmentData.notes}
-                </p>
-                {appointmentData.issues && appointmentData.issues.length > 0 && (
-                  <div className="mt-4">
-                    <p className="text-xs text-muted-foreground mb-2">Reported Issues:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {appointmentData.issues.map((issue: string, index: number) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          {issue.replace(/_/g, " ")}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
           {/* Device Information - Premium Design */}
           <DeviceDetailCard
             device={{
@@ -626,40 +595,6 @@ export function TicketDetailPremium({
             </CardContent>
           </Card>
 
-          {/* Notes Section - Premium Design */}
-          {order.ticket_notes && order.ticket_notes.length > 0 && (
-            <Card className="border border-gray-200 dark:border-gray-700">
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-sm font-semibold">
-                    Technician Notes
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="space-y-3">
-                  {order.ticket_notes.map((note: any) => (
-                    <div
-                      key={note.id}
-                      className="p-3 rounded-lg bg-muted/30 border border-muted"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-foreground">
-                          {note.user?.full_name || note.user?.email || "Unknown"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {note.created_at ? formatDate(note.created_at) : ''}
-                        </span>
-                      </div>
-                      <p className="text-sm leading-relaxed">{note.content}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Time Entries Section */}
           <TimeEntriesSection 
             entries={order.time_entries || []} 
@@ -669,6 +604,15 @@ export function TicketDetailPremium({
               // Delete functionality can be implemented here
               console.log('Delete time entry:', entryId);
             }}
+          />
+
+          {/* Comments Section - Unified System */}
+          <CommentThread
+            entityType="ticket"
+            entityId={orderId}
+            currentUserId={currentUserId}
+            allowCustomerComments={true}
+            className="border border-gray-200 dark:border-gray-700"
           />
         </div>
 

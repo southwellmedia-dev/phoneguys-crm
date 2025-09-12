@@ -8,7 +8,6 @@ import { useRealtime } from "@/lib/hooks/use-realtime";
 import { PageContainer } from "@/components/layout/page-container";
 import {
   ServiceSelectorCard,
-  NotesCard,
   AssigneeCard,
   CustomerInfoCard,
   ScheduleCard,
@@ -16,6 +15,7 @@ import {
   type Service,
   type NotesData
 } from "@/components/premium/features/appointments/ui";
+import { CommentThread } from "@/components/comments/comment-thread";
 import { DeviceDetailCard, type DeviceData } from "@/components/premium/features/appointments/ui/device-detail-card-premium";
 import { DeviceSelector } from "@/components/appointments/device-selector";
 import { StatusBadge } from "@/components/premium/ui/badges/status-badge";
@@ -72,6 +72,8 @@ interface AppointmentDetailPremiumProps {
     email: string;
     role: string;
   }>;
+  currentUserId: string;
+  isAdmin: boolean;
 }
 
 export function AppointmentDetailPremium({ 
@@ -80,7 +82,9 @@ export function AppointmentDetailPremium({
   availableServices,
   availableDevices,
   customerDevices = [],
-  technicians = []
+  technicians = [],
+  currentUserId,
+  isAdmin
 }: AppointmentDetailPremiumProps) {
   const router = useRouter();
   
@@ -93,30 +97,7 @@ export function AppointmentDetailPremium({
   // Set up real-time subscriptions (this updates React Query cache properly)
   useRealtime(['appointments']);
   
-  // Check if user is admin
-  useEffect(() => {
-    async function checkAdminStatus() {
-      const { createClient } = await import('@/lib/supabase/client');
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Check metadata for role
-        const role = user.app_metadata?.role || user.user_metadata?.role;
-        if (role === 'admin') {
-          setIsAdmin(true);
-        } else {
-          // Fallback to database check
-          const { data: userData } = await supabase
-            .from('users')
-            .select('role')
-            .eq('email', user.email)
-            .single();
-          setIsAdmin(userData?.role === 'admin');
-        }
-      }
-    }
-    checkAdminStatus();
-  }, []);
+  // isAdmin is passed as prop, no need to check again
   
   // Update currentStatus when appointment changes
   useEffect(() => {
@@ -126,7 +107,6 @@ export function AppointmentDetailPremium({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(appointment.status);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
   const [actionLoading, setActionLoading] = useState({
     confirm: false,
@@ -912,12 +892,13 @@ export function AppointmentDetailPremium({
               </Card>
             )}
 
-            {/* Notes */}
-            <NotesCard
-              notes={notes}
-              isEditing={isEditing}
-              isLocked={isLocked}
-              onNotesChange={setNotes}
+            {/* Comments Section - Unified System */}
+            <CommentThread
+              entityType="appointment"
+              entityId={appointmentId}
+              currentUserId={currentUserId}
+              allowCustomerComments={true}
+              className="border border-gray-200 dark:border-gray-700"
             />
           </div>
 
@@ -993,8 +974,6 @@ export function AppointmentDetailPremium({
                 </CardContent>
               </Card>
             )}
-
-
           </div>
         </div>
       </div>

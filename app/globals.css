@@ -114,6 +114,23 @@
 }
 
 @layer base {
+  /* Animation for highlighted comments */
+  @keyframes pulse-once {
+    0% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  
+  .animate-pulse-once {
+    animation: pulse-once 1s ease-in-out 2;
+  }
+  
   /* Enhanced Typography Styles with DM Sans */
   h1 {
     @apply text-4xl font-bold tracking-tight;

@@ -1975,3 +1975,15 @@ export const Constants = {
     },
   },
 } as const
+
+// Convenience type exports
+export type User = Tables<'users'>;
+export type UserRole = 'admin' | 'manager' | 'technician';
+export type Customer = Tables<'customers'>;
+export type RepairTicket = Tables<'repair_tickets'>;
+export type Appointment = Tables<'appointments'>;
+export type TimeEntry = Tables<'time_entries'>;
+export type Comment = Tables<'comments'>;
+export type CommentReaction = Tables<'comment_reactions'>;
+export type CommentEdit = Tables<'comment_edits'>;
+export type CommentRead = Tables<'comment_reads'>;

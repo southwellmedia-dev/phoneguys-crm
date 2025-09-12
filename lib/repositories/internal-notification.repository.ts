@@ -102,19 +102,31 @@ export class InternalNotificationRepository extends BaseRepository<InternalNotif
   async createNotification(data: CreateInternalNotificationDto): Promise<InternalNotification> {
     const client = await this.getClient();
     
-    console.log('📝 Creating notification with data:', {
+    console.log('📝 Creating notification with FULL data:', data);
+    console.log('📝 Key fields:', {
       user_id: data.user_id,
       type: data.type,
-      title: data.title
+      title: data.title,
+      created_by: data.created_by,
+      created_by_is_null: data.created_by === null,
+      created_by_is_undefined: data.created_by === undefined
     });
+    
+    // Get current auth user for debugging
+    const { data: { user: authUser } } = await client.auth.getUser();
+    console.log('📝 Current auth user:', authUser?.id);
+    
+    const insertData = {
+      ...data,
+      is_read: false,
+      created_at: new Date().toISOString()
+    };
+    
+    console.log('📝 Insert data being sent:', insertData);
     
     const { data: notification, error } = await client
       .from(this.tableName)
-      .insert({
-        ...data,
-        is_read: false,
-        created_at: new Date().toISOString()
-      })
+      .insert(insertData)
       .select()
       .single();
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Bell, CheckCheck, Loader2, AlertCircle, Info, AlertTriangle, Clock, User, Wrench, Calendar, X, ArrowRightLeft } from 'lucide-react';
+import { Bell, CheckCheck, Loader2, AlertCircle, Info, AlertTriangle, Clock, User, Wrench, Calendar, X, ArrowRightLeft, MessageCircle, AtSign, Reply, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ButtonPremium } from '@/components/premium/ui/buttons';
 import { SkeletonPremium } from '@/components/premium/ui/feedback';
@@ -53,38 +53,96 @@ export function NotificationDropdown() {
   const getNotificationIcon = (type?: string | null, priority?: string | null) => {
     // Type-specific icons
     switch (type) {
+      // Appointment notifications - all use cyan calendar
       case InternalNotificationType.NEW_APPOINTMENT:
       case InternalNotificationType.APPOINTMENT_ASSIGNED:
       case InternalNotificationType.APPOINTMENT_STATUS_CHANGE:
         return <Calendar className="h-4 w-4 text-cyan-500" />;
       
       case InternalNotificationType.APPOINTMENT_UNASSIGNED:
-        return <X className="h-4 w-4 text-orange-500" />;
+        return (
+          <div className="relative">
+            <Calendar className="h-4 w-4 text-cyan-500" />
+            <X className="h-2.5 w-2.5 text-orange-500 absolute -bottom-0.5 -right-0.5" />
+          </div>
+        );
       
       case InternalNotificationType.APPOINTMENT_TRANSFERRED:
-        return <ArrowRightLeft className="h-4 w-4 text-purple-500" />;
+        return (
+          <div className="relative">
+            <Calendar className="h-4 w-4 text-cyan-500" />
+            <ArrowRightLeft className="h-2.5 w-2.5 text-purple-500 absolute -bottom-0.5 -right-0.5" />
+          </div>
+        );
       
+      // Ticket notifications - all use orange ticket icon
       case InternalNotificationType.TICKET_ASSIGNED:
       case InternalNotificationType.NEW_TICKET:
-        return <Wrench className="h-4 w-4 text-blue-500" />;
+      case InternalNotificationType.TICKET_STATUS_CHANGE:
+        return <Ticket className="h-4 w-4 text-orange-500" />;
       
       case InternalNotificationType.TICKET_UNASSIGNED:
-        return <X className="h-4 w-4 text-orange-500" />;
+        return (
+          <div className="relative">
+            <Ticket className="h-4 w-4 text-orange-500" />
+            <X className="h-2.5 w-2.5 text-red-500 absolute -bottom-0.5 -right-0.5" />
+          </div>
+        );
       
       case InternalNotificationType.TICKET_TRANSFERRED:
-        return <ArrowRightLeft className="h-4 w-4 text-purple-500" />;
+        return (
+          <div className="relative">
+            <Ticket className="h-4 w-4 text-orange-500" />
+            <ArrowRightLeft className="h-2.5 w-2.5 text-purple-500 absolute -bottom-0.5 -right-0.5" />
+          </div>
+        );
       
       case InternalNotificationType.TICKET_COMPLETED:
-        return <CheckCheck className="h-4 w-4 text-green-500" />;
+        return (
+          <div className="relative">
+            <Ticket className="h-4 w-4 text-orange-500" />
+            <CheckCheck className="h-2.5 w-2.5 text-green-500 absolute -bottom-0.5 -right-0.5" />
+          </div>
+        );
       
       case InternalNotificationType.TICKET_ON_HOLD:
-        return <Clock className="h-4 w-4 text-yellow-500" />;
-      
-      case InternalNotificationType.TICKET_STATUS_CHANGE:
-        return <Info className="h-4 w-4 text-blue-500" />;
+        return (
+          <div className="relative">
+            <Ticket className="h-4 w-4 text-orange-500" />
+            <Clock className="h-2.5 w-2.5 text-yellow-500 absolute -bottom-0.5 -right-0.5" />
+          </div>
+        );
       
       case InternalNotificationType.USER_MENTION:
         return <User className="h-4 w-4 text-purple-500" />;
+      
+      // Comment notifications with purple styling
+      case InternalNotificationType.COMMENT_MENTION:
+        return (
+          <div className="relative">
+            <MessageCircle className="h-4 w-4 text-purple-500 fill-purple-100" />
+            <AtSign className="h-2.5 w-2.5 text-purple-600 absolute -bottom-0.5 -right-0.5" />
+          </div>
+        );
+      
+      case InternalNotificationType.COMMENT_REPLY:
+        return (
+          <div className="relative">
+            <MessageCircle className="h-4 w-4 text-purple-500 fill-purple-100" />
+            <Reply className="h-2.5 w-2.5 text-purple-600 absolute -bottom-0.5 -right-0.5" />
+          </div>
+        );
+      
+      case InternalNotificationType.COMMENT_ADDED:
+        return <MessageCircle className="h-4 w-4 text-purple-500 fill-purple-100" />;
+      
+      case InternalNotificationType.COMMENT_REACTION:
+        return (
+          <div className="relative">
+            <MessageCircle className="h-4 w-4 text-purple-500 fill-purple-100" />
+            <span className="text-[10px] absolute -bottom-0.5 -right-0.5">👍</span>
+          </div>
+        );
       
       case InternalNotificationType.SYSTEM_ALERT:
         return priority === InternalNotificationPriority.URGENT || priority === InternalNotificationPriority.HIGH

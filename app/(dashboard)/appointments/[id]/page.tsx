@@ -2,6 +2,7 @@ import { AppointmentRepository } from "@/lib/repositories/appointment.repository
 import { UserRepository } from "@/lib/repositories/user.repository";
 import { AppointmentDetailPremium } from "./appointment-detail-premium";
 import { createServiceClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 
 interface PageProps {
@@ -103,6 +104,36 @@ export default async function AppointmentDetailPage({ params }: PageProps) {
     };
   }
   
+  // Get current user to check if they're admin
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  let currentUserId = '';
+  let isAdmin = false;
+  
+  if (user) {
+    // First try to find by auth ID
+    let dbUser = await userRepo.findById(user.id);
+    
+    // If not found by auth ID, check mapping table using service role
+    if (!dbUser) {
+      const serviceClient = createServiceClient();
+      
+      const { data: mapping } = await serviceClient
+        .from('user_id_mapping')
+        .select('app_user_id')
+        .eq('auth_user_id', user.id)
+        .single();
+      
+      if (mapping) {
+        dbUser = await userRepo.findById(mapping.app_user_id);
+      }
+    }
+    
+    currentUserId = dbUser?.id || user.id;
+    isAdmin = dbUser?.role === 'admin' || dbUser?.role === 'manager';
+  }
+  
   // Get technicians for assignment dropdown
   const technicians = await userRepo.findByRole(['technician', 'manager', 'admin']);
   const technicianList = technicians.map(t => ({
@@ -134,6 +165,8 @@ export default async function AppointmentDetailPage({ params }: PageProps) {
       availableDevices={devices}
       customerDevices={customerDevices}
       technicians={technicianList}
+      currentUserId={currentUserId}
+      isAdmin={isAdmin}
     />
   );
 }

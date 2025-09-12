@@ -740,14 +740,14 @@ INSERT INTO "public"."device_models" ("id", "manufacturer_id", "model_name", "mo
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-INSERT INTO "public"."users" ("id", "email", "full_name", "role", "created_at", "updated_at", "last_login_at", "preferences", "avatar_url") VALUES
-	('22222222-2222-2222-2222-222222222222', 'tech1@phoneguys.com', 'Sarah Technician', 'technician', '2025-09-03 20:37:32.202521+00', '2025-09-03 20:37:32.202521+00', NULL, '{}', NULL),
-	('33333333-3333-3333-3333-333333333333', 'tech2@phoneguys.com', 'Mike Repair', 'technician', '2025-09-03 20:37:32.202521+00', '2025-09-03 20:37:32.202521+00', NULL, '{}', NULL),
-	('44444444-4444-4444-4444-444444444444', 'manager@phoneguys.com', 'Lisa Manager', 'manager', '2025-09-03 20:37:32.202521+00', '2025-09-03 20:37:32.202521+00', NULL, '{}', NULL),
-	('9136a7c4-9535-4493-a5bf-c0c403f24ff0', 'hello@aethercms.com', 'Michael John', 'admin', '2025-09-04 04:11:00.432352+00', '2025-09-04 04:11:00.432352+00', NULL, '{}', NULL),
-	('821cf797-33bb-4022-b172-ffd2794a0fdf', 'andrew@akhdigital.com', 'Andrew Hood', 'admin', '2025-09-04 17:52:01.678654+00', '2025-09-04 17:52:01.678654+00', NULL, '{}', NULL),
-	('15a254fa-8ba8-45a3-946a-9ea31a1d596e', 'michael@southwellmedia.com', 'Michael Froseth', 'admin', '2025-09-06 18:17:10.467338+00', '2025-09-06 18:54:00.907795+00', '2025-09-06 18:54:00.855+00', '{}', NULL),
-	('11111111-1111-1111-1111-111111111111', 'admin@phoneguys.com', 'John Admin', 'admin', '2025-09-03 20:37:32.202521+00', '2025-09-06 19:16:30.569522+00', '2025-09-06 19:16:30.544+00', '{}', NULL);
+INSERT INTO "public"."users" ("id", "email", "full_name", "username", "role", "created_at", "updated_at", "last_login_at", "preferences", "avatar_url") VALUES
+	('22222222-2222-2222-2222-222222222222', 'tech1@phoneguys.com', 'Sarah Technician', 'stechnician', 'technician', '2025-09-03 20:37:32.202521+00', '2025-09-03 20:37:32.202521+00', NULL, '{}', NULL),
+	('33333333-3333-3333-3333-333333333333', 'tech2@phoneguys.com', 'Mike Repair', 'mrepair', 'technician', '2025-09-03 20:37:32.202521+00', '2025-09-03 20:37:32.202521+00', NULL, '{}', NULL),
+	('44444444-4444-4444-4444-444444444444', 'manager@phoneguys.com', 'Lisa Manager', 'lmanager', 'manager', '2025-09-03 20:37:32.202521+00', '2025-09-03 20:37:32.202521+00', NULL, '{}', NULL),
+	('9136a7c4-9535-4493-a5bf-c0c403f24ff0', 'hello@aethercms.com', 'Michael John', 'mjohn', 'admin', '2025-09-04 04:11:00.432352+00', '2025-09-04 04:11:00.432352+00', NULL, '{}', NULL),
+	('821cf797-33bb-4022-b172-ffd2794a0fdf', 'andrew@akhdigital.com', 'Andrew Hood', 'ahood', 'admin', '2025-09-04 17:52:01.678654+00', '2025-09-04 17:52:01.678654+00', NULL, '{}', NULL),
+	('15a254fa-8ba8-45a3-946a-9ea31a1d596e', 'michael@southwellmedia.com', 'Michael Froseth', 'mfroseth', 'admin', '2025-09-06 18:17:10.467338+00', '2025-09-06 18:54:00.907795+00', '2025-09-06 18:54:00.855+00', '{}', NULL),
+	('11111111-1111-1111-1111-111111111111', 'admin@phoneguys.com', 'John Admin', 'jadmin', 'admin', '2025-09-03 20:37:32.202521+00', '2025-09-06 19:16:30.569522+00', '2025-09-06 19:16:30.544+00', '{}', NULL);
 
 
 --

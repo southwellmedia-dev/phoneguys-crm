@@ -1,4 +1,5 @@
 import { BaseRepository } from './base.repository';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { User, UserRole } from '@/lib/types';
 
 export interface UserStatistics {
@@ -44,8 +45,22 @@ export interface UserWithStatistics extends User {
 }
 
 export class UserRepository extends BaseRepository<User> {
-  constructor(useServiceRole = false) {
-    super('users', useServiceRole);
+  private supabaseClient?: SupabaseClient;
+
+  constructor(supabaseClientOrUseServiceRole?: SupabaseClient | boolean) {
+    if (typeof supabaseClientOrUseServiceRole === 'boolean') {
+      super('users', supabaseClientOrUseServiceRole);
+    } else {
+      super('users', false, false);
+      this.supabaseClient = supabaseClientOrUseServiceRole;
+    }
+  }
+
+  protected async getClient(): Promise<SupabaseClient> {
+    if (this.supabaseClient) {
+      return this.supabaseClient;
+    }
+    return super.getClient();
   }
 
   async findByEmail(email: string): Promise<User | null> {

@@ -7,19 +7,17 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 export function createServiceClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   
-  // For local development, use the local service role key
-  // This key bypasses RLS policies completely
-  const localServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
-  
-  // Check if we're in local development (URL contains 127.0.0.1 or localhost)
-  const isLocal = supabaseUrl?.includes('127.0.0.1') || supabaseUrl?.includes('localhost');
-  
   if (!supabaseUrl) {
     throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
   }
 
-  // Use local service key for local development
+  // Check if we're in local development (URL contains 127.0.0.1 or localhost)
+  const isLocal = supabaseUrl.includes('127.0.0.1') || supabaseUrl.includes('localhost');
+  
+  // For local development, use the local service role key
   if (isLocal) {
+    const localServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
+    
     return createSupabaseClient(supabaseUrl, localServiceKey, {
       auth: {
         autoRefreshToken: false,

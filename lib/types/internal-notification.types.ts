@@ -20,6 +20,10 @@ export enum InternalNotificationType {
   TICKET_COMPLETED = 'ticket_completed',
   TICKET_ON_HOLD = 'ticket_on_hold',
   USER_MENTION = 'user_mention',
+  COMMENT_ADDED = 'comment_added',
+  COMMENT_MENTION = 'comment_mention',
+  COMMENT_REPLY = 'comment_reply',
+  COMMENT_REACTION = 'comment_reaction',
   SYSTEM_ALERT = 'system_alert',
   CUSTOM = 'custom'
 }

@@ -3,6 +3,8 @@ import { getRepository } from '@/lib/repositories/repository-manager';
 import { TicketTransformer } from '@/lib/transformers/ticket.transformer';
 import { requireAuth, requirePermission, handleApiError, successResponse, paginatedResponse } from '@/lib/auth/helpers';
 import { Permission } from '@/lib/services/authorization.service';
+import { InternalNotificationService } from '@/lib/services/internal-notification.service';
+import { InternalNotificationType, InternalNotificationPriority } from '@/lib/types/internal-notification.types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -221,6 +223,32 @@ export async function POST(request: NextRequest) {
       await supabase
         .from('ticket_services')
         .insert(ticketServices);
+    }
+
+    // Send notification to assignee if ticket is assigned and it's not self-assignment
+    if (ticket.assigned_to && ticket.assigned_to !== authResult.userId) {
+      try {
+        const notificationService = new InternalNotificationService(true); // Use service role
+        
+        // Get customer info for notification
+        const customerRepo = getRepository.customers();
+        const customer = await customerRepo.findById(body.customer_id);
+        
+        await notificationService.createNotification({
+          type: InternalNotificationType.TICKET_ASSIGNED,
+          title: `New Ticket Assigned: ${ticket.ticket_number}`,
+          message: `You have been assigned a new ticket. Customer: ${customer?.name || 'Unknown'}. Device: ${body.device_brand} ${body.device_model}`,
+          priority: body.priority === 'urgent' ? InternalNotificationPriority.HIGH : InternalNotificationPriority.NORMAL,
+          user_id: ticket.assigned_to,
+          entity_type: 'ticket',
+          entity_id: ticket.id,
+          action_url: `/orders/${ticket.id}`,
+          created_by: authResult.userId
+        });
+      } catch (error) {
+        console.error('Failed to send assignee notification:', error);
+        // Don't fail the ticket creation if notification fails
+      }
     }
 
     return successResponse(ticket, 'Repair ticket created successfully', 201);

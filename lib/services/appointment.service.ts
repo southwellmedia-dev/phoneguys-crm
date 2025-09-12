@@ -1,6 +1,8 @@
 import { getRepository } from '@/lib/repositories/repository-manager';
 import { Appointment, AppointmentRepository } from '@/lib/repositories/appointment.repository';
 import { NotificationService } from './notification.service';
+import { InternalNotificationService } from './internal-notification.service';
+import { InternalNotificationType, InternalNotificationPriority } from '@/lib/types/internal-notification.types';
 import { createServiceClient } from '@/lib/supabase/service';
 
 export interface CreateAppointmentDTO {
@@ -460,6 +462,27 @@ export class AppointmentService {
 
     // Update appointment as converted
     const updatedAppointment = await this.appointmentRepo.convertToTicket(appointmentId, ticket.id);
+
+    // Send notification to assignee if ticket is assigned
+    if (ticket.assigned_to) {
+      try {
+        const notificationService = new InternalNotificationService(true); // Use service role
+        await notificationService.createNotification({
+          type: InternalNotificationType.TICKET_ASSIGNED,
+          title: `New Ticket Assigned: ${ticket.ticket_number}`,
+          message: `You have been assigned a new ticket converted from appointment ${appointment.appointment_number}. Customer: ${fullAppointment?.customers?.name || 'Unknown'}`,
+          priority: appointment.urgency === 'emergency' ? InternalNotificationPriority.HIGH : InternalNotificationPriority.NORMAL,
+          user_id: ticket.assigned_to,
+          entity_type: 'ticket',
+          entity_id: ticket.id,
+          action_url: `/orders/${ticket.id}`,
+          created_by: appointment.created_by || ticket.assigned_to // Use appointment creator or self
+        });
+      } catch (error) {
+        console.error('Failed to send assignee notification:', error);
+        // Don't fail the conversion if notification fails
+      }
+    }
 
     return {
       appointment: updatedAppointment,

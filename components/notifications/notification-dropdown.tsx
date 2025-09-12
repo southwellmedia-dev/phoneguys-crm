@@ -55,6 +55,7 @@ export function NotificationDropdown() {
     switch (type) {
       // Appointment notifications - all use cyan calendar
       case InternalNotificationType.NEW_APPOINTMENT:
+      case 'appointment_created': // Handle legacy type
       case InternalNotificationType.APPOINTMENT_ASSIGNED:
       case InternalNotificationType.APPOINTMENT_STATUS_CHANGE:
         return <Calendar className="h-4 w-4 text-cyan-500" />;

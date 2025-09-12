@@ -11,7 +11,7 @@ import { SkeletonPremium } from '@/components/premium/ui/feedback/skeleton-premi
 import { Pills } from '@/components/premium/ui/pills/pill';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
-import { Eye, Clock, MoreHorizontal, Play, Pause, CheckCircle, Package, User } from 'lucide-react';
+import { Eye, Clock, MoreHorizontal, Play, Pause, CheckCircle, Package, User, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -42,6 +42,7 @@ interface Ticket {
     full_name: string | null;
     email: string;
   };
+  comment_count?: number;
 }
 
 export interface TicketsTableLiveProps {
@@ -94,6 +95,22 @@ async function fetchTickets(): Promise<Ticket[]> {
     return [];
   }
 
+  // Fetch comment counts for all tickets
+  const ticketIds = (data || []).map(t => t.id);
+  const { data: commentCounts } = await supabase
+    .from('comments')
+    .select('entity_id, id')
+    .eq('entity_type', 'ticket')
+    .in('entity_id', ticketIds)
+    .is('deleted_at', null);
+
+  // Count comments per ticket
+  const commentCountMap = new Map<string, number>();
+  (commentCounts || []).forEach(comment => {
+    const count = commentCountMap.get(comment.entity_id) || 0;
+    commentCountMap.set(comment.entity_id, count + 1);
+  });
+
   return (data || []).map(ticket => ({
     id: ticket.id,
     ticket_number: ticket.ticket_number,
@@ -110,6 +127,7 @@ async function fetchTickets(): Promise<Ticket[]> {
     timer_total_minutes: ticket.total_time_minutes || 0,
     assigned_to: ticket.assigned_to,
     assigned_user: ticket.assigned_user || undefined,
+    comment_count: commentCountMap.get(ticket.id) || 0,
   }));
 }
 
@@ -310,7 +328,6 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
           <TablePremiumHead>Ticket #</TablePremiumHead>
           <TablePremiumHead>Customer</TablePremiumHead>
           <TablePremiumHead>Device</TablePremiumHead>
-          <TablePremiumHead>Issues</TablePremiumHead>
           <TablePremiumHead>Status</TablePremiumHead>
           <TablePremiumHead>Assigned</TablePremiumHead>
           <TablePremiumHead>Time</TablePremiumHead>
@@ -335,12 +352,6 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
                 <SkeletonPremium className="h-4 w-28" />
               </TablePremiumCell>
               <TablePremiumCell>
-                <div className="flex gap-1">
-                  <SkeletonPremium className="h-5 w-16 rounded-full" />
-                  <SkeletonPremium className="h-5 w-16 rounded-full" />
-                </div>
-              </TablePremiumCell>
-              <TablePremiumCell>
                 <SkeletonPremium className="h-6 w-20 rounded-full" />
               </TablePremiumCell>
               <TablePremiumCell>
@@ -353,13 +364,14 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
                 <div className="flex justify-end gap-1">
                   <SkeletonPremium className="h-8 w-8 rounded" />
                   <SkeletonPremium className="h-8 w-8 rounded" />
+                  <SkeletonPremium className="h-8 w-8 rounded" />
                 </div>
               </TablePremiumCell>
             </TablePremiumRow>
           ))
         ) : filteredTickets.length === 0 ? (
           <TablePremiumRow>
-            <TablePremiumCell colSpan={8} className="text-center py-8 text-muted-foreground">
+            <TablePremiumCell colSpan={7} className="text-center py-8 text-muted-foreground">
               No tickets found
             </TablePremiumCell>
           </TablePremiumRow>
@@ -390,13 +402,6 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
                       <span className="text-muted-foreground">Not specified</span>
                     )}
                   </div>
-                </TablePremiumCell>
-                <TablePremiumCell>
-                  <Pills 
-                    items={ticket.repair_issues.map(issue => ({ text: issue, type: 'issue' as const }))}
-                    maxVisible={2}
-                    type="issue"
-                  />
                 </TablePremiumCell>
                 <TablePremiumCell>
                   <StatusBadge
@@ -433,6 +438,19 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
                       title="View ticket"
                     >
                       <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                    </Link>
+
+                    <Link
+                      href={`/orders/${ticket.id}#comments`}
+                      className="relative p-1 rounded hover:bg-muted transition-colors"
+                      title={`${ticket.comment_count || 0} comments`}
+                    >
+                      <MessageSquare className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                      {ticket.comment_count ? (
+                        <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                          {ticket.comment_count > 9 ? '9+' : ticket.comment_count}
+                        </span>
+                      ) : null}
                     </Link>
 
                     <DropdownMenu>

@@ -3,15 +3,32 @@
 import React from 'react';
 
 /**
+ * Decode HTML entities in a string (for legacy comments)
+ * New comments won't have HTML entities, but old ones might
+ */
+function decodeHtmlEntities(text: string): string {
+  // Only decode if we detect HTML entities
+  if (text.includes('&') && (text.includes('&#') || text.includes('&lt;') || text.includes('&gt;') || text.includes('&quot;') || text.includes('&apos;'))) {
+    const textArea = document.createElement('textarea');
+    textArea.innerHTML = text;
+    return textArea.value;
+  }
+  return text;
+}
+
+/**
  * Parse comment content and convert @mentions to styled spans
  */
 export function parseCommentContent(content: string): React.ReactNode {
   if (!content) return null;
   
+  // Decode any HTML entities (for backwards compatibility with old comments)
+  const decodedContent = decodeHtmlEntities(content);
+  
   // Regular expression to match @username mentions
   const mentionRegex = /@(\w+)/g;
   
-  const parts = content.split(mentionRegex);
+  const parts = decodedContent.split(mentionRegex);
   const result: React.ReactNode[] = [];
   
   for (let i = 0; i < parts.length; i++) {

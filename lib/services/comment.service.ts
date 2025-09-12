@@ -196,12 +196,12 @@ export class CommentService {
     text: string;
     html: string;
   }> {
-    // For now, just sanitize and return
-    // In the future, we can add markdown processing, link detection, etc.
-    const sanitized = this.sanitizeContent(content);
+    // Store the raw content without HTML encoding
+    // React will automatically escape dangerous content when rendering
+    // This prevents double-encoding issues
     
-    // Simple markdown to HTML conversion (basic implementation)
-    let html = sanitized;
+    // For HTML version, we need to escape first then apply formatting
+    let html = this.sanitizeContent(content);
     
     // Convert **bold**
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -219,7 +219,7 @@ export class CommentService {
     html = html.replace(/@(\w+)/g, '<span class="mention" data-user="$1">@$1</span>');
 
     return {
-      text: sanitized,
+      text: content, // Store raw content, not sanitized
       html
     };
   }

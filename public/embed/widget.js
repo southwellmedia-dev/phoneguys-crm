@@ -176,7 +176,6 @@
           border: none;
           display: block;
           overflow: hidden;
-          transition: height 0.3s ease;
         }
         
         .phoneguys-widget-container.modal .phoneguys-widget-iframe {

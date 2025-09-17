@@ -2,7 +2,7 @@
  * Phone Guys Appointment Widget
  * Modern JavaScript embed for appointment scheduling
  */
-(function() {
+(function(window) {
   'use strict';
 
   // Configuration
@@ -510,4 +510,10 @@
 
   // Export to global scope
   window.PhoneGuysWidget = PhoneGuysWidget;
-})();
+  
+  // Also export as default for module systems
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = PhoneGuysWidget;
+  }
+  
+})(typeof window !== 'undefined' ? window : this);

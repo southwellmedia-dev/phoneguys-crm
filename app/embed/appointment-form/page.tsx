@@ -52,7 +52,7 @@ export default function EmbedAppointmentForm() {
           </div>
 
           <FormContainer
-            apiBaseUrl={`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/public`}
+            apiBaseUrl={`${process.env.NEXT_PUBLIC_APP_URL || 'https://dashboard.phoneguysrepair.com'}/api/public`}
             onSuccess={handleSuccess}
             onError={handleError}
           />

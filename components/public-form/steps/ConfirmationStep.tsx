@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
   Smartphone,
   Calendar,
@@ -14,7 +17,9 @@ import {
   Wrench,
   DollarSign,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Bell,
+  MessageSquare
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
@@ -22,14 +27,29 @@ interface ConfirmationStepProps {
   formData: any;
   devices: any[];
   services: any[];
+  onConsentChange?: (consent: { email: boolean; sms: boolean }) => void;
 }
 
-export function ConfirmationStep({ formData, devices, services }: ConfirmationStepProps) {
+export function ConfirmationStep({ formData, devices, services, onConsentChange }: ConfirmationStepProps) {
+  const [emailConsent, setEmailConsent] = useState(true); // Default to checked
+  const [smsConsent, setSmsConsent] = useState(true); // Default to checked
+  
   // Find device details
   const device = devices.find(d => d.id === formData.device?.deviceId);
   
   // Find selected services
   const selectedServices = services.filter(s => formData.issues?.includes(s.id));
+  
+  // Handle consent changes
+  const handleEmailConsentChange = (checked: boolean) => {
+    setEmailConsent(checked);
+    onConsentChange?.({ email: checked, sms: smsConsent });
+  };
+  
+  const handleSmsConsentChange = (checked: boolean) => {
+    setSmsConsent(checked);
+    onConsentChange?.({ email: emailConsent, sms: checked });
+  };
   
   // Calculate estimated cost
   const calculateEstimatedCost = () => {
@@ -201,6 +221,71 @@ export function ConfirmationStep({ formData, devices, services }: ConfirmationSt
               <span>{formData.customer?.address}</span>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Notification Preferences */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            Notification Preferences
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Stay updated about your appointment and repair status.
+          </p>
+          
+          <div className="space-y-3">
+            <div className="flex items-start space-x-3">
+              <Checkbox 
+                id="email-consent" 
+                checked={emailConsent}
+                onCheckedChange={handleEmailConsentChange}
+                className="mt-0.5"
+              />
+              <div className="grid gap-1.5 leading-none">
+                <Label
+                  htmlFor="email-consent"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                >
+                  <Mail className="h-4 w-4" />
+                  Email Notifications
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Receive appointment confirmations and repair status updates via email
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-3">
+              <Checkbox 
+                id="sms-consent" 
+                checked={smsConsent}
+                onCheckedChange={handleSmsConsentChange}
+                className="mt-0.5"
+              />
+              <div className="grid gap-1.5 leading-none">
+                <Label
+                  htmlFor="sms-consent"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  SMS Notifications
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Get text message alerts when your device is ready for pickup
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="text-xs text-gray-500 pt-2 border-t">
+            By opting in, you consent to receive automated messages at the phone number and email provided. 
+            Message and data rates may apply. You can opt-out at any time by replying STOP to SMS messages 
+            or clicking unsubscribe in emails.
+          </div>
         </CardContent>
       </Card>
 

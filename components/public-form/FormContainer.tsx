@@ -42,6 +42,14 @@ export interface FormData {
     address?: string;
   };
   
+  // Consent
+  consent: {
+    email: boolean;
+    sms: boolean;
+    consent_given_at?: string;
+    ip_address?: string;
+  };
+  
   // Metadata
   source: 'website';
   sourceUrl?: string;
@@ -73,7 +81,11 @@ export function FormContainer({
   const [formData, setFormData] = useState<Partial<FormData>>({
     source: 'website',
     sourceUrl: typeof window !== 'undefined' ? window.location.href : undefined,
-    duration: 30
+    duration: 30,
+    consent: {
+      email: true,
+      sms: true
+    }
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [devices, setDevices] = useState<any[]>([]);
@@ -219,7 +231,11 @@ export function FormContainer({
             setFormData({
               source: 'website',
               sourceUrl: typeof window !== 'undefined' ? window.location.href : undefined,
-              duration: 30
+              duration: 30,
+              consent: {
+                email: true,
+                sms: true
+              }
             });
           }}
           className="mt-6"
@@ -300,6 +316,14 @@ export function FormContainer({
                 formData={formData as FormData}
                 devices={devices}
                 services={services}
+                onConsentChange={(consent) => {
+                  updateFormData({ 
+                    consent: {
+                      ...consent,
+                      consent_given_at: new Date().toISOString()
+                    }
+                  });
+                }}
               />
             )}
           </>

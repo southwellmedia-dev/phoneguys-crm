@@ -48,6 +48,13 @@ const publicAppointmentSchema = z.object({
   appointmentTime: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/), // Accept HH:MM or HH:MM:SS
   duration: z.number().int().positive().default(30),
   
+  // Consent
+  consent: z.object({
+    email: z.boolean().default(true),
+    sms: z.boolean().default(true),
+    consent_given_at: z.string().datetime().optional()
+  }).optional(),
+  
   // Metadata
   source: z.literal('website').default('website'),
   sourceUrl: z.string().url().optional(),
@@ -166,6 +173,63 @@ export async function POST(request: NextRequest) {
         address: data.customer.address,
         created_at: new Date().toISOString()
       });
+    }
+    
+    // Store consent preferences if provided
+    if (data.consent && customer) {
+      try {
+        // Check if preferences already exist for this customer
+        const { data: existingPrefs } = await publicClient
+          .from('notification_preferences')
+          .select('id')
+          .eq('customer_id', customer.id)
+          .single();
+        
+        if (!existingPrefs) {
+          // Create new preferences record
+          const { error: prefError } = await publicClient
+            .from('notification_preferences')
+            .insert({
+              customer_id: customer.id,
+              email_enabled: data.consent.email ?? true,
+              sms_enabled: data.consent.sms ?? true,
+              email_address: customer.email,
+              phone_number: customer.phone,
+              consent_given_at: data.consent.consent_given_at || new Date().toISOString(),
+              consent_ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+              created_at: new Date().toISOString()
+            });
+          
+          if (prefError) {
+            console.error('Failed to store consent preferences:', prefError);
+          } else {
+            console.log('✅ Consent preferences stored for customer:', customer.id);
+          }
+        } else {
+          // Update existing preferences
+          const { error: updateError } = await publicClient
+            .from('notification_preferences')
+            .update({
+              email_enabled: data.consent.email ?? true,
+              sms_enabled: data.consent.sms ?? true,
+              email_address: customer.email,
+              phone_number: customer.phone,
+              consent_given_at: data.consent.consent_given_at || new Date().toISOString(),
+              consent_ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+              updated_at: new Date().toISOString()
+            })
+            .eq('customer_id', customer.id);
+          
+          if (updateError) {
+            console.error('Failed to update consent preferences:', updateError);
+          } else {
+            console.log('✅ Consent preferences updated for customer:', customer.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error handling consent preferences:', error);
+        // Don't fail the appointment if consent storage fails
+      }
     }
 
     // Convert service IDs to service names for the issues field

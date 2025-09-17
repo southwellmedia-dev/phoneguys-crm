@@ -2,7 +2,12 @@
 
 import { useState } from 'react';
 import { PageContainer } from '@/components/layout/page-container';
-import { useActiveTimers, useClearActiveTimer } from '@/lib/hooks/use-admin';
+import { 
+  useActiveTimers, 
+  useClearActiveTimer,
+  useStopActiveTimer,
+  useResumeActiveTimer
+} from '@/lib/hooks/use-admin';
 import {
   Card,
   CardContent,
@@ -21,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +38,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Clock,
   Timer,
   User,
@@ -41,6 +54,9 @@ import {
   XCircle,
   AlertCircle,
   RefreshCw,
+  MoreHorizontal,
+  Save,
+  PlayCircle,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { formatDuration } from '@/lib/utils';
@@ -48,8 +64,12 @@ import { formatDuration } from '@/lib/utils';
 export default function ActiveTimersPage() {
   const { data: timers, isLoading, error, refetch } = useActiveTimers();
   const clearTimerMutation = useClearActiveTimer();
+  const stopTimerMutation = useStopActiveTimer();
+  const resumeTimerMutation = useResumeActiveTimer();
   const [selectedTimer, setSelectedTimer] = useState<any>(null);
   const [showClearDialog, setShowClearDialog] = useState(false);
+  const [showStopDialog, setShowStopDialog] = useState(false);
+  const [stopNotes, setStopNotes] = useState('');
 
   const handleClearTimer = () => {
     if (!selectedTimer) return;
@@ -63,6 +83,25 @@ export default function ActiveTimersPage() {
         },
       }
     );
+  };
+
+  const handleStopTimer = () => {
+    if (!selectedTimer) return;
+    
+    stopTimerMutation.mutate(
+      { ticketId: selectedTimer.ticket_id, notes: stopNotes },
+      {
+        onSuccess: () => {
+          setShowStopDialog(false);
+          setSelectedTimer(null);
+          setStopNotes('');
+        },
+      }
+    );
+  };
+
+  const handleResumeTimer = (timer: any) => {
+    resumeTimerMutation.mutate(timer.ticket_id);
   };
 
   const formatElapsedTime = (seconds: number) => {
@@ -246,18 +285,46 @@ export default function ActiveTimersPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          onClick={() => {
-                            setSelectedTimer(timer);
-                            setShowClearDialog(true);
-                          }}
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Clear
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {(status.label === 'Paused' || status.label === 'Auto-Paused' || status.label === 'Stale') && (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => handleResumeTimer(timer)}
+                                  className="text-green-600"
+                                >
+                                  <PlayCircle className="h-4 w-4 mr-2" />
+                                  Resume Timer
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                              </>
+                            )}
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedTimer(timer);
+                                setShowStopDialog(true);
+                              }}
+                            >
+                              <Save className="h-4 w-4 mr-2" />
+                              Stop & Save
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedTimer(timer);
+                                setShowClearDialog(true);
+                              }}
+                              className="text-destructive"
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Clear Timer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   );
@@ -276,29 +343,75 @@ export default function ActiveTimersPage() {
         </CardContent>
       </Card>
 
+      <AlertDialog open={showStopDialog} onOpenChange={setShowStopDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop & Save Timer</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will stop the timer and create a time entry for the work performed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {selectedTimer && (
+            <div className="mt-4 p-3 bg-muted rounded-lg">
+              <div className="text-sm space-y-1">
+                <div>
+                  <strong>Ticket:</strong> {selectedTimer.ticket_number || 'Unknown'}
+                </div>
+                <div>
+                  <strong>User:</strong> {selectedTimer.user_name || 'Unknown'}
+                </div>
+                <div>
+                  <strong>Elapsed:</strong> {formatElapsedTime(selectedTimer.elapsed_seconds || 0)}
+                </div>
+                <div>
+                  <strong>Will create entry for:</strong> {Math.ceil((selectedTimer.elapsed_seconds || 0) / 60)} minutes
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="mt-4">
+            <label className="text-sm font-medium">Notes (optional)</label>
+            <Textarea
+              placeholder="Add any notes about the work performed..."
+              value={stopNotes}
+              onChange={(e) => setStopNotes(e.target.value)}
+              className="mt-1"
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setStopNotes('')}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleStopTimer}>
+              <Save className="h-4 w-4 mr-2" />
+              Stop & Save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Clear Timer</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to clear this timer? This will stop the timer without creating a time entry.
-              {selectedTimer && (
-                <div className="mt-4 p-3 bg-muted rounded-lg">
-                  <div className="text-sm space-y-1">
-                    <div>
-                      <strong>Ticket:</strong> {selectedTimer.ticket_number || 'Unknown'}
-                    </div>
-                    <div>
-                      <strong>User:</strong> {selectedTimer.user_name || 'Unknown'}
-                    </div>
-                    <div>
-                      <strong>Elapsed:</strong> {formatElapsedTime(selectedTimer.elapsed_seconds || 0)}
-                    </div>
-                  </div>
-                </div>
-              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {selectedTimer && (
+            <div className="mt-4 p-3 bg-muted rounded-lg">
+              <div className="text-sm space-y-1">
+                <div>
+                  <strong>Ticket:</strong> {selectedTimer.ticket_number || 'Unknown'}
+                </div>
+                <div>
+                  <strong>User:</strong> {selectedTimer.user_name || 'Unknown'}
+                </div>
+                <div>
+                  <strong>Elapsed:</strong> {formatElapsedTime(selectedTimer.elapsed_seconds || 0)}
+                </div>
+              </div>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction

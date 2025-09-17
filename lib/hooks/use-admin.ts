@@ -402,3 +402,64 @@ export function useClearActiveTimer() {
     },
   });
 }
+
+export function useStopActiveTimer() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ ticketId, notes }: { ticketId: string; notes?: string }) => {
+      const response = await fetch(`/api/admin/active-timers/${ticketId}/stop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to stop timer');
+      }
+      return response.json();
+    },
+    onSuccess: (data, { ticketId }) => {
+      toast.success(data.message || 'Timer stopped and saved');
+      // Update the cache immediately
+      queryClient.setQueryData(['admin', 'active-timers'], (old: ActiveTimerData[] = []) => {
+        return old.filter(timer => timer.ticket_id !== ticketId);
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to stop timer');
+    },
+  });
+}
+
+export function useResumeActiveTimer() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (ticketId: string) => {
+      const response = await fetch(`/api/admin/active-timers/${ticketId}/resume`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to resume timer');
+      }
+      return response.json();
+    },
+    onSuccess: (data, ticketId) => {
+      toast.success('Timer resumed successfully');
+      // Update the cache with the resumed timer
+      queryClient.setQueryData(['admin', 'active-timers'], (old: ActiveTimerData[] = []) => {
+        return old.map(timer => 
+          timer.ticket_id === ticketId 
+            ? { ...timer, is_paused: false, auto_paused_at: null }
+            : timer
+        );
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to resume timer');
+    },
+  });
+}

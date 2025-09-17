@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     
     // Replace the baseUrl placeholder in the widget code
     const updatedContent = widgetContent.replace(
-      "baseUrl: 'https://dashboard.phoneguys.com'",
+      "baseUrl: 'https://dashboard.phoneguysrepair.com'",
       `baseUrl: '${baseUrl}'`
     );
     

@@ -10,7 +10,7 @@
   const DEFAULT_CONFIG = {
     apiKey: null,
     containerId: 'phoneguys-appointment-widget',
-    baseUrl: 'https://dashboard.phoneguys.com', // This will be replaced by the route handler
+    baseUrl: 'https://dashboard.phoneguysrepair.com', // This will be replaced by the route handler
     theme: 'light',
     primaryColor: '#06b6d4',
     width: '100%',

@@ -4,6 +4,7 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTicket, useUpdateTicketStatus, useStartTimer, useStopTimer, useClearTimer } from "@/lib/hooks/use-tickets";
+import { useTimer } from "@/lib/contexts/timer-context";
 import { useRealtime } from "@/lib/hooks/use-realtime";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageContainer } from "@/components/layout/page-container";
@@ -88,6 +89,10 @@ export function TicketDetailPremium({
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
   const [showAddDeviceDialog, setShowAddDeviceDialog] = useState(false);
   const [assignedTechId, setAssignedTechId] = useState(order.assigned_to || 'unassigned');
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  
+  // Timer context
+  const { startTimer } = useTimer();
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
@@ -180,6 +185,44 @@ export function TicketDetailPremium({
     }
   };
 
+  const handleStartTimer = async () => {
+    try {
+      const success = await startTimer(
+        orderId, 
+        order.ticket_number,
+        order.customer?.name || 'Unknown Customer'
+      );
+      
+      if (success) {
+        // Update ticket status to in_progress
+        updateStatusMutation.mutate({ id: orderId, status: 'in_progress' });
+        toast.success("Timer started and ticket moved to In Progress");
+      } else {
+        toast.error("Failed to start timer");
+      }
+    } catch (error) {
+      toast.error("Failed to start timer");
+      console.error('Timer start error:', error);
+    }
+  };
+
+  const handleCompleteTicket = () => {
+    setShowCompleteDialog(true);
+  };
+
+  const handleCompleteTicketConfirm = async (newStatus: any, reason?: string) => {
+    try {
+      if (newStatus === 'completed') {
+        // Update status to completed
+        updateStatusMutation.mutate({ id: orderId, status: 'completed' });
+        toast.success("Ticket completed successfully");
+      }
+    } catch (error) {
+      toast.error("Failed to complete ticket");
+      console.error('Complete ticket error:', error);
+    }
+  };
+
   const quickStatusActions = [
     {
       label: "Re-open Order",
@@ -262,20 +305,54 @@ export function TicketDetailPremium({
       badge={<StatusBadge status={order.status as RepairStatus} />}
       actions={headerActions}
     >
-      {/* Ticket Status Flow - Matching appointments page style */}
+      {/* Status Notification Banner - Converted from Appointment - NOW FIRST */}
+      {appointmentData && appointmentData.id && (
+        <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                <Calendar className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-green-900 dark:text-green-100">Converted from Appointment</p>
+                <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
+                  Appointment #{appointmentData.appointment_number} • 
+                  Scheduled for {appointmentData.scheduled_date ? new Date(appointmentData.scheduled_date).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+            </div>
+            <ButtonPremium
+              onClick={() => router.push(`/appointments/${appointmentData.id}`)}
+              variant="default"
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+            >
+              <Calendar className="h-4 w-4 mr-1.5" />
+              View Appointment
+            </ButtonPremium>
+          </div>
+        </div>
+      )}
+
+      {/* Ticket Status Flow - Matching appointments page style - NOW SECOND */}
       <div className="mb-6">
         <Card className="border border-gray-200 dark:border-gray-700">
           <CardContent className="pt-6 pb-4">
             <div className="relative">
-              {/* Progress line - matching appointments style */}
+              {/* Progress line with gradient colors */}
               <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700">
                 <div 
-                  className="h-full bg-cyan-500 transition-all duration-500"
+                  className="h-full transition-all duration-500"
                   style={{
                     width: order.status === 'cancelled' ? '0%' : 
                            order.status === 'new' ? '0%' :
                            order.status === 'in_progress' ? '50%' :
-                           order.status === 'completed' ? '100%' : '0%'
+                           order.status === 'completed' ? '100%' : '0%',
+                    background: order.status === 'completed' ? 
+                      'linear-gradient(to right, #06b6d4, #f97316, #22c55e)' :
+                      order.status === 'in_progress' ? 
+                      'linear-gradient(to right, #06b6d4, #f97316)' :
+                      '#06b6d4'
                   }}
                 />
               </div>
@@ -293,15 +370,60 @@ export function TicketDetailPremium({
                   const isCompleted = isPast || (order.status === 'completed' && step.key === 'completed');
                   const Icon = step.icon;
                   
+                  // Define colors for each step
+                  const getStepColors = () => {
+                    if (!isCompleted && !isActive) {
+                      return {
+                        border: "border-gray-300 dark:border-gray-600",
+                        bg: "bg-white dark:bg-gray-800",
+                        text: "text-gray-400 dark:text-gray-500",
+                        ring: ""
+                      };
+                    }
+                    
+                    switch (step.key) {
+                      case 'new':
+                        return {
+                          border: "border-cyan-500",
+                          bg: "bg-cyan-500",
+                          text: "text-white",
+                          ring: isActive ? "ring-4 ring-cyan-100 dark:ring-cyan-900/50 scale-110" : ""
+                        };
+                      case 'in_progress':
+                        return {
+                          border: "border-orange-500",
+                          bg: "bg-orange-500",
+                          text: "text-white",
+                          ring: isActive ? "ring-4 ring-orange-100 dark:ring-orange-900/50 scale-110" : ""
+                        };
+                      case 'completed':
+                        return {
+                          border: "border-green-500",
+                          bg: "bg-green-500",
+                          text: "text-white",
+                          ring: isActive ? "ring-4 ring-green-100 dark:ring-green-900/50 scale-110" : ""
+                        };
+                      default:
+                        return {
+                          border: "border-cyan-500",
+                          bg: "bg-cyan-500",
+                          text: "text-white",
+                          ring: isActive ? "ring-4 ring-cyan-100 dark:ring-cyan-900/50 scale-110" : ""
+                        };
+                    }
+                  };
+                  
+                  const colors = getStepColors();
+                  
                   return (
                     <div key={step.key} className="flex flex-col items-center">
-                      {/* Step circle - matching appointments style */}
+                      {/* Step circle with individual colors */}
                       <div className={cn(
                         "relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-300",
-                        isCompleted || isActive
-                          ? "border-cyan-500 bg-cyan-500 text-white" 
-                          : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500",
-                        isActive && "ring-4 ring-cyan-100 dark:ring-cyan-900/50 scale-110"
+                        colors.border,
+                        colors.bg,
+                        colors.text,
+                        colors.ring
                       )}>
                         <Icon className="h-5 w-5" />
                       </div>
@@ -338,35 +460,6 @@ export function TicketDetailPremium({
         </Card>
       </div>
 
-      {/* Status Notification Banner - Converted from Appointment */}
-      {appointmentData && appointmentData.id && (
-        <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                <Calendar className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-green-900 dark:text-green-100">Converted from Appointment</p>
-                <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
-                  Appointment #{appointmentData.appointment_number} • 
-                  Scheduled for {appointmentData.scheduled_date ? new Date(appointmentData.scheduled_date).toLocaleDateString() : 'N/A'}
-                </p>
-              </div>
-            </div>
-            <ButtonPremium
-              onClick={() => router.push(`/appointments/${appointmentData.id}`)}
-              variant="default"
-              size="sm"
-              className="bg-green-600 hover:bg-green-700 text-white border-green-600"
-            >
-              <Calendar className="h-4 w-4 mr-1.5" />
-              View Appointment
-            </ButtonPremium>
-          </div>
-        </div>
-      )}
-
       {/* Enhanced Stat Cards with Progress Indicators */}
       <TicketStatCards
         actualMinutes={totalTimeMinutes}
@@ -390,6 +483,8 @@ export function TicketDetailPremium({
         priority={order.priority || 'medium'}
         createdAt={order.created_at}
         status={order.status}
+        onStartTimer={handleStartTimer}
+        onCompleteTicket={handleCompleteTicket}
         className="mb-6"
       />
 
@@ -499,6 +594,17 @@ export function TicketDetailPremium({
         onClose={() => setShowStatusDialog(false)}
         currentStatus={order.status as RepairStatus}
         onConfirm={handleStatusChange}
+        ticketId={orderId}
+        ticketNumber={order.ticket_number}
+        customerName={order.customer_name || order.customers?.name}
+      />
+
+      {/* Complete Ticket Dialog */}
+      <StatusChangeDialog
+        isOpen={showCompleteDialog}
+        onClose={() => setShowCompleteDialog(false)}
+        currentStatus={order.status as RepairStatus}
+        onConfirm={handleCompleteTicketConfirm}
         ticketId={orderId}
         ticketNumber={order.ticket_number}
         customerName={order.customer_name || order.customers?.name}

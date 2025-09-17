@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useMemo } from 'react';
+import { useRealtime } from '../use-realtime';
 
 export interface SortConfig {
   key: string;
@@ -174,6 +175,22 @@ export function useTableData<T = any>(options: TableDataOptions<T>) {
   // Show skeleton until we have a definitive answer about the data
   const showSkeleton = !hasLoadedOnce || query.isLoading || query.isFetching;
   
+  // Set up real-time subscriptions if enabled
+  const realtimeSubscriptions = useMemo(() => {
+    if (!options.realtime || !isMounted) return [];
+    
+    // Map endpoints to real-time subscription types
+    if (options.endpoint.includes('/customers')) return ['customers'];
+    if (options.endpoint.includes('/orders') || options.endpoint.includes('/tickets')) return ['tickets'];
+    if (options.endpoint.includes('/appointments')) return ['appointments'];
+    if (options.endpoint.includes('/admin')) return ['admin'];
+    
+    return [];
+  }, [options.realtime, options.endpoint, isMounted]);
+
+  // Subscribe to real-time updates
+  useRealtime(realtimeSubscriptions);
+
   // Debug logging in development
   if (process.env.NODE_ENV === 'development' && options.queryKey.includes('customers')) {
     console.log('[useTableData] Debug:', {
@@ -185,7 +202,8 @@ export function useTableData<T = any>(options: TableDataOptions<T>) {
       isSuccess: query.isSuccess,
       hasData: !!query.data,
       dataLength: Array.isArray(query.data) ? query.data.length : 'not array',
-      showSkeleton
+      showSkeleton,
+      realtimeSubscriptions
     });
   }
 

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { RateLimitedAPI } from '@/lib/utils/api-helpers';
 
-export async function POST(request: NextRequest) {
+export const POST = RateLimitedAPI.auth(async (request: NextRequest) => {
   try {
     const { email } = await request.json();
 
@@ -39,4 +40,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

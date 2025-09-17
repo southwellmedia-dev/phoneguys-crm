@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { CustomerService } from '@/lib/services/customer.service';
 import { requirePermission, handleApiError, successResponse, paginatedResponse } from '@/lib/auth/helpers';
 import { Permission } from '@/lib/services/authorization.service';
+import { auditLog } from '@/lib/services/audit.service';
+import { SecureAPI } from '@/lib/utils/api-helpers';
 import { z } from 'zod';
 
 // Validation schema for creating customer
@@ -13,7 +15,7 @@ const createCustomerSchema = z.object({
   notes: z.string().optional()
 });
 
-export async function GET(request: NextRequest) {
+async function handleGetCustomers(request: NextRequest) {
   try {
     // Require authentication and view permission
     const authResult = await requirePermission(request, Permission.CUSTOMER_VIEW);
@@ -63,7 +65,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handleCreateCustomer(request: NextRequest) {
   try {
     // Require authentication and create permission
     const authResult = await requirePermission(request, Permission.CUSTOMER_CREATE);
@@ -93,8 +95,20 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString()
     });
 
+    // Audit the customer creation
+    await auditLog.customerCreated(authResult.userId, customer.id, {
+      name: validation.data.name,
+      email: validation.data.email,
+      phone: validation.data.phone,
+      created_by: authResult.user.full_name || authResult.user.email
+    });
+
     return successResponse(customer, 'Customer created successfully', 201);
   } catch (error) {
     return handleApiError(error);
   }
 }
+
+// Apply audit logging to customer endpoints
+export const GET = SecureAPI.general(handleGetCustomers);
+export const POST = SecureAPI.general(handleCreateCustomer);

@@ -5,6 +5,22 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { Order } from '@/components/orders/orders-columns';
 import { TicketTransformer } from '@/lib/transformers/ticket.transformer';
+import {
+  RepairTicketRow,
+  TimeEntryRow,
+  CustomerRow,
+  CustomerDeviceRow,
+  AppointmentRow,
+  TicketNoteRow,
+  InternalNotificationRow,
+  TicketWithRelations,
+  TransformedOrder,
+  FetchCacheEntry,
+  DashboardMetrics,
+  ActivityItem
+} from '@/lib/types/realtime.types';
+import { Customer } from '@/lib/types/customer';
+import { Appointment } from '@/lib/types/database.types';
 
 /**
  * Centralized Real-Time Service
@@ -78,22 +94,25 @@ export class RealtimeService {
   }
 
   // Cache for preventing duplicate fetches
-  private fetchCache = new Map<string, Promise<any>>();
+  private fetchCache = new Map<string, FetchCacheEntry<TransformedOrder | null>>();
   private cacheTimeout = 1000; // 1 second cache
 
-  private async handleTicketInsert(payload: RealtimePostgresChangesPayload<any>) {
+  private async handleTicketInsert(payload: RealtimePostgresChangesPayload<RepairTicketRow>) {
     console.log('🆕 New ticket created:', payload.new.ticket_number);
     
     // Check cache to prevent duplicate fetches
     const cacheKey = `insert-${payload.new.id}`;
-    let fetchPromise = this.fetchCache.get(cacheKey);
+    let fetchPromise = this.fetchCache.get(cacheKey)?.promise;
     
     if (!fetchPromise) {
       // Use optimized real-time endpoint
       fetchPromise = fetch(`/api/orders/${payload.new.id}/realtime`)
         .then(res => res.ok ? res.json() : null);
       
-      this.fetchCache.set(cacheKey, fetchPromise);
+      this.fetchCache.set(cacheKey, {
+        promise: fetchPromise,
+        timestamp: Date.now()
+      });
       
       // Clear cache after timeout
       setTimeout(() => this.fetchCache.delete(cacheKey), this.cacheTimeout);
@@ -302,7 +321,7 @@ export class RealtimeService {
     });
   }
 
-  private handleTimeEntryDelete(payload: RealtimePostgresChangesPayload<any>) {
+  private handleTimeEntryDelete(payload: RealtimePostgresChangesPayload<TimeEntryRow>) {
     console.log('⏱️ Time entry deleted:', payload.old.id);
     
     const ticketId = payload.old.ticket_id;
@@ -393,19 +412,22 @@ export class RealtimeService {
     return channel;
   }
 
-  private async handleCustomerInsert(payload: RealtimePostgresChangesPayload<any>) {
+  private async handleCustomerInsert(payload: RealtimePostgresChangesPayload<CustomerRow>) {
     console.log('👤 New customer created:', payload.new.name);
     
     // Check cache to prevent duplicate fetches
     const cacheKey = `customer-insert-${payload.new.id}`;
-    let fetchPromise = this.fetchCache.get(cacheKey);
+    let fetchPromise = this.fetchCache.get(cacheKey)?.promise;
     
     if (!fetchPromise) {
       // Use optimized real-time endpoint
       fetchPromise = fetch(`/api/customers/${payload.new.id}/realtime`)
         .then(res => res.ok ? res.json() : null);
       
-      this.fetchCache.set(cacheKey, fetchPromise);
+      this.fetchCache.set(cacheKey, {
+        promise: fetchPromise,
+        timestamp: Date.now()
+      });
       setTimeout(() => this.fetchCache.delete(cacheKey), this.cacheTimeout);
     }
     
@@ -440,7 +462,7 @@ export class RealtimeService {
     this.updateDashboardCounts('customers', 'increment');
   }
 
-  private handleCustomerUpdate(payload: RealtimePostgresChangesPayload<Record<string, any>>) {
+  private handleCustomerUpdate(payload: RealtimePostgresChangesPayload<CustomerRow>) {
     console.log('👤 Customer updated:', payload.new.name);
     
     // Update all customer list queries
@@ -471,7 +493,7 @@ export class RealtimeService {
     });
   }
 
-  private handleCustomerDelete(payload: RealtimePostgresChangesPayload<any>) {
+  private handleCustomerDelete(payload: RealtimePostgresChangesPayload<CustomerRow>) {
     console.log('👤 Customer deleted:', payload.old.id);
     
     // Remove from all customer list queries
@@ -502,7 +524,7 @@ export class RealtimeService {
   // CUSTOMER DEVICES SUBSCRIPTIONS
   // ============================================
 
-  private handleCustomerDeviceInsert(payload: RealtimePostgresChangesPayload<any>) {
+  private handleCustomerDeviceInsert(payload: RealtimePostgresChangesPayload<CustomerDeviceRow>) {
     console.log('📱 New device added for customer:', payload.new.customer_id);
     
     const customerId = payload.new.customer_id;
@@ -539,7 +561,7 @@ export class RealtimeService {
     );
   }
 
-  private handleCustomerDeviceUpdate(payload: RealtimePostgresChangesPayload<any>) {
+  private handleCustomerDeviceUpdate(payload: RealtimePostgresChangesPayload<CustomerDeviceRow>) {
     console.log('📱 Device updated:', payload.new.id);
     
     const customerId = payload.new.customer_id;
@@ -552,7 +574,7 @@ export class RealtimeService {
     });
   }
 
-  private handleCustomerDeviceDelete(payload: RealtimePostgresChangesPayload<any>) {
+  private handleCustomerDeviceDelete(payload: RealtimePostgresChangesPayload<CustomerDeviceRow>) {
     console.log('📱 Device deleted:', payload.old.id);
     
     const customerId = payload.old.customer_id;
@@ -618,7 +640,7 @@ export class RealtimeService {
     return channel;
   }
 
-  private async handleAppointmentInsert(payload: RealtimePostgresChangesPayload<any>) {
+  private async handleAppointmentInsert(payload: RealtimePostgresChangesPayload<AppointmentRow>) {
     console.log('📅 New appointment created:', payload.new.appointment_number);
     
     // Fetch full appointment data with relationships
@@ -699,7 +721,7 @@ export class RealtimeService {
     }
   }
 
-  private handleAppointmentUpdate(payload: RealtimePostgresChangesPayload<Record<string, any>>) {
+  private handleAppointmentUpdate(payload: RealtimePostgresChangesPayload<AppointmentRow>) {
     console.log('📅 Appointment updated:', payload.new.appointment_number);
     
     // Update all appointment list queries, preserving customer and device data
@@ -751,7 +773,7 @@ export class RealtimeService {
     }
   }
 
-  private handleAppointmentDelete(payload: RealtimePostgresChangesPayload<any>) {
+  private handleAppointmentDelete(payload: RealtimePostgresChangesPayload<AppointmentRow>) {
     console.log('📅 Appointment deleted:', payload.old.id);
     
     // Remove from all appointment list queries

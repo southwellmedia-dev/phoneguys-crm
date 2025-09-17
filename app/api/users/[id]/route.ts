@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRepository } from '@/lib/repositories/repository-manager';
 import { requirePermission, handleApiError, successResponse } from '@/lib/auth/helpers';
 import { Permission, AuthorizationService } from '@/lib/services/authorization.service';
+import { SecureAPI } from '@/lib/utils/api-helpers';
+import { auditLog } from '@/lib/services/audit.service';
 import { z } from 'zod';
 
 interface RouteParams {
@@ -57,7 +59,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+export const PUT = SecureAPI.admin(async (request: NextRequest, { params }: RouteParams) => {
   try {
     // Require authentication and user update permission
     const authResult = await requirePermission(request, Permission.USER_UPDATE);
@@ -107,16 +109,41 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // Get repository instance using singleton manager
     const userRepo = getRepository.users();
 
+    // Get existing user for audit trail
+    const existingUser = await userRepo.findById(userId);
+    if (!existingUser) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
     // Update user
     const updatedUser = await userRepo.update(userId, validation.data);
+
+    // Log the user update
+    await auditLog.userUpdated(
+      authResult.userId,
+      userId,
+      {
+        targetUserEmail: existingUser.email,
+        changes: validation.data,
+        previous_values: {
+          role: existingUser.role,
+          is_active: existingUser.is_active,
+          metadata: existingUser.metadata
+        },
+        updated_by: authResult.userEmail
+      }
+    );
 
     return successResponse(updatedUser, 'User updated successfully');
   } catch (error) {
     return handleApiError(error);
   }
-}
+});
 
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export const DELETE = SecureAPI.admin(async (request: NextRequest, { params }: RouteParams) => {
   try {
     // Require authentication and user delete permission
     const authResult = await requirePermission(request, Permission.USER_DELETE);
@@ -146,11 +173,31 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Get repository instance using singleton manager
     const userRepo = getRepository.users();
 
+    // Get existing user for audit trail
+    const existingUser = await userRepo.findById(userId);
+    if (!existingUser) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
     // Soft delete (mark as inactive)
     await userRepo.update(userId, { is_active: false });
+
+    // Log the user deletion
+    await auditLog.userDeleted(
+      authResult.userId,
+      userId,
+      {
+        targetUserEmail: existingUser.email,
+        targetUserRole: existingUser.role,
+        deleted_by: authResult.userEmail
+      }
+    );
 
     return successResponse(null, 'User deactivated successfully');
   } catch (error) {
     return handleApiError(error);
   }
-}
+});

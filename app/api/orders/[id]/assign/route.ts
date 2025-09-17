@@ -3,12 +3,14 @@ import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { InternalNotificationService } from '@/lib/services/internal-notification.service';
 import { InternalNotificationPriority, InternalNotificationType } from '@/lib/types/internal-notification.types';
+import { auditLog } from '@/lib/services/audit.service';
+import { SecureAPI } from '@/lib/utils/api-helpers';
 
 interface Params {
   params: Promise<{ id: string }>;
 }
 
-export async function PATCH(request: NextRequest, { params }: Params) {
+async function handleAssignment(request: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
     const { assigned_to } = await request.json();
@@ -67,15 +69,24 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       );
     }
 
+    // Audit the assignment change
+    const previousAssignee = ticket.assigned_to;
+    if (previousAssignee !== assigned_to) {
+      if (assigned_to) {
+        // Assignment or reassignment
+        await auditLog.ticketAssigned(user.id, id, assigned_to);
+      } else {
+        // Unassignment
+        await auditLog.ticketStatusChanged(user.id, id, 'assigned', 'unassigned');
+      }
+    }
+
     // Handle notifications for assignment changes
     try {
       const notificationService = new InternalNotificationService(true);
       const deviceInfo = ticket.devices ? `${ticket.devices.brand} ${ticket.devices.model}` : 'Unknown Device';
       const customerName = ticket.customers?.name || 'Unknown Customer';
       const ticketNumber = ticket.ticket_number || id.substring(0, 8);
-      
-      // Check if this is an unassignment, transfer, or new assignment
-      const previousAssignee = ticket.assigned_to;
       
       if (!assigned_to && previousAssignee) {
         // Ticket was unassigned - notify the previous assignee
@@ -142,3 +153,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     );
   }
 }
+
+// Apply business audit logging for ticket assignments
+export const PATCH = SecureAPI.general(handleAssignment);

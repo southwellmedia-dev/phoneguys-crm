@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { RateLimitedAPI } from '@/lib/utils/api-helpers';
 import crypto from 'crypto';
 
 // Verify API key
@@ -103,16 +104,16 @@ function getCorsHeaders(origin: string | null) {
 }
 
 // Handle OPTIONS request for CORS preflight
-export async function OPTIONS(request: NextRequest) {
+export const OPTIONS = RateLimitedAPI.public(async (request: NextRequest) => {
   const origin = request.headers.get('origin');
   return new NextResponse(null, {
     status: 200,
     headers: getCorsHeaders(origin)
   });
-}
+});
 
 // Handle POST request for form submission
-export async function POST(request: NextRequest) {
+export const POST = RateLimitedAPI.public(async (request: NextRequest) => {
   const origin = request.headers.get('origin');
   const apiKey = request.headers.get('x-api-key');
   const userAgent = request.headers.get('user-agent');
@@ -384,4 +385,4 @@ export async function POST(request: NextRequest) {
       headers: getCorsHeaders(origin)
     });
   }
-}
+});

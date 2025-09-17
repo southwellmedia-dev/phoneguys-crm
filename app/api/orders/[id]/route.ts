@@ -3,6 +3,8 @@ import { getRepository } from '@/lib/repositories/repository-manager';
 import { TicketTransformer } from '@/lib/transformers/ticket.transformer';
 import { requireAuth, requirePermission, handleApiError, successResponse } from '@/lib/auth/helpers';
 import { Permission, AuthorizationService } from '@/lib/services/authorization.service';
+import { SecureAPI } from '@/lib/utils/api-helpers';
+import { auditLog } from '@/lib/services/audit.service';
 
 interface RouteParams {
   params: Promise<{
@@ -102,7 +104,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+export const PUT = SecureAPI.general(async (request: NextRequest, { params }: RouteParams) => {
   try {
     // Await params in Next.js 15
     const resolvedParams = await params;
@@ -150,13 +152,24 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       authResult.userId
     );
 
+    // Log the ticket update
+    await auditLog.ticketUpdated(
+      authResult.userId,
+      ticketId,
+      {
+        ticketNumber: existingTicket.ticket_number,
+        changes: body,
+        updated_by: authResult.userEmail
+      }
+    );
+
     return successResponse(updatedTicket, 'Repair ticket updated successfully');
   } catch (error) {
     return handleApiError(error);
   }
-}
+});
 
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
+export const PATCH = SecureAPI.general(async (request: NextRequest, { params }: RouteParams) => {
   try {
     // Await params in Next.js 15
     const resolvedParams = await params;
@@ -220,13 +233,53 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Update the ticket
     const updatedTicket = await ticketRepo.update(ticketId, updateData);
 
+    // Log specific audit events based on what was updated
+    if (updateData.status) {
+      await auditLog.ticketStatusChanged(
+        authResult.userId,
+        ticketId,
+        {
+          from_status: existingTicket.status,
+          to_status: updateData.status,
+          ticketNumber: existingTicket.ticket_number,
+          customer_id: existingTicket.customer_id
+        }
+      );
+    }
+
+    if (updateData.assigned_to) {
+      await auditLog.ticketAssigned(
+        authResult.userId,
+        ticketId,
+        {
+          assigned_to: updateData.assigned_to,
+          previous_assigned_to: existingTicket.assigned_to,
+          ticketNumber: existingTicket.ticket_number,
+          assigned_by: authResult.userEmail
+        }
+      );
+    }
+
+    // General update audit log
+    if (Object.keys(updateData).length > 0) {
+      await auditLog.ticketUpdated(
+        authResult.userId,
+        ticketId,
+        {
+          ticketNumber: existingTicket.ticket_number,
+          changes: updateData,
+          updated_by: authResult.userEmail
+        }
+      );
+    }
+
     return successResponse(updatedTicket, 'Repair ticket updated successfully');
   } catch (error) {
     return handleApiError(error);
   }
-}
+});
 
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export const DELETE = SecureAPI.general(async (request: NextRequest, { params }: RouteParams) => {
   try {
     // Await params in Next.js 15
     const resolvedParams = await params;
@@ -264,8 +317,21 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       cancelled_by: authResult.userId
     });
 
+    // Log the ticket deletion/cancellation
+    await auditLog.ticketStatusChanged(
+      authResult.userId,
+      ticketId,
+      {
+        from_status: existingTicket.status,
+        to_status: 'cancelled',
+        ticketNumber: existingTicket.ticket_number,
+        customer_id: existingTicket.customer_id,
+        cancelled_by: authResult.userEmail
+      }
+    );
+
     return successResponse(null, 'Repair ticket cancelled successfully');
   } catch (error) {
     return handleApiError(error);
   }
-}
+});

@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getRepository } from '@/lib/repositories/repository-manager';
 import { UserService, InviteUserInput } from '@/lib/services/user.service';
+import { SecureAPI } from '@/lib/utils/api-helpers';
+import { auditLog } from '@/lib/services/audit.service';
 import { z } from 'zod';
 
 /**
  * Admin endpoint to invite new users to the system
  * Requires admin authentication
+ * Protected with rate limiting and full audit logging
  */
-export async function POST(request: NextRequest) {
+export const POST = SecureAPI.admin(async (request: NextRequest) => {
   try {
     // Check admin authentication
     const supabase = await createClient();
@@ -34,6 +37,15 @@ export async function POST(request: NextRequest) {
     
     // Invite the user
     const newUser = await userService.inviteUser(body as InviteUserInput);
+    
+    // Log the user creation audit trail
+    await auditLog.userCreated(userData.id, newUser.id, {
+      email: body.email,
+      name: body.name,
+      role: body.role,
+      invited_by: userData.name,
+      invitation_method: 'admin_panel'
+    });
     
     return NextResponse.json({
       success: true,
@@ -64,4 +76,4 @@ export async function POST(request: NextRequest) {
       error: 'Internal server error'
     }, { status: 500 });
   }
-}
+});

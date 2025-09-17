@@ -7,6 +7,13 @@ import {
   TicketStatus,
   Priority 
 } from '@/lib/types';
+import { 
+  RepairTicketWithCustomer,
+  RepairTicketWithDetails,
+  TicketStatistics,
+  StatusCounts,
+  UpdateWithDeviceAndServicesData
+} from '@/lib/types/repair-ticket.types';
 import { CustomerDeviceRepository } from './customer-device.repository';
 
 export class RepairTicketRepository extends BaseRepository<RepairTicket> {
@@ -81,7 +88,7 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
     return data as RepairTicket[];
   }
 
-  async findAllWithCustomers(): Promise<(RepairTicket & { customers?: any; device?: any })[]> {
+  async findAllWithCustomers(): Promise<RepairTicketWithCustomer[]> {
     const client = await this.getClient();
     const { data, error } = await client
       .from(this.tableName)
@@ -107,18 +114,10 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
       throw new Error(`Failed to fetch tickets with customers: ${error.message}`);
     }
 
-    return data as any[];
+    return data as RepairTicketWithCustomer[];
   }
 
-  async getTicketWithDetails(ticketId: string): Promise<RepairTicket & { 
-    customers?: any; 
-    assigned_user?: any; 
-    notes?: any[];
-    time_entries?: any[];
-    device?: any;
-    customer_device?: any;
-    ticket_services?: any[];
-  } | null> {
+  async getTicketWithDetails(ticketId: string): Promise<RepairTicketWithDetails | null> {
     const client = await this.getClient();
     const { data, error } = await client
       .from(this.tableName)
@@ -196,7 +195,7 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
       throw new Error(`Failed to fetch ticket with details: ${error.message}`);
     }
 
-    return data as any;
+    return data as RepairTicketWithDetails;
   }
 
   async updateStatus(ticketId: string, status: TicketStatus): Promise<RepairTicket> {
@@ -219,29 +218,7 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
    */
   async updateWithDeviceAndServices(
     ticketId: string, 
-    updateData: {
-      // Ticket fields
-      device_id?: string;
-      serial_number?: string;
-      imei?: string;
-      repair_issues?: string[];
-      description?: string;
-      priority?: Priority;
-      status?: TicketStatus;
-      estimated_cost?: number;
-      actual_cost?: number;
-      deposit_amount?: number;
-      estimated_completion?: string;
-      
-      // Device fields (for customer_devices table)
-      color?: string;
-      storage_size?: string;
-      condition?: string;
-      customer_device_id?: string;
-      
-      // Services
-      selected_services?: string[];
-    },
+    updateData: UpdateWithDeviceAndServicesData,
     userId: string
   ): Promise<RepairTicket> {
     const client = await this.getClient();
@@ -421,12 +398,7 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
     return data as RepairTicket[];
   }
 
-  async getTicketStatistics(): Promise<{
-    total: number;
-    by_status: Record<TicketStatus, number>;
-    by_priority: Record<Priority, number>;
-    avg_completion_time_days: number;
-  }> {
+  async getTicketStatistics(): Promise<TicketStatistics> {
     const client = await this.getClient();
     
     // Get counts by status
@@ -482,11 +454,11 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
     statuses.forEach(s => byStatus[s] = 0);
     priorities.forEach(p => byPriority[p] = 0);
 
-    (statusCounts as any[])?.forEach(item => {
+    (statusCounts as Array<{ status: string; count?: number }>)?.forEach(item => {
       byStatus[item.status] = item.count || 0;
     });
 
-    (priorityCounts as any[])?.forEach(item => {
+    (priorityCounts as Array<{ priority: string; count?: number }>)?.forEach(item => {
       byPriority[item.priority] = item.count || 0;
     });
 
@@ -518,7 +490,7 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
     return data as RepairTicket[];
   }
 
-  async getCountsByStatus(): Promise<Record<string, number> & { total: number }> {
+  async getCountsByStatus(): Promise<StatusCounts> {
     const client = await this.getClient();
     
     const { data, error } = await client

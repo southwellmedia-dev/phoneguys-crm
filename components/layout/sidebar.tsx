@@ -20,6 +20,9 @@ import {
   LogOut,
   User,
   ChevronUp,
+  ChevronDown,
+  ScrollText,
+  MoreHorizontal,
 } from "lucide-react";
 import { useTimer } from "@/lib/contexts/timer-context";
 import { StopTimerDialog } from "@/components/orders/stop-timer-dialog";
@@ -49,8 +52,12 @@ const adminNavigation = [
   { name: "Users", href: "/admin/users", icon: Users },
   { name: "Devices", href: "/admin/devices", icon: Smartphone },
   { name: "Services", href: "/admin/services", icon: Wrench },
-  { name: "Integration", href: "/admin/website-integration", icon: Globe },
   { name: "Media Gallery", href: "/admin/media", icon: Image },
+];
+
+const extrasNavigation = [
+  { name: "Integration", href: "/admin/website-integration", icon: Globe },
+  { name: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText },
   { name: "Reports", href: "/reports", icon: FileText, disabled: true },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
@@ -70,6 +77,12 @@ export function Sidebar({ user }: SidebarProps) {
   const { activeTimer, pauseTimer, error, clearError } = useTimer();
   const [showStopDialog, setShowStopDialog] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isExtrasExpanded, setIsExtrasExpanded] = useState(() => {
+    // Auto-expand if any extras item is currently active
+    return extrasNavigation.some(item => 
+      pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
+    );
+  });
   
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -250,6 +263,78 @@ export function Sidebar({ user }: SidebarProps) {
                     </Link>
                   );
                   })}
+
+                  {/* Extras Section */}
+                  <div>
+                    <button
+                      onClick={() => setIsExtrasExpanded(!isExtrasExpanded)}
+                      className="w-full relative flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group text-white/80 dark:text-foreground hover:bg-white/10 dark:hover:bg-muted/50 hover:translate-x-1"
+                    >
+                      <div className="p-2 rounded-lg transition-colors bg-white/10 dark:bg-muted/50 group-hover:bg-white/20 dark:group-hover:bg-accent/10">
+                        <MoreHorizontal className="h-4 w-4 text-white/80 dark:text-muted-foreground group-hover:text-white dark:group-hover:text-accent" />
+                      </div>
+                      <span className="font-medium group-hover:text-white dark:group-hover:text-foreground flex-1 text-left">Extras</span>
+                      {isExtrasExpanded ? (
+                        <ChevronUp className="h-4 w-4 text-white/60 dark:text-muted-foreground transition-transform" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-white/60 dark:text-muted-foreground transition-transform" />
+                      )}
+                    </button>
+                    
+                    {isExtrasExpanded && (
+                      <div className="mt-1 space-y-1 pl-4">
+                        {extrasNavigation.map((item) => {
+                          const isActive = pathname === item.href || 
+                            (item.href !== "/" && pathname.startsWith(item.href));
+                          
+                          if (item.disabled) {
+                            return (
+                              <div
+                                key={item.name}
+                                className="relative flex items-center space-x-3 px-4 py-2 rounded-xl text-sm font-medium opacity-50 cursor-not-allowed"
+                              >
+                                <div className="p-1.5 rounded-lg bg-white/10 dark:bg-muted/30">
+                                  <item.icon className="h-3.5 w-3.5 text-white/50 dark:text-muted-foreground" />
+                                </div>
+                                <span className="text-white/50 dark:text-muted-foreground text-sm">{item.name}</span>
+                              </div>
+                            );
+                          }
+                          
+                          return (
+                            <Link
+                              key={item.name}
+                              href={item.href}
+                              className={cn(
+                                "relative flex items-center space-x-3 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 group",
+                                isActive
+                                  ? "bg-white/15 dark:bg-gradient-to-r dark:from-accent/70 dark:to-accent/50 text-white shadow-md backdrop-blur-sm"
+                                  : "text-white/70 dark:text-muted-foreground hover:bg-white/10 dark:hover:bg-muted/30 hover:translate-x-1"
+                              )}
+                            >
+                              <div className={cn(
+                                "p-1.5 rounded-lg transition-colors",
+                                isActive 
+                                  ? "bg-white/20" 
+                                  : "bg-white/10 dark:bg-muted/30 group-hover:bg-white/20 dark:group-hover:bg-accent/10"
+                              )}>
+                                <item.icon className={cn(
+                                  "h-3.5 w-3.5",
+                                  isActive 
+                                    ? "text-white" 
+                                    : "text-white/70 dark:text-muted-foreground group-hover:text-white dark:group-hover:text-accent"
+                                )} />
+                              </div>
+                              <span className={cn(
+                                "font-medium text-sm",
+                                !isActive && "group-hover:text-white dark:group-hover:text-foreground"
+                              )}>{item.name}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </>

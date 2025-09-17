@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { TimerService } from '@/lib/services/timer.service';
 import { requirePermission, handleApiError, successResponse } from '@/lib/auth/helpers';
 import { Permission } from '@/lib/services/authorization.service';
+import { SecureAPI } from '@/lib/utils/api-helpers';
+import { auditLog } from '@/lib/services/audit.service';
 
 interface RouteParams {
   params: Promise<{
@@ -9,7 +11,7 @@ interface RouteParams {
   }>;
 }
 
-export async function POST(request: NextRequest, { params }: RouteParams) {
+export const POST = SecureAPI.general(async (request: NextRequest, { params }: RouteParams) => {
   try {
     // Await params in Next.js 15
     const resolvedParams = await params;
@@ -56,11 +58,24 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // Log the timer action
+    await auditLog.ticketTimerAction(
+      authResult.userId,
+      ticketId,
+      {
+        action,
+        result: result.success ? 'success' : 'failed',
+        notes: notes || null,
+        timer_id: result.timer?.id,
+        duration: action === 'stop' ? result.timer?.duration : null
+      }
+    );
+
     return successResponse(result, result.message);
   } catch (error) {
     return handleApiError(error);
   }
-}
+});
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {

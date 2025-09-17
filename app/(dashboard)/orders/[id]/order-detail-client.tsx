@@ -1,6 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import type { 
+  OrderDetail, 
+  OrderDetailClientProps, 
+  StatusChangeData,
+  TimeEntryFormData,
+  AddDeviceData,
+  AddDeviceResult
+} from "@/lib/types/order-detail.types";
 import { toast } from "sonner";
 import { StatusBadge, RepairStatus } from "@/components/orders/status-badge";
 import { TimerControl } from "@/components/orders/timer-control";
@@ -56,27 +64,7 @@ import { useRealtime } from "@/lib/hooks/use-realtime";
 import { SkeletonOrderDetail } from "@/components/ui/skeleton-order-detail";
 import { cn } from "@/lib/utils";
 
-interface OrderDetailClientProps {
-  order: any;
-  orderId: string;
-  totalTimeMinutes: number;
-  isAdmin?: boolean;
-  currentUserId?: string;
-  matchingCustomerDevice?: any;
-  appointmentData?: any;
-  technicians?: Array<{
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-  }>;
-  addDeviceToProfile: (data: {
-    serial_number?: string;
-    imei?: string;
-    color?: string;
-    storage_size?: string;
-  }) => Promise<{ success: boolean; error?: string }>;
-}
+// Types are now imported from order-detail.types.ts
 
 export function OrderDetailClient({
   order: initialOrder,

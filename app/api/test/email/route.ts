@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { EmailService } from '@/lib/services/email.service';
 import { appointmentConfirmationTemplate } from '@/lib/email-templates/appointment-confirmation';
 import { repairStatusUpdateTemplate } from '@/lib/email-templates/repair-status-update';
+import { RateLimitedAPI } from '@/lib/utils/api-helpers';
 
 /**
  * GET /api/test/email
  * Test email sending functionality
  */
-export async function GET(request: NextRequest) {
+export const GET = RateLimitedAPI.test(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const to = searchParams.get('to');
@@ -136,13 +137,13 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+}););
 
 /**
  * POST /api/test/email
  * Test email with custom content
  */
-export async function POST(request: NextRequest) {
+export const POST = RateLimitedAPI.test(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { to, subject, html, text } = body;
@@ -194,4 +195,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

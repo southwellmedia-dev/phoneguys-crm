@@ -512,30 +512,15 @@ export function TimeTrackingEnhanced({
               ) : (
                 <div className="text-center py-8">
                   <Clock className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground mb-3">
+                  <p className="text-sm text-muted-foreground">
                     {entries.length === 0 
-                      ? 'No time entries yet' 
+                      ? 'No time entries yet. Use the status action card above to start tracking time.' 
                       : 'Need at least 2 entries for chart'}
                   </p>
-                  {!isDisabled && !isOtherTimerActive && (
-                    <Button
-                      size="sm"
-                      onClick={handleStart}
-                      disabled={isLoading || ticketData?.timer_is_running || isOtherTimerActive}
-                    >
-                      <Play className="h-3 w-3 mr-1" />
-                      Start Timer
-                    </Button>
-                  )}
-                  {!isDisabled && isOtherTimerActive && (
-                    <div className="text-xs text-amber-600 dark:text-amber-400">
-                      Timer active on {activeTimer?.ticketNumber || 'another ticket'}
-                    </div>
-                  )}
                 </div>
               )}
               
-              {/* Quick Start Timer Button at Bottom */}
+              {/* Timer Controls at Bottom */}
               {!isDisabled && !isThisTimerActive && (
                 <div className="mt-4 pt-4 border-t">
                   <Button
@@ -569,24 +554,21 @@ export function TimeTrackingEnhanced({
               )}
               {isThisTimerActive && (
                 <div className="mt-4 pt-4 border-t">
-                  <Button
-                    onClick={() => setActiveTab('timer')}
-                    className="w-full"
-                    size="lg"
-                    variant="outline"
-                  >
-                    <Timer className="h-4 w-4 mr-2 text-green-600 dark:text-green-400" />
-                    <span className="flex items-center gap-2">
-                      Timer Running - {formatTime(activeTimer?.elapsedSeconds || 0)}
+                  <div className="w-full p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg text-center">
+                    <div className="flex items-center justify-center gap-2 text-green-700 dark:text-green-300">
+                      <Timer className="h-4 w-4" />
+                      <span className="font-medium">
+                        Timer Running - {formatTime(activeTimer?.elapsedSeconds || 0)}
+                      </span>
                       <span className="flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                       </span>
-                    </span>
-                  </Button>
-                  <p className="text-xs text-green-600 dark:text-green-400 text-center mt-2">
-                    Click to view timer controls
-                  </p>
+                    </div>
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                      Click Timer tab above to view controls
+                    </p>
+                  </div>
                 </div>
               )}
             </TabsContent>

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { CustomerService } from '@/lib/services/customer.service';
 import { requirePermission, handleApiError, successResponse } from '@/lib/auth/helpers';
 import { Permission } from '@/lib/services/authorization.service';
+import { SecureAPI } from '@/lib/utils/api-helpers';
+import { auditLog } from '@/lib/services/audit.service';
 import { z } from 'zod';
 
 interface RouteParams {
@@ -51,7 +53,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+export const PUT = SecureAPI.general(async (request: NextRequest, { params }: RouteParams) => {
   try {
     // Await params in Next.js 15
     const resolvedParams = await params;
@@ -78,19 +80,44 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // Create service instance
     const customerService = new CustomerService();
 
+    // Get existing customer for audit trail
+    const existingCustomer = await customerService.getCustomerById(customerId);
+    if (!existingCustomer) {
+      return NextResponse.json(
+        { error: 'Customer not found' },
+        { status: 404 }
+      );
+    }
+
     // Update customer
     const updatedCustomer = await customerService.updateCustomer(
       customerId,
       validation.data
     );
 
+    // Log the customer update
+    await auditLog.customerUpdated(
+      authResult.userId,
+      customerId,
+      {
+        customerName: existingCustomer.name,
+        changes: validation.data,
+        previous_values: {
+          name: existingCustomer.name,
+          email: existingCustomer.email,
+          phone: existingCustomer.phone
+        },
+        updated_by: authResult.userEmail
+      }
+    );
+
     return successResponse(updatedCustomer, 'Customer updated successfully');
   } catch (error) {
     return handleApiError(error);
   }
-}
+});
 
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export const DELETE = SecureAPI.general(async (request: NextRequest, { params }: RouteParams) => {
   try {
     // Await params in Next.js 15
     const resolvedParams = await params;
@@ -104,11 +131,32 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Create service instance
     const customerService = new CustomerService();
 
+    // Get existing customer for audit trail
+    const existingCustomer = await customerService.getCustomerById(customerId);
+    if (!existingCustomer) {
+      return NextResponse.json(
+        { error: 'Customer not found' },
+        { status: 404 }
+      );
+    }
+
     // Delete customer (soft delete)
     await customerService.deleteCustomer(customerId);
+
+    // Log the customer deletion
+    await auditLog.customerDeleted(
+      authResult.userId,
+      customerId,
+      {
+        customerName: existingCustomer.name,
+        email: existingCustomer.email,
+        phone: existingCustomer.phone,
+        deleted_by: authResult.userEmail
+      }
+    );
 
     return successResponse(null, 'Customer deleted successfully');
   } catch (error) {
     return handleApiError(error);
   }
-}
+});

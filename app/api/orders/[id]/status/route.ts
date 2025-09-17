@@ -4,6 +4,8 @@ import { NotificationService } from '@/lib/services/notification.service';
 import { InternalNotificationService } from '@/lib/services/internal-notification.service';
 import { requirePermission, handleApiError, successResponse, requireAuth } from '@/lib/auth/helpers';
 import { Permission } from '@/lib/services/authorization.service';
+import { auditLog } from '@/lib/services/audit.service';
+import { withAudit, auditConfigs } from '@/lib/utils/audit-middleware';
 
 interface RouteParams {
   params: Promise<{
@@ -43,12 +45,26 @@ async function updateStatus(request: NextRequest, params: RouteParams) {
     const repairService = new RepairOrderService();
     const notificationService = new NotificationService();
 
+    // Get current ticket for audit trail
+    const currentTicket = await repairService.getRepairOrder(ticketId);
+    const previousStatus = currentTicket?.status;
+
     // Update status using the service's update method
     const updatedTicket = await repairService.updateRepairOrder(
       ticketId, 
       { status }, 
       authResult.userId
     );
+
+    // Audit the status change
+    if (previousStatus && previousStatus !== status) {
+      await auditLog.ticketStatusChanged(
+        authResult.userId,
+        ticketId,
+        previousStatus,
+        status
+      );
+    }
 
     // Get updated ticket for notification (it's already returned from update)
     const ticket = updatedTicket;
@@ -108,12 +124,26 @@ async function updateStatus(request: NextRequest, params: RouteParams) {
   }
 }
 
+// Apply audit logging to POST/PATCH operations (status changes)
+const auditedUpdateStatus = withAudit(updateStatus, {
+  ...auditConfigs.business,
+  activityType: 'ticket_status_update',
+  entityType: 'ticket',
+  extractEntityId: (request, response) => {
+    // Extract ticket ID from URL
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const idIndex = pathParts.indexOf('orders') + 1;
+    return pathParts[idIndex];
+  }
+});
+
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  return updateStatus(request, params);
+  return auditedUpdateStatus(request, { params });
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  return updateStatus(request, params);
+  return auditedUpdateStatus(request, { params });
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {

@@ -9,8 +9,18 @@ export default function EmbedAppointmentForm() {
   useEffect(() => {
     // Function to send height to parent
     const sendHeight = () => {
-      if (window.parent !== window && containerRef.current) {
-        const height = containerRef.current.scrollHeight;
+      if (window.parent !== window) {
+        // Get the full document height
+        const body = document.body;
+        const html = document.documentElement;
+        const height = Math.max(
+          body.scrollHeight,
+          body.offsetHeight,
+          html.clientHeight,
+          html.scrollHeight,
+          html.offsetHeight
+        );
+        
         window.parent.postMessage({
           type: 'resize',
           data: { height }
@@ -18,24 +28,40 @@ export default function EmbedAppointmentForm() {
       }
     };
 
-    // Send initial height after mount
-    const timer = setTimeout(sendHeight, 100);
+    // Send height updates multiple times to catch all changes
+    const sendHeightDelayed = () => {
+      sendHeight();
+      setTimeout(sendHeight, 100);
+      setTimeout(sendHeight, 300);
+      setTimeout(sendHeight, 500);
+    };
 
-    // Monitor for height changes
-    const resizeObserver = new ResizeObserver(sendHeight);
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
-    }
+    // Send initial height after mount
+    sendHeightDelayed();
+
+    // Monitor for height changes on the entire document
+    const resizeObserver = new ResizeObserver(() => {
+      sendHeightDelayed();
+    });
+    resizeObserver.observe(document.body);
 
     // Also monitor for DOM changes that might affect height
-    const mutationObserver = new MutationObserver(sendHeight);
-    if (containerRef.current) {
-      mutationObserver.observe(containerRef.current, { 
-        childList: true, 
-        subtree: true,
-        attributes: true 
-      });
-    }
+    const mutationObserver = new MutationObserver(() => {
+      sendHeightDelayed();
+    });
+    mutationObserver.observe(document.body, { 
+      childList: true, 
+      subtree: true,
+      attributes: true,
+      characterData: true
+    });
+
+    // Listen for window resize
+    window.addEventListener('resize', sendHeight);
+    
+    // Listen for any transitions/animations completing
+    document.addEventListener('transitionend', sendHeightDelayed);
+    document.addEventListener('animationend', sendHeightDelayed);
 
     // Add messaging capability for iframe communication
     const handleMessage = (event: MessageEvent) => {
@@ -49,10 +75,12 @@ export default function EmbedAppointmentForm() {
     window.addEventListener('message', handleMessage);
 
     return () => {
-      clearTimeout(timer);
       resizeObserver.disconnect();
       mutationObserver.disconnect();
       window.removeEventListener('message', handleMessage);
+      window.removeEventListener('resize', sendHeight);
+      document.removeEventListener('transitionend', sendHeightDelayed);
+      document.removeEventListener('animationend', sendHeightDelayed);
     };
   }, []);
 

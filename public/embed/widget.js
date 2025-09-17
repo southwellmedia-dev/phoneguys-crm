@@ -171,11 +171,12 @@
         
         .phoneguys-widget-iframe {
           width: 100%;
-          height: ${this.config.height === 'auto' ? '100vh' : this.config.height};
-          min-height: 600px;
+          height: ${this.config.height === 'auto' ? '800px' : this.config.height};
+          min-height: 400px;
           border: none;
           display: block;
           overflow: hidden;
+          transition: height 0.3s ease;
         }
         
         .phoneguys-widget-container.modal .phoneguys-widget-iframe {
@@ -354,7 +355,8 @@
       iframe.src = `${this.config.baseUrl}/embed/appointment-form`;
       iframe.title = 'Phone Guys Appointment Form';
       iframe.style.opacity = '0';
-      iframe.scrolling = 'no';
+      iframe.setAttribute('scrolling', 'no');
+      iframe.style.overflow = 'hidden';
       iframe.onload = () => this.onIframeLoad();
       
       return iframe;
@@ -449,11 +451,15 @@
     }
 
     handleResize(data) {
-      if (data.height) {
-        // Add some padding to prevent scrollbars
-        const newHeight = data.height + 20;
+      if (data.height && this.iframe) {
+        // Add padding to ensure no content is cut off
+        const newHeight = Math.max(400, data.height + 40);
         this.iframe.style.height = `${newHeight}px`;
-        this.iframe.style.minHeight = `${newHeight}px`;
+        
+        // Remove min-height to allow shrinking
+        if (newHeight < 600) {
+          this.iframe.style.minHeight = `${newHeight}px`;
+        }
         
         // Notify parent if they want to know about resize
         if (this.config.onResize) {

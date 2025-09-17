@@ -5,63 +5,67 @@ import { useEffect, useRef } from 'react';
 
 export default function EmbedAppointmentForm() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastHeightRef = useRef<number>(0);
+  const isUpdatingRef = useRef<boolean>(false);
 
   useEffect(() => {
     // Function to send height to parent
     const sendHeight = () => {
-      if (window.parent !== window) {
-        // Get the full document height
-        const body = document.body;
-        const html = document.documentElement;
-        const height = Math.max(
-          body.scrollHeight,
-          body.offsetHeight,
-          html.clientHeight,
-          html.scrollHeight,
-          html.offsetHeight
-        );
+      if (window.parent !== window && containerRef.current && !isUpdatingRef.current) {
+        // Get the height of our content container, not the whole document
+        const height = containerRef.current.scrollHeight;
         
-        window.parent.postMessage({
-          type: 'resize',
-          data: { height }
-        }, '*');
+        // Only send if height actually changed (with 5px tolerance)
+        if (Math.abs(height - lastHeightRef.current) > 5) {
+          lastHeightRef.current = height;
+          isUpdatingRef.current = true;
+          
+          window.parent.postMessage({
+            type: 'resize',
+            data: { height }
+          }, '*');
+          
+          // Reset flag after a delay
+          setTimeout(() => {
+            isUpdatingRef.current = false;
+          }, 100);
+        }
       }
     };
 
-    // Send height updates multiple times to catch all changes
-    const sendHeightDelayed = () => {
-      sendHeight();
-      setTimeout(sendHeight, 100);
-      setTimeout(sendHeight, 300);
-      setTimeout(sendHeight, 500);
+    // Send height updates with debouncing
+    let timeoutId: NodeJS.Timeout;
+    const sendHeightDebounced = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(sendHeight, 50);
     };
 
     // Send initial height after mount
-    sendHeightDelayed();
+    setTimeout(sendHeight, 100);
 
-    // Monitor for height changes on the entire document
+    // Monitor for height changes on our container only
     const resizeObserver = new ResizeObserver(() => {
-      sendHeightDelayed();
+      sendHeightDebounced();
     });
-    resizeObserver.observe(document.body);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
 
-    // Also monitor for DOM changes that might affect height
+    // Monitor for DOM changes in our container
     const mutationObserver = new MutationObserver(() => {
-      sendHeightDelayed();
+      sendHeightDebounced();
     });
-    mutationObserver.observe(document.body, { 
-      childList: true, 
-      subtree: true,
-      attributes: true,
-      characterData: true
-    });
+    if (containerRef.current) {
+      mutationObserver.observe(containerRef.current, { 
+        childList: true, 
+        subtree: true,
+        attributes: false, // Don't watch attribute changes to avoid loops
+        characterData: false
+      });
+    }
 
     // Listen for window resize
-    window.addEventListener('resize', sendHeight);
-    
-    // Listen for any transitions/animations completing
-    document.addEventListener('transitionend', sendHeightDelayed);
-    document.addEventListener('animationend', sendHeightDelayed);
+    window.addEventListener('resize', sendHeightDebounced);
 
     // Add messaging capability for iframe communication
     const handleMessage = (event: MessageEvent) => {
@@ -75,12 +79,11 @@ export default function EmbedAppointmentForm() {
     window.addEventListener('message', handleMessage);
 
     return () => {
+      clearTimeout(timeoutId);
       resizeObserver.disconnect();
       mutationObserver.disconnect();
       window.removeEventListener('message', handleMessage);
-      window.removeEventListener('resize', sendHeight);
-      document.removeEventListener('transitionend', sendHeightDelayed);
-      document.removeEventListener('animationend', sendHeightDelayed);
+      window.removeEventListener('resize', sendHeightDebounced);
     };
   }, []);
 

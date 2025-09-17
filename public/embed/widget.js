@@ -452,18 +452,19 @@
 
     handleResize(data) {
       if (data.height && this.iframe) {
-        // Add padding to ensure no content is cut off
-        const newHeight = Math.max(400, data.height + 40);
-        this.iframe.style.height = `${newHeight}px`;
+        // Just use the height as-is, with a small buffer
+        const newHeight = Math.max(400, data.height + 20);
         
-        // Remove min-height to allow shrinking
-        if (newHeight < 600) {
-          this.iframe.style.minHeight = `${newHeight}px`;
-        }
-        
-        // Notify parent if they want to know about resize
-        if (this.config.onResize) {
-          this.config.onResize({ height: newHeight });
+        // Only update if height changed significantly
+        const currentHeight = parseInt(this.iframe.style.height) || 0;
+        if (Math.abs(currentHeight - newHeight) > 5) {
+          this.iframe.style.height = `${newHeight}px`;
+          this.iframe.style.minHeight = '400px';
+          
+          // Notify parent if they want to know about resize
+          if (this.config.onResize) {
+            this.config.onResize({ height: newHeight });
+          }
         }
       }
     }

@@ -1,10 +1,42 @@
 "use client";
 
 import { FormContainer } from '@/components/public-form/FormContainer';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export default function EmbedAppointmentForm() {
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
+    // Function to send height to parent
+    const sendHeight = () => {
+      if (window.parent !== window && containerRef.current) {
+        const height = containerRef.current.scrollHeight;
+        window.parent.postMessage({
+          type: 'resize',
+          data: { height }
+        }, '*');
+      }
+    };
+
+    // Send initial height after mount
+    const timer = setTimeout(sendHeight, 100);
+
+    // Monitor for height changes
+    const resizeObserver = new ResizeObserver(sendHeight);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    // Also monitor for DOM changes that might affect height
+    const mutationObserver = new MutationObserver(sendHeight);
+    if (containerRef.current) {
+      mutationObserver.observe(containerRef.current, { 
+        childList: true, 
+        subtree: true,
+        attributes: true 
+      });
+    }
+
     // Add messaging capability for iframe communication
     const handleMessage = (event: MessageEvent) => {
       // Handle messages from parent window if needed
@@ -15,7 +47,13 @@ export default function EmbedAppointmentForm() {
     };
 
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+
+    return () => {
+      clearTimeout(timer);
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      window.removeEventListener('message', handleMessage);
+    };
   }, []);
 
   const handleSuccess = (data: any) => {
@@ -41,8 +79,8 @@ export default function EmbedAppointmentForm() {
   };
 
   return (
-    <div className="min-h-screen bg-white p-4">
-      <div className="max-w-2xl mx-auto">
+    <div ref={containerRef} className="bg-white">
+      <div className="w-full">
         <div className="space-y-4">
           <div className="text-center pb-4 border-b">
             <h1 className="text-2xl font-semibold">Schedule Your Repair</h1>

@@ -14,8 +14,8 @@
     theme: 'light',
     primaryColor: '#06b6d4',
     width: '100%',
-    maxWidth: '650px',
-    height: '850px',
+    maxWidth: '100%',
+    height: 'auto',
     position: 'inline', // 'inline', 'modal', 'slide-in'
     autoOpen: false,
     onSuccess: null,
@@ -78,7 +78,7 @@
           position: relative;
           width: ${this.config.width};
           max-width: ${this.config.maxWidth};
-          margin: 0 auto;
+          margin: 0;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
         
@@ -171,9 +171,11 @@
         
         .phoneguys-widget-iframe {
           width: 100%;
-          height: ${this.config.height};
+          height: ${this.config.height === 'auto' ? '100vh' : this.config.height};
+          min-height: 600px;
           border: none;
           display: block;
+          overflow: hidden;
         }
         
         .phoneguys-widget-container.modal .phoneguys-widget-iframe {
@@ -352,6 +354,7 @@
       iframe.src = `${this.config.baseUrl}/embed/appointment-form`;
       iframe.title = 'Phone Guys Appointment Form';
       iframe.style.opacity = '0';
+      iframe.scrolling = 'no';
       iframe.onload = () => this.onIframeLoad();
       
       return iframe;
@@ -446,8 +449,16 @@
     }
 
     handleResize(data) {
-      if (data.height && this.config.position === 'inline') {
-        this.iframe.style.height = `${data.height}px`;
+      if (data.height) {
+        // Add some padding to prevent scrollbars
+        const newHeight = data.height + 20;
+        this.iframe.style.height = `${newHeight}px`;
+        this.iframe.style.minHeight = `${newHeight}px`;
+        
+        // Notify parent if they want to know about resize
+        if (this.config.onResize) {
+          this.config.onResize({ height: newHeight });
+        }
       }
     }
 

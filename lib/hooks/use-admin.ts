@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { ActiveTimerData } from '@/lib/services/timer-v2.service';
 
 // Users
 export function useUsers(initialData?: any[]) {
@@ -351,6 +352,53 @@ export function useDeleteMedia() {
     },
     onError: () => {
       toast.error('Failed to delete media');
+    },
+  });
+}
+
+// Active Timers
+export function useActiveTimers() {
+  return useQuery({
+    queryKey: ['admin', 'active-timers'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/active-timers');
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to fetch active timers');
+      }
+      const data = await response.json();
+      return data.data || [];
+    },
+    refetchInterval: 5000, // Refresh every 5 seconds
+    staleTime: 1000, // Consider data stale after 1 second
+  });
+}
+
+export function useClearActiveTimer() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ ticketId, reason }: { ticketId: string; reason?: string }) => {
+      const response = await fetch(`/api/admin/active-timers/${ticketId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to clear timer');
+      }
+      return response.json();
+    },
+    onSuccess: (data, { ticketId }) => {
+      toast.success('Timer cleared successfully');
+      // Update the cache immediately
+      queryClient.setQueryData(['admin', 'active-timers'], (old: ActiveTimerData[] = []) => {
+        return old.filter(timer => timer.ticket_id !== ticketId);
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to clear timer');
     },
   });
 }

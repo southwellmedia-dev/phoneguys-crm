@@ -80,6 +80,7 @@ export function TimeTrackingEnhanced({
     error, 
     startTimer, 
     pauseTimer,
+    resumeTimer,
     recoverTimer, 
     clearError 
   } = useTimer();
@@ -608,15 +609,28 @@ export function TimeTrackingEnhanced({
                         Reset Local
                       </Button>
                       {isAdmin && ticketData?.timer_is_running && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={handleClearDatabaseTimer}
-                          className="text-xs text-orange-600"
-                        >
-                          <Shield className="h-3 w-3 mr-1" />
-                          Clear DB
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={handleClearDatabaseTimer}
+                            className="text-xs text-orange-600"
+                          >
+                            <Shield className="h-3 w-3 mr-1" />
+                            Clear DB
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            asChild
+                            className="text-xs"
+                          >
+                            <a href="/admin/active-timers" target="_blank">
+                              <Shield className="h-3 w-3 mr-1" />
+                              Manage All Timers
+                            </a>
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>

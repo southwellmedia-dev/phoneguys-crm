@@ -17,6 +17,7 @@ export interface TimerContextType {
   startTimer: (ticketId: string, ticketNumber?: string, customerName?: string) => Promise<boolean>;
   stopTimer: (notes: string) => Promise<boolean>;
   pauseTimer: () => Promise<boolean>;
+  resumeTimer: (ticketId: string) => Promise<boolean>;
   refreshTimer: () => Promise<void>;
   recoverTimer: (ticketId: string) => Promise<boolean>;
   clearError: () => void;
@@ -107,7 +108,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
   }, []);
 
   // API call helper
-  const callTimerAPI = useCallback(async (ticketId: string, action: 'start' | 'stop' | 'pause', notes?: string) => {
+  const callTimerAPI = useCallback(async (ticketId: string, action: 'start' | 'stop' | 'pause' | 'resume', notes?: string) => {
     const response = await fetch(`/api/orders/${ticketId}/timer`, {
       method: 'POST',
       headers: {
@@ -166,6 +167,8 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
 
       // Start timer via API
       const result = await callTimerAPI(ticketId, 'start');
+      
+      console.log('Timer start result:', result); // Debug log
       
       if (result.success) {
         // Get ticket info if not provided
@@ -249,8 +252,14 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
       const result = await callTimerAPI(activeTimer.ticketId, 'pause');
       
       if (result.success) {
+        // Store the paused timer info for later resumption
+        const pausedTimer = {
+          ...activeTimer,
+          isPaused: true,
+          pausedAt: new Date().toISOString()
+        };
+        saveTimerToStorage(pausedTimer);
         setActiveTimer(null);
-        saveTimerToStorage(null);
         return true;
       }
 
@@ -263,6 +272,41 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
       setIsLoading(false);
     }
   }, [activeTimer, callTimerAPI, saveTimerToStorage]);
+
+  // Resume timer
+  const resumeTimer = useCallback(async (ticketId: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await callTimerAPI(ticketId, 'resume');
+      
+      if (result.success) {
+        // Get ticket info for display
+        const ticketInfo = await getTicketInfo(ticketId);
+        
+        const resumedTimer: ActiveTimer = {
+          ticketId,
+          ticketNumber: ticketInfo.ticketNumber,
+          customerName: ticketInfo.customerName,
+          startTime: result.timer?.start_time || new Date().toISOString(),
+          elapsedSeconds: result.timer?.elapsed_seconds || 0
+        };
+
+        setActiveTimer(resumedTimer);
+        saveTimerToStorage(resumedTimer);
+        return true;
+      }
+
+      setError(result.message || 'Failed to resume timer');
+      return false;
+    } catch (error: any) {
+      setError(error.message || 'Failed to resume timer');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [callTimerAPI, getTicketInfo, saveTimerToStorage]);
 
   // Refresh timer from server
   const refreshTimer = useCallback(async (): Promise<void> => {
@@ -419,6 +463,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
     startTimer,
     stopTimer,
     pauseTimer,
+    resumeTimer,
     refreshTimer,
     recoverTimer,
     clearError

@@ -557,7 +557,7 @@ export class EmailTemplateEngine {
       
       <div style="background-color: #d4edda; border-left: 4px solid #28a745; padding: 20px; margin: 30px 0; border-radius: 4px;">
         <p style="margin: 0; color: #155724; font-size: 14px;">
-          <strong>Success!</strong> If you're seeing this, your email configuration is working correctly.
+          <strong>Success!</strong> If you're seeing this, your SendGrid email configuration is working correctly.
         </p>
       </div>
       
@@ -568,21 +568,22 @@ export class EmailTemplateEngine {
         <li>Environment: ${data.environment || 'development'}</li>
         <li>Timestamp: ${data.timestamp || new Date().toISOString()}</li>
         <li>Recipient: ${data.recipientEmail}</li>
+        <li>SendGrid Status: ✅ Connected</li>
         ${data.additionalInfo ? `<li>Additional Info: ${data.additionalInfo}</li>` : ''}
       </ul>
     `;
 
     const html = baseEmailTemplate({
       title: 'Test Email',
-      preheader: 'Testing email configuration',
+      preheader: 'Testing SendGrid email configuration',
       content,
-      footer: 'This is a test email.'
+      footer: 'This is a test email from SendGrid.'
     });
 
     return {
-      subject: 'Test Email - The Phone Guys CRM',
+      subject: '✅ SendGrid Test Email - The Phone Guys CRM',
       html,
-      text: `Test Email\n\nThis is a test email from The Phone Guys CRM.\n\nIf you're seeing this, your email configuration is working correctly.\n\nEnvironment: ${data.environment || 'development'}\nTimestamp: ${data.timestamp || new Date().toISOString()}\nRecipient: ${data.recipientEmail}`
+      text: `Test Email\n\nThis is a test email from The Phone Guys CRM.\n\nIf you're seeing this, your SendGrid email configuration is working correctly.\n\nEnvironment: ${data.environment || 'development'}\nTimestamp: ${data.timestamp || new Date().toISOString()}\nRecipient: ${data.recipientEmail}`
     };
   }
 }

@@ -405,6 +405,66 @@ export const auditLog = {
       details: { assigned_to: assigneeId }
     }),
 
+  // Timer operations
+  timerStarted: (userId: string, ticketId: string, details?: any) =>
+    AuditService.getInstance().logUserActivity({
+      userId,
+      activityType: 'timer_started',
+      entityType: 'ticket',
+      entityId: ticketId,
+      details
+    }),
+
+  timerStopped: (userId: string, ticketId: string, duration: number, notes?: string) =>
+    AuditService.getInstance().logUserActivity({
+      userId,
+      activityType: 'timer_stopped',
+      entityType: 'ticket',
+      entityId: ticketId,
+      details: { duration_minutes: duration, notes }
+    }),
+
+  timerPaused: (userId: string, ticketId: string, elapsedSeconds: number) =>
+    AuditService.getInstance().logUserActivity({
+      userId,
+      activityType: 'timer_paused',
+      entityType: 'ticket',
+      entityId: ticketId,
+      details: { elapsed_seconds: elapsedSeconds }
+    }),
+
+  timerResumed: (userId: string, ticketId: string, pausedDuration: number) =>
+    AuditService.getInstance().logUserActivity({
+      userId,
+      activityType: 'timer_resumed',
+      entityType: 'ticket',
+      entityId: ticketId,
+      details: { paused_duration_seconds: pausedDuration }
+    }),
+
+  timerCleared: (adminId: string, ticketId: string, affectedUserId: string, reason: string, elapsedSeconds?: number) =>
+    AuditService.getInstance().logUserActivity({
+      userId: adminId,
+      activityType: 'timer_cleared',
+      entityType: 'ticket',
+      entityId: ticketId,
+      details: { 
+        affected_user: affectedUserId,
+        reason,
+        elapsed_seconds: elapsedSeconds,
+        admin_action: true
+      }
+    }),
+
+  ticketTimerAction: (userId: string, ticketId: string, details: any) =>
+    AuditService.getInstance().logUserActivity({
+      userId,
+      activityType: `timer_${details.action}`,
+      entityType: 'ticket',
+      entityId: ticketId,
+      details
+    }),
+
   // Customer operations
   customerCreated: (userId: string, customerId: string, details?: any) =>
     AuditService.getInstance().logUserActivity({

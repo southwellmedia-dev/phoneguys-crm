@@ -12,7 +12,7 @@ const corsHeaders = {
 };
 
 /**
- * GET /embed/widget.js
+ * GET /api/embed/widget
  * Serve the widget JavaScript file with proper CORS headers
  */
 export async function GET(request: NextRequest) {
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     
     // Replace the baseUrl placeholder in the widget code
     const updatedContent = widgetContent.replace(
-      "baseUrl: 'https://crm.phoneguys.com'",
+      "baseUrl: 'https://dashboard.phoneguys.com'",
       `baseUrl: '${baseUrl}'`
     );
     
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * OPTIONS /embed/widget.js
+ * OPTIONS /api/embed/widget
  * Handle CORS preflight requests
  */
 export async function OPTIONS(request: NextRequest) {

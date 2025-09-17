@@ -26,6 +26,39 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async headers() {
+    return [
+      {
+        // Apply CORS headers to widget files
+        source: '/embed/widget.js',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type' },
+          { key: 'Content-Type', value: 'application/javascript' },
+          { key: 'Cache-Control', value: 'public, max-age=3600' },
+        ],
+      },
+      {
+        // Apply CORS headers to API embed routes
+        source: '/api/embed/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type' },
+        ],
+      },
+    ];
+  },
+  async rewrites() {
+    return [
+      {
+        // Rewrite /embed/widget.js to the API route
+        source: '/embed/widget.js',
+        destination: '/api/embed/widget',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

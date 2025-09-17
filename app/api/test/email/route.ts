@@ -137,7 +137,7 @@ export const GET = RateLimitedAPI.test(async (request: NextRequest) => {
       { status: 500 }
     );
   }
-}););
+});
 
 /**
  * POST /api/test/email

@@ -248,12 +248,28 @@ export async function POST(request: NextRequest) {
       
       // Clean and validate UUIDs (remove any extra characters)
       const cleanedIssues = data.issues.map((issue: string) => {
-        // Try to extract a valid UUID from the string if it looks like one
-        const uuidMatch = issue.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-        if (uuidMatch) {
-          console.log(`🔧 Cleaned UUID from "${issue}" to "${uuidMatch[0]}"`);
-          return uuidMatch[0];
+        // First, try standard UUID pattern
+        const standardMatch = issue.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+        if (standardMatch) {
+          console.log(`✅ Valid UUID found: "${standardMatch[0]}"`);
+          return standardMatch[0];
         }
+        
+        // Handle malformed UUIDs with missing or extra characters
+        // Extract hex segments and try to reconstruct
+        const hexPattern = /([0-9a-f]{8})[^0-9a-f]*([0-9a-f]{4})[^0-9a-f]*([0-9a-f]{4})[^0-9a-f]*([0-9a-f]{4})[^0-9a-f]*([0-9a-f]{12})/i;
+        const malformedMatch = issue.match(hexPattern);
+        if (malformedMatch) {
+          const reconstructed = `${malformedMatch[1]}-${malformedMatch[2]}-${malformedMatch[3]}-${malformedMatch[4]}-${malformedMatch[5]}`;
+          console.log(`🔧 Reconstructed UUID from malformed "${issue}" to "${reconstructed}"`);
+          return reconstructed;
+        }
+        
+        // If it looks like it might be a UUID but we can't fix it, log a warning
+        if (issue.length >= 32 && /[0-9a-f]/i.test(issue)) {
+          console.warn(`⚠️ Possible malformed UUID that couldn't be fixed: "${issue}"`);
+        }
+        
         return issue;
       });
       
@@ -262,14 +278,19 @@ export async function POST(request: NextRequest) {
       
       if (cleanedIssues.some(issue => isUUID(issue))) {
         // data.issues contains service IDs (UUIDs)
-        console.log('📋 Issues contain service IDs, fetching service names...');
         const validUUIDs = cleanedIssues.filter(issue => isUUID(issue));
+        console.log('📋 Issues contain service IDs, fetching service names for:', validUUIDs);
         const result = await publicClient
           .from('services')
           .select('id, name, category')
           .in('id', validUUIDs);
         services = result.data;
         servicesError = result.error;
+        console.log('📋 Service lookup result:', { 
+          found: services?.length || 0, 
+          services: services?.map(s => ({ id: s.id, name: s.name })) || [],
+          error: servicesError 
+        });
       } else {
         // data.issues contains category names
         console.log('📋 Issues contain category names, fetching services...');
@@ -283,9 +304,13 @@ export async function POST(request: NextRequest) {
       
       if (servicesError) {
         console.error('Error fetching services:', servicesError);
-        // Fall back to using the raw values as issue names
-        issueNames = cleanedIssues;
+        // Don't store UUIDs in issues field - only store human-readable text
+        issueNames = cleanedIssues.filter(issue => !isUUID(issue));
         serviceIds = [];
+        if (issueNames.length === 0 && cleanedIssues.some(issue => isUUID(issue))) {
+          // If all items were UUIDs and no services found, store a generic message
+          issueNames = ['Service selection pending review'];
+        }
       } else if (services && services.length > 0) {
         // Extract service IDs for the service_ids column
         serviceIds = services.map(service => service.id);
@@ -293,10 +318,24 @@ export async function POST(request: NextRequest) {
         issueNames = services.map(service => service.name);
         console.log('✅ Resolved services:', { serviceIds, issueNames });
       } else {
-        // No matching services found, use the raw values as issue names
+        // No matching services found
         console.warn('⚠️ No matching services found for:', cleanedIssues);
-        issueNames = cleanedIssues;
-        serviceIds = [];
+        // Don't store UUIDs in issues field - only store human-readable text
+        issueNames = cleanedIssues.filter(issue => !isUUID(issue));
+        
+        // If we had valid UUIDs but no matching services, still store them in service_ids
+        const validUUIDs = cleanedIssues.filter(issue => isUUID(issue));
+        if (validUUIDs.length > 0) {
+          serviceIds = validUUIDs;
+          console.log('📌 Storing unmatched service IDs for later resolution:', serviceIds);
+        } else {
+          serviceIds = [];
+        }
+        
+        if (issueNames.length === 0 && validUUIDs.length > 0) {
+          // If all items were UUIDs and no services found, store a generic message
+          issueNames = ['Service selection pending review'];
+        }
       }
     }
 

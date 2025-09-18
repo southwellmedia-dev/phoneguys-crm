@@ -43,9 +43,19 @@ export class SendGridService {
   private replyTo: string;
 
   private constructor() {
-    this.fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@phoneguys.com';
+    this.fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@phoneguysrepair.com';
     this.fromName = process.env.SENDGRID_FROM_NAME || 'The Phone Guys';
     this.replyTo = process.env.SENDGRID_REPLY_TO || this.fromEmail;
+    
+    // Debug logging for production troubleshooting
+    console.log('🔧 SendGrid Configuration:', {
+      fromEmail: this.fromEmail,
+      fromEmailEnvVar: process.env.SENDGRID_FROM_EMAIL || 'NOT_SET',
+      fromName: this.fromName,
+      replyTo: this.replyTo,
+      hasApiKey: !!process.env.SENDGRID_API_KEY
+    });
+    
     this.initialize();
   }
 
@@ -89,11 +99,21 @@ export class SendGridService {
 
     try {
       // Build the email message
+      const fromEmail = options.from || this.fromEmail;
+      const fromName = options.fromName || this.fromName;
+      
+      console.log('📧 Sending email with from address:', {
+        fromEmail,
+        fromName,
+        to: options.to,
+        subject: options.subject
+      });
+      
       const msg: MailDataRequired = {
         to: options.to,
         from: {
-          email: options.from || this.fromEmail,
-          name: options.fromName || this.fromName,
+          email: fromEmail,
+          name: fromName,
         },
         subject: options.subject,
         replyTo: options.replyTo || this.replyTo,

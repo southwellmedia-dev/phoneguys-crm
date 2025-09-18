@@ -37,13 +37,6 @@ export function appointmentConfirmationTemplate(data: AppointmentConfirmationDat
   const isRequest = data.isInitialRequest !== false; // Default to true for backward compatibility
   
   const content = `
-    <!-- Logo Header -->
-    <div style="text-align: center; margin-bottom: 30px;">
-      <img src="https://egotypldqzdzjclikmeg.supabase.co/storage/v1/object/public/device-images/phoneguys-logo.png" 
-           alt="The Phone Guys" 
-           style="max-width: 200px; height: auto;" />
-    </div>
-    
     <h2 style="margin: 0 0 20px 0; color: #333333; font-size: 24px; font-weight: 600;">
       ${isRequest ? 'Appointment Request Received!' : 'Appointment Confirmed!'}
     </h2>

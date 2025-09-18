@@ -71,9 +71,9 @@ export function baseEmailTemplate(data: EmailTemplateData): string {
           <!-- Header -->
           <tr>
             <td style="background: linear-gradient(135deg, #0094CA 0%, #00B4D8 100%); border-radius: 8px 8px 0 0; padding: 30px; text-align: center;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">
-                The Phone Guys
-              </h1>
+              <img src="https://egotypldqzdzjclikmeg.supabase.co/storage/v1/object/public/device-images/phoneguys-logo.png" 
+                   alt="The Phone Guys" 
+                   style="max-width: 200px; height: auto; margin-bottom: 10px;" />
               <p style="margin: 5px 0 0 0; color: #ffffff; font-size: 14px; opacity: 0.9;">
                 Professional Mobile Device Repair
               </p>

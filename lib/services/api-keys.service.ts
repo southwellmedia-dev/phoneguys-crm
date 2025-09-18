@@ -118,27 +118,33 @@ export class ApiKeysService {
     const verifyRepo = new ApiKeysRepository();
     const client = await (verifyRepo as any).getClient();
     
-    const query = client
+    // First get the API key without the join to avoid the single object error
+    const { data: apiKeyData, error: keyError } = await client
       .from('api_keys')
-      .select(`
-        *,
-        allowed_domains (
-          domain,
-          is_active
-        )
-      `)
+      .select('*')
       .eq('key_hash', keyHash)
       .eq('is_active', true)
-      .single();
+      .maybeSingle(); // Use maybeSingle to handle 0 or 1 results
 
-    const { data: apiKeyData, error } = await query;
-
-    if (error || !apiKeyData) {
-      console.log('[ApiKeysService] API key not found or error:', {
-        error: error?.message,
+    if (keyError || !apiKeyData) {
+      console.log('[ApiKeysService] API key query error:', {
+        error: keyError?.message,
         keyPrefix: apiKey.substring(0, 8)
       });
       return { valid: false, error: 'Invalid API key' };
+    }
+
+    // Now get the allowed domains separately if needed
+    let allowedDomains = [];
+    if (apiKeyData.id) {
+      const { data: domains } = await client
+        .from('allowed_domains')
+        .select('domain, is_active')
+        .eq('api_key_id', apiKeyData.id)
+        .eq('is_active', true);
+      
+      allowedDomains = domains || [];
+      apiKeyData.allowed_domains = allowedDomains;
     }
 
     // Check if the key has expired
@@ -147,7 +153,7 @@ export class ApiKeysService {
     }
 
     // Check domain whitelist if domains are configured
-    if (apiKeyData.allowed_domains && apiKeyData.allowed_domains.length > 0) {
+    if (allowedDomains && allowedDomains.length > 0) {
       if (!origin) {
         return { valid: false, error: 'Origin header required' };
       }
@@ -155,7 +161,7 @@ export class ApiKeysService {
       // Extract domain from origin
       const originDomain = new URL(origin).hostname;
       
-      const isAllowed = apiKeyData.allowed_domains.some((d: any) => 
+      const isAllowed = allowedDomains.some((d: any) => 
         d.is_active && (
           d.domain === originDomain || 
           d.domain === '*' ||
@@ -164,6 +170,10 @@ export class ApiKeysService {
       );
 
       if (!isAllowed) {
+        console.log('[ApiKeysService] Domain not whitelisted:', {
+          originDomain,
+          allowedDomains: allowedDomains.map(d => d.domain)
+        });
         return { valid: false, error: 'Domain not whitelisted' };
       }
     }

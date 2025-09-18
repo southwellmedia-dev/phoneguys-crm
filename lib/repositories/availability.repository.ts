@@ -138,7 +138,8 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
    * Get available slots for a date range
    */
   async getAvailableSlotsRange(startDate: string, endDate: string): Promise<Record<string, TimeSlot[]>> {
-    const query = this.supabase
+    const client = await this.getClient();
+    const query = client
       .from('appointment_slots')
       .select(`
         id,
@@ -158,7 +159,7 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
       .gte('date', startDate)
       .lte('date', endDate)
       .eq('is_available', true)
-      .lt('current_capacity', this.supabase.raw('max_capacity'))
+      .lt('current_capacity', client.raw('max_capacity'))
       .order('date')
       .order('start_time');
 
@@ -195,7 +196,8 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
    * Get staff availability for a specific date
    */
   async getStaffAvailability(date: string): Promise<StaffAvailability[]> {
-    const query = this.supabase
+    const client = await this.getClient();
+    const query = client
       .from('staff_availability')
       .select(`
         *,
@@ -231,12 +233,13 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
    * Reserve a time slot
    */
   async reserveSlot(slotId: string, appointmentId: string): Promise<boolean> {
-    const { error } = await this.supabase
+    const client = await this.getClient();
+    const { error } = await client
       .from('appointment_slots')
       .update({
         appointment_id: appointmentId,
         is_available: false,
-        current_capacity: this.supabase.raw('current_capacity + 1')
+        current_capacity: client.raw('current_capacity + 1')
       })
       .eq('id', slotId)
       .eq('is_available', true);
@@ -252,12 +255,13 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
    * Release a time slot (e.g., when appointment is cancelled)
    */
   async releaseSlot(slotId: string): Promise<boolean> {
-    const { error } = await this.supabase
+    const client = await this.getClient();
+    const { error } = await client
       .from('appointment_slots')
       .update({
         appointment_id: null,
         is_available: true,
-        current_capacity: this.supabase.raw('GREATEST(0, current_capacity - 1)')
+        current_capacity: client.raw('GREATEST(0, current_capacity - 1)')
       })
       .eq('id', slotId);
 
@@ -331,7 +335,8 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
    * Update business hours
    */
   async updateBusinessHours(dayOfWeek: number, hours: Partial<BusinessHours>): Promise<BusinessHours | null> {
-    const { data, error } = await this.supabase
+    const client = await this.getClient();
+    const { data, error } = await client
       .from('business_hours')
       .update(hours)
       .eq('day_of_week', dayOfWeek)
@@ -349,7 +354,8 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
    * Add a special date (holiday, closure, or special hours)
    */
   async addSpecialDate(specialDate: Omit<SpecialDate, 'id' | 'created_at' | 'updated_at'>): Promise<SpecialDate | null> {
-    const { data, error } = await this.supabase
+    const client = await this.getClient();
+    const { data, error } = await client
       .from('special_dates')
       .insert(specialDate)
       .select()
@@ -366,7 +372,8 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
    * Remove a special date
    */
   async removeSpecialDate(date: string): Promise<boolean> {
-    const { error } = await this.supabase
+    const client = await this.getClient();
+    const { error } = await client
       .from('special_dates')
       .delete()
       .eq('date', date);

@@ -92,15 +92,34 @@ export async function GET(request: NextRequest, { params }: Params) {
         .then(res => res.data) : undefined
     };
 
+    // Fetch company settings from database
+    const { data: storeSettings } = await supabase
+      .from('store_settings')
+      .select('*')
+      .single();
+
     // Parse query parameters for customization
     const searchParams = request.nextUrl.searchParams;
     const format = searchParams.get('format') || 'download'; // 'download' or 'preview'
-    const showTimeEntries = searchParams.get('showTimeEntries') !== 'false';
-    const taxRate = searchParams.get('taxRate') ? parseFloat(searchParams.get('taxRate')!) : undefined;
+    const showTimeEntries = searchParams.get('showTimeEntries') === 'true'; // Default to false for customer invoices
+    const taxRate = searchParams.get('taxRate') ? parseFloat(searchParams.get('taxRate')!) : 
+                    storeSettings?.tax_rate ? parseFloat(storeSettings.tax_rate) : undefined;
 
-    // Configuration overrides from query params
+    // Configuration overrides from query params and database
     const configOverrides: Partial<InvoiceConfig> = {
       showTimeEntries,
+      ...(storeSettings && {
+        companyName: storeSettings.store_name || 'The Phone Guys',
+        companyAddress: storeSettings.store_address,
+        companyCity: storeSettings.store_city,
+        companyState: storeSettings.store_state,
+        companyZip: storeSettings.store_zip,
+        companyPhone: storeSettings.store_phone || '(844) 511-0454',
+        companyEmail: storeSettings.store_email,
+        companyWebsite: storeSettings.store_website,
+        defaultTaxRate: taxRate || parseFloat(storeSettings.tax_rate || '8.25'),
+        currency: storeSettings.currency || 'USD'
+      }),
       ...(taxRate !== undefined && { defaultTaxRate: taxRate })
     };
 

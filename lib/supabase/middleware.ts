@@ -92,10 +92,11 @@ export async function updateSession(request: NextRequest) {
   const isAuthPage = request.nextUrl.pathname.startsWith("/auth");
   
   // Redirect authenticated users from auth pages to dashboard
-  // But allow access to callback and accept-invitation pages
+  // But allow access to callback, accept-invitation, and update-password pages
   if (user && isAuthPage && 
       request.nextUrl.pathname !== "/auth/callback" && 
-      request.nextUrl.pathname !== "/auth/accept-invitation") {
+      request.nextUrl.pathname !== "/auth/accept-invitation" &&
+      request.nextUrl.pathname !== "/auth/update-password") {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);

@@ -134,17 +134,17 @@ export const defaultInvoiceConfig: InvoiceConfig = {
   companyCity: 'Houston',
   companyState: 'TX',
   companyZip: '77001',
-  companyPhone: '(555) 123-4567',
-  companyEmail: 'info@phoneguys.com',
-  companyWebsite: 'www.phoneguys.com',
-  companyTaxId: 'TAX-123456',
+  companyPhone: '(844) 511-0454',
+  companyEmail: 'info@phoneguysrepair.com',
+  companyWebsite: 'www.phoneguysrepair.com',
+  companyTaxId: '',
   
   defaultTaxRate: 8.25,
   defaultHourlyRate: 75.00,
   currency: 'USD',
   currencySymbol: '$',
   
-  showTimeEntries: true,
+  showTimeEntries: false, // Don't show time entries to customers
   showInternalNotes: false,
   showPaymentInstructions: true,
   
@@ -170,9 +170,11 @@ export function orderDetailToInvoiceData(
 ): InvoiceData {
   const mergedConfig = { ...defaultInvoiceConfig, ...config };
   
-  // Calculate services subtotal
+  // Calculate services subtotal (convert string prices to numbers)
   const servicesSubtotal = order.ticket_services?.reduce((sum, service) => {
-    const total = service.total_price || (service.quantity || 1) * (service.unit_price || 0);
+    const unitPrice = typeof service.unit_price === 'string' ? parseFloat(service.unit_price) : (service.unit_price || 0);
+    const totalPrice = typeof service.total_price === 'string' ? parseFloat(service.total_price) : service.total_price;
+    const total = totalPrice || (service.quantity || 1) * unitPrice;
     return sum + total;
   }, 0) || 0;
 
@@ -208,14 +210,18 @@ export function orderDetailToInvoiceData(
     invoice: {
       number: order.ticket_number,
       date: new Date(order.created_at),
-      status: order.status === 'completed' ? 'paid' : 'unpaid',
+      // Only show as paid if actually completed and paid
+      status: order.status === 'completed' && order.payment_status === 'paid' ? 'paid' : 
+              order.status === 'completed' ? 'unpaid' :
+              order.status === 'cancelled' ? 'unpaid' :
+              'unpaid',
       paymentMethod: order.payment_method || undefined
     },
     
     customer: {
-      name: order.customers?.full_name || 'Unknown Customer',
-      email: order.customers?.email || undefined,
-      phone: order.customers?.phone || undefined,
+      name: order.customers?.full_name || order.customer_name || 'Customer',
+      email: order.customers?.email || order.customer_email || undefined,
+      phone: order.customers?.phone || order.customer_phone || undefined,
       address: order.customers?.address || undefined
     },
     
@@ -229,14 +235,18 @@ export function orderDetailToInvoiceData(
       storage: order.customer_device?.storage_size || undefined
     } : undefined,
     
-    services: order.ticket_services?.map(service => ({
-      id: service.id,
-      description: service.service?.name || 'Service',
-      quantity: service.quantity || 1,
-      unitPrice: service.unit_price || 0,
-      total: service.total_price || (service.quantity || 1) * (service.unit_price || 0),
-      notes: service.technician_notes || undefined
-    })) || [],
+    services: order.ticket_services?.map(service => {
+      const unitPrice = typeof service.unit_price === 'string' ? parseFloat(service.unit_price) : (service.unit_price || 0);
+      const totalPrice = typeof service.total_price === 'string' ? parseFloat(service.total_price) : service.total_price;
+      return {
+        id: service.id,
+        description: service.service?.name || 'Service',
+        quantity: service.quantity || 1,
+        unitPrice: unitPrice,
+        total: totalPrice || (service.quantity || 1) * unitPrice,
+        notes: service.technician_notes || undefined
+      };
+    }) || [],
     
     timeEntries: mergedConfig.showTimeEntries && order.time_entries
       ? order.time_entries.map(entry => ({

@@ -12,17 +12,19 @@ export async function GET(request: NextRequest) {
   if (token_hash && type) {
     const supabase = await createClient();
 
-    const { error } = await supabase.auth.verifyOtp({
+    const { error, data } = await supabase.auth.verifyOtp({
       type,
       token_hash,
     });
+    
     if (!error) {
       // Check if this is a password recovery flow
-      if (type === "recovery" || type === "email") {
+      if (type === "recovery") {
         // For password recovery, redirect to the update password page
+        // The session is now established with recovery permissions
         redirect("/auth/update-password");
       }
-      // redirect user to specified redirect URL or root of app
+      // For email confirmation or other types, redirect to next or home
       redirect(next);
     } else {
       // redirect the user to an error page with some instructions

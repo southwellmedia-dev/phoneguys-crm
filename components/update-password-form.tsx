@@ -38,6 +38,8 @@ export function UpdatePasswordForm({
         setHasSession(false);
         setError("No valid session found. Please request a new password reset link.");
       } else {
+        // Check if this is a recovery session
+        // Recovery sessions allow password updates but shouldn't grant full access
         setHasSession(true);
       }
     };

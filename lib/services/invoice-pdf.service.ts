@@ -30,12 +30,14 @@ export class InvoicePDFService {
     this.currentY = 20;
     
     // Add content
-    this.addHeader(data);
-    this.addInvoiceDetails(data);
+    this.addHeader(data); // Header now includes invoice details
     this.addCustomerAndDevice(data);
+    
+    // Services are the main content - always show them
     this.addServices(data);
     
-    if (data.timeEntries && data.timeEntries.length > 0) {
+    // Only add time entries if configured AND they exist (should be false for customer invoices)
+    if (this.config.showTimeEntries && data.timeEntries && data.timeEntries.length > 0) {
       this.addTimeEntries(data);
     }
     
@@ -68,37 +70,75 @@ export class InvoicePDFService {
     
     this.currentY += 10;
     
-    // Company details
+    // Invoice details box - positioned on the right, under the INVOICE text
+    const boxX = this.pageWidth - this.marginRight - 70;
+    const boxY = this.currentY;
+    const boxWidth = 70;
+    const boxHeight = 28;
+    
+    // Draw box
+    this.pdf.setDrawColor(200, 200, 200);
+    this.pdf.setLineWidth(0.2);
+    this.pdf.rect(boxX, boxY, boxWidth, boxHeight);
+    
+    // Add invoice details inside box
+    this.pdf.setFontSize(this.config.fontSize.body);
+    this.pdf.setTextColor(this.config.colors.text);
+    this.pdf.text('Invoice #:', boxX + 3, boxY + 6);
+    this.pdf.setFont(undefined, 'bold');
+    this.pdf.text(data.invoice.number, boxX + boxWidth - 3, boxY + 6, { align: 'right' });
+    
+    this.pdf.setFont(undefined, 'normal');
+    this.pdf.text('Date:', boxX + 3, boxY + 13);
+    this.pdf.text(formatInvoiceDate(data.invoice.date), boxX + boxWidth - 3, boxY + 13, { align: 'right' });
+    
+    if (data.invoice.status) {
+      this.pdf.text('Status:', boxX + 3, boxY + 20);
+      const statusColor = data.invoice.status === 'paid' ? '#22c55e' : 
+                         data.invoice.status === 'partial' ? '#f59e0b' : '#ef4444';
+      this.pdf.setTextColor(statusColor);
+      this.pdf.setFont(undefined, 'bold');
+      this.pdf.text(data.invoice.status.toUpperCase(), boxX + boxWidth - 3, boxY + 20, { align: 'right' });
+      this.pdf.setFont(undefined, 'normal');
+      this.pdf.setTextColor(this.config.colors.text);
+    }
+    
+    // Company details on the left
+    const companyY = boxY;
     this.pdf.setFontSize(this.config.fontSize.small);
     this.pdf.setTextColor(this.config.colors.lightText);
     
+    let leftY = companyY;
     if (company.address) {
-      this.pdf.text(company.address, this.marginLeft, this.currentY);
-      this.currentY += 4;
+      this.pdf.text(company.address, this.marginLeft, leftY);
+      leftY += 4;
     }
     
     if (company.city || company.state || company.zip) {
       const cityStateZip = [company.city, company.state, company.zip]
         .filter(Boolean)
         .join(', ');
-      this.pdf.text(cityStateZip, this.marginLeft, this.currentY);
-      this.currentY += 4;
+      this.pdf.text(cityStateZip, this.marginLeft, leftY);
+      leftY += 4;
     }
     
     if (company.phone) {
-      this.pdf.text(`Phone: ${company.phone}`, this.marginLeft, this.currentY);
-      this.currentY += 4;
+      this.pdf.text(`Phone: ${company.phone}`, this.marginLeft, leftY);
+      leftY += 4;
     }
     
     if (company.email) {
-      this.pdf.text(`Email: ${company.email}`, this.marginLeft, this.currentY);
-      this.currentY += 4;
+      this.pdf.text(`Email: ${company.email}`, this.marginLeft, leftY);
+      leftY += 4;
     }
     
     if (company.website) {
-      this.pdf.text(`Web: ${company.website}`, this.marginLeft, this.currentY);
-      this.currentY += 4;
+      this.pdf.text(`Web: ${company.website}`, this.marginLeft, leftY);
+      leftY += 4;
     }
+    
+    // Update currentY to the maximum of left content and box
+    this.currentY = Math.max(leftY, boxY + boxHeight);
     
     // Add separator line
     this.currentY += 5;
@@ -109,39 +149,8 @@ export class InvoicePDFService {
   }
 
   private addInvoiceDetails(data: InvoiceData): void {
-    this.pdf.setFontSize(this.config.fontSize.body);
-    
-    // Invoice details box
-    const boxX = this.pageWidth - this.marginRight - 60;
-    const boxY = this.currentY;
-    const boxWidth = 60;
-    const boxHeight = 25;
-    
-    // Draw box
-    this.pdf.setDrawColor(200, 200, 200);
-    this.pdf.setLineWidth(0.2);
-    this.pdf.rect(boxX, boxY, boxWidth, boxHeight);
-    
-    // Add invoice details inside box
-    this.pdf.setTextColor(this.config.colors.text);
-    this.pdf.text('Invoice #:', boxX + 2, boxY + 5);
-    this.pdf.setFont(undefined, 'bold');
-    this.pdf.text(data.invoice.number, boxX + boxWidth - 2, boxY + 5, { align: 'right' });
-    
-    this.pdf.setFont(undefined, 'normal');
-    this.pdf.text('Date:', boxX + 2, boxY + 11);
-    this.pdf.text(formatInvoiceDate(data.invoice.date), boxX + boxWidth - 2, boxY + 11, { align: 'right' });
-    
-    if (data.invoice.status) {
-      this.pdf.text('Status:', boxX + 2, boxY + 17);
-      const statusColor = data.invoice.status === 'paid' ? '#22c55e' : 
-                         data.invoice.status === 'partial' ? '#f59e0b' : '#ef4444';
-      this.pdf.setTextColor(statusColor);
-      this.pdf.setFont(undefined, 'bold');
-      this.pdf.text(data.invoice.status.toUpperCase(), boxX + boxWidth - 2, boxY + 17, { align: 'right' });
-      this.pdf.setFont(undefined, 'normal');
-      this.pdf.setTextColor(this.config.colors.text);
-    }
+    // This method is no longer needed as invoice details are now in the header
+    // Keeping empty method for compatibility
   }
 
   private addCustomerAndDevice(data: InvoiceData): void {

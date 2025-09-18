@@ -635,29 +635,48 @@ export function AppointmentDetailPremium({
             <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <MetricCard
               title="Services"
-              value={selectedServices.length || '0'}
+              value={selectedServices.length || appointment.issues?.length || '0'}
               subtitle={
                 selectedServices.length > 0 
                   ? `${availableServices.filter(s => selectedServices.includes(s.id)).reduce((sum, s) => sum + s.estimated_duration_minutes, 0)} min total`
+                  : appointment.issues?.length > 0
+                  ? `${appointment.issues.length} service${appointment.issues.length !== 1 ? 's' : ''} requested`
                   : 'No services selected'
               }
               icon={<Wrench className="h-4 w-4" />}
-              variant={selectedServices.length > 0 ? "success" : "default"}
-              badge={selectedServices.length > 0 ? (
+              variant={(selectedServices.length > 0 || appointment.issues?.length > 0) ? "success" : "default"}
+              badge={(selectedServices.length > 0 || appointment.issues?.length > 0) ? (
                 <div className="flex gap-1 mt-2">
-                  {availableServices
-                    .filter(s => selectedServices.includes(s.id))
-                    .slice(0, 2)
-                    .map(service => (
-                      <Badge key={service.id} variant="secondary" className="text-[10px] px-1.5 py-0">
-                        {service.name.split(' ').slice(0, 2).join(' ')}
-                      </Badge>
-                    ))}
-                  {selectedServices.length > 2 && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                      +{selectedServices.length - 2}
-                    </Badge>
-                  )}
+                  {selectedServices.length > 0 ? (
+                    <>
+                      {availableServices
+                        .filter(s => selectedServices.includes(s.id))
+                        .slice(0, 2)
+                        .map(service => (
+                          <Badge key={service.id} variant="secondary" className="text-[10px] px-1.5 py-0">
+                            {service.name.split(' ').slice(0, 2).join(' ')}
+                          </Badge>
+                        ))}
+                      {selectedServices.length > 2 && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                          +{selectedServices.length - 2}
+                        </Badge>
+                      )}
+                    </>
+                  ) : appointment.issues ? (
+                    <>
+                      {appointment.issues.slice(0, 2).map((issue: string, index: number) => (
+                        <Badge key={`issue-${index}`} variant="secondary" className="text-[10px] px-1.5 py-0">
+                          {issue.split(' ').slice(0, 2).join(' ')}
+                        </Badge>
+                      ))}
+                      {appointment.issues.length > 2 && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                          +{appointment.issues.length - 2}
+                        </Badge>
+                      )}
+                    </>
+                  ) : null}
                 </div>
               ) : undefined}
             />
@@ -668,17 +687,25 @@ export function AppointmentDetailPremium({
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <MetricCard
               title="Estimated Total"
-              value={`$${availableServices
-                .filter(s => selectedServices.includes(s.id))
-                .reduce((sum, s) => sum + s.base_price, 0)
-                .toFixed(2)}`}
+              value={
+                availableServices.filter(s => selectedServices.includes(s.id)).length > 0
+                  ? `$${availableServices
+                      .filter(s => selectedServices.includes(s.id))
+                      .reduce((sum, s) => sum + s.base_price, 0)
+                      .toFixed(2)}`
+                  : appointment.issues?.length > 0
+                  ? 'TBD'
+                  : '$0.00'
+              }
               subtitle={
                 selectedServices.length > 0 
                   ? `${selectedServices.length} service${selectedServices.length !== 1 ? 's' : ''} • ${availableServices.filter(s => selectedServices.includes(s.id)).reduce((sum, s) => sum + s.estimated_duration_minutes, 0)} min`
+                  : appointment.issues?.length > 0
+                  ? `${appointment.issues.length} service${appointment.issues.length !== 1 ? 's' : ''} • Pricing pending`
                   : 'No services selected'
               }
               icon={<DollarSign className="h-4 w-4" />}
-              variant={selectedServices.length > 0 ? "primary" : "default"}
+              variant={(selectedServices.length > 0 || appointment.issues?.length > 0) ? "primary" : "default"}
               trend={selectedServices.length > 0 ? undefined : undefined}
             />
           </div>
@@ -845,8 +872,9 @@ export function AppointmentDetailPremium({
                   </div>
                 </CardHeader>
                 <CardContent className="p-4 pt-0">
-                  {selectedServices.length > 0 ? (
+                  {selectedServices.length > 0 || appointment.issues?.length > 0 ? (
                     <div className="space-y-2">
+                      {/* Display matched services with pricing */}
                       {availableServices
                         .filter(s => selectedServices.includes(s.id))
                         .map(service => (
@@ -861,19 +889,40 @@ export function AppointmentDetailPremium({
                             </div>
                           </div>
                         ))}
-                      <div className="pt-2 mt-2 border-t">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Total</span>
-                          <div className="text-right">
-                            <p className="text-base font-bold text-primary">
-                              ${availableServices.filter(s => selectedServices.includes(s.id)).reduce((sum, s) => sum + s.base_price, 0).toFixed(2)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {availableServices.filter(s => selectedServices.includes(s.id)).reduce((sum, s) => sum + s.estimated_duration_minutes, 0)} min total
-                            </p>
+                      
+                      {/* Display issues/services from external form submissions if no matched services */}
+                      {availableServices.filter(s => selectedServices.includes(s.id)).length === 0 && appointment.issues?.length > 0 && (
+                        <>
+                          {appointment.issues.map((issue: string, index: number) => (
+                            <div key={`issue-${index}`} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                              <div>
+                                <p className="text-sm font-medium">{issue}</p>
+                                <p className="text-xs text-muted-foreground">Service requested</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">Pricing TBD</p>
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                      
+                      {/* Show total only if we have matched services with pricing */}
+                      {availableServices.filter(s => selectedServices.includes(s.id)).length > 0 && (
+                        <div className="pt-2 mt-2 border-t">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Total</span>
+                            <div className="text-right">
+                              <p className="text-base font-bold text-primary">
+                                ${availableServices.filter(s => selectedServices.includes(s.id)).reduce((sum, s) => sum + s.base_price, 0).toFixed(2)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {availableServices.filter(s => selectedServices.includes(s.id)).reduce((sum, s) => sum + s.estimated_duration_minutes, 0)} min total
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   ) : (
                     <div className="text-center py-8">

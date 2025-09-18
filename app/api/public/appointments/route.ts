@@ -246,16 +246,28 @@ export async function POST(request: NextRequest) {
       // UUIDs have a specific format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
       const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
       
+      // Clean and validate UUIDs (remove any extra characters)
+      const cleanedIssues = data.issues.map((issue: string) => {
+        // Try to extract a valid UUID from the string if it looks like one
+        const uuidMatch = issue.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+        if (uuidMatch) {
+          console.log(`🔧 Cleaned UUID from "${issue}" to "${uuidMatch[0]}"`);
+          return uuidMatch[0];
+        }
+        return issue;
+      });
+      
       let services;
       let servicesError;
       
-      if (data.issues.some(issue => isUUID(issue))) {
+      if (cleanedIssues.some(issue => isUUID(issue))) {
         // data.issues contains service IDs (UUIDs)
         console.log('📋 Issues contain service IDs, fetching service names...');
+        const validUUIDs = cleanedIssues.filter(issue => isUUID(issue));
         const result = await publicClient
           .from('services')
           .select('id, name, category')
-          .in('id', data.issues);
+          .in('id', validUUIDs);
         services = result.data;
         servicesError = result.error;
       } else {
@@ -264,7 +276,7 @@ export async function POST(request: NextRequest) {
         const result = await publicClient
           .from('services')
           .select('id, name, category')
-          .in('category', data.issues);
+          .in('category', cleanedIssues);
         services = result.data;
         servicesError = result.error;
       }
@@ -272,7 +284,7 @@ export async function POST(request: NextRequest) {
       if (servicesError) {
         console.error('Error fetching services:', servicesError);
         // Fall back to using the raw values as issue names
-        issueNames = data.issues;
+        issueNames = cleanedIssues;
         serviceIds = [];
       } else if (services && services.length > 0) {
         // Extract service IDs for the service_ids column
@@ -282,8 +294,8 @@ export async function POST(request: NextRequest) {
         console.log('✅ Resolved services:', { serviceIds, issueNames });
       } else {
         // No matching services found, use the raw values as issue names
-        console.warn('⚠️ No matching services found for:', data.issues);
-        issueNames = data.issues;
+        console.warn('⚠️ No matching services found for:', cleanedIssues);
+        issueNames = cleanedIssues;
         serviceIds = [];
       }
     }

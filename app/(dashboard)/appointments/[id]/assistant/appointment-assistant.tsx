@@ -585,14 +585,26 @@ export function AppointmentAssistant({
                           Customer reported these issues:
                         </p>
                         <div className="flex flex-wrap gap-1.5">
-                          {appointment.issues.map((issue: string, index: number) => (
-                            <span
-                              key={index}
-                              className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                            >
-                              {issue}
-                            </span>
-                          ))}
+                          {appointment.issues.map((issue: string, index: number) => {
+                            // Check if issue is a UUID (36 chars with dashes in specific positions)
+                            const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(issue);
+                            
+                            // If it's a UUID, try to find the corresponding service name
+                            let displayName = issue;
+                            if (isUUID) {
+                              const service = services.find(s => s.id === issue);
+                              displayName = service ? service.name : issue;
+                            }
+                            
+                            return (
+                              <span
+                                key={index}
+                                className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                              >
+                                {displayName}
+                              </span>
+                            );
+                          })}
                         </div>
                         {appointment.description && (
                           <p className="text-xs text-blue-700 dark:text-blue-300 mt-2 italic">

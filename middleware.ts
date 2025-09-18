@@ -1,7 +1,29 @@
 import { updateSession } from "@/lib/supabase/middleware";
 import { type NextRequest, NextResponse } from "next/server";
+import { isStatusDomain } from "@/lib/config/domains";
 
 export async function middleware(request: NextRequest) {
+  // Check if this is a request to the status subdomain
+  const isStatus = isStatusDomain(request.headers);
+  
+  // If it's the status domain, only allow public pages
+  if (isStatus) {
+    const pathname = request.nextUrl.pathname;
+    
+    // Only allow these paths on the status domain
+    const allowedPaths = ['/status', '/api/public', '/api/status'];
+    const isAllowed = allowedPaths.some(path => pathname.startsWith(path));
+    
+    if (!isAllowed && pathname !== '/') {
+      // Redirect to status page if trying to access other pages
+      return NextResponse.redirect(new URL('/status', request.url));
+    }
+    
+    // If it's the root path on status domain, redirect to /status
+    if (pathname === '/') {
+      return NextResponse.redirect(new URL('/status', request.url));
+    }
+  }
   // Handle CORS for embed and public API routes
   if (request.nextUrl.pathname.startsWith('/embed/') || 
       request.nextUrl.pathname.startsWith('/api/public/')) {

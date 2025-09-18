@@ -377,7 +377,78 @@ export async function POST(request: NextRequest) {
       console.error('Failed to create form submission record:', error);
     }
 
-    // Helper functions for formatting
+    // Send comprehensive notifications (email and SMS for customer and admins)
+    try {
+      const { getAppointmentNotificationService } = await import('@/lib/services/appointment-notifications.service');
+      const notificationService = getAppointmentNotificationService();
+      
+      // Get device info for the notification
+      let deviceInfo = null;
+      if (data.device.deviceId) {
+        const { data: device } = await publicClient
+          .from('devices')
+          .select('id, brand, model_name')
+          .eq('id', data.device.deviceId)
+          .single();
+        
+        deviceInfo = device;
+      }
+      
+      // Format issues for display
+      const formattedIssues = issueNames.length > 0 ? 
+        issueNames.map(issue => 
+          issue.replace(/_/g, ' ')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ')
+        ) : ['General Diagnosis'];
+      
+      // Send all notifications (email and SMS)
+      const notificationResults = await notificationService.sendAppointmentNotifications({
+        appointment: {
+          id: appointment.id,
+          appointment_number: appointment.appointment_number,
+          scheduled_date: appointment.scheduled_date,
+          scheduled_time: appointment.scheduled_time,
+          estimated_cost: appointment.estimated_cost,
+          description: data.issueDescription,
+          notes: data.notes
+        },
+        customer: {
+          id: customer.id,
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone
+        },
+        device: deviceInfo,
+        issues: formattedIssues,
+        consentEmail: data.consent?.email !== false, // Default true if not explicitly false
+        consentSMS: data.consent?.sms !== false // Default true if not explicitly false
+      });
+      
+      console.log('📧📱 Notification results:', {
+        customerEmail: notificationResults.customerEmail ? '✅ Sent' : '❌ Failed',
+        customerSMS: notificationResults.customerSMS ? '✅ Sent' : '❌ Failed', 
+        adminNotifications: notificationResults.adminNotifications ? '✅ Sent' : '❌ Failed',
+        errors: notificationResults.errors
+      });
+      
+      // Log any errors but don't fail the appointment
+      if (notificationResults.errors.length > 0) {
+        console.error('⚠️ Some notifications failed:', notificationResults.errors);
+      }
+    } catch (error) {
+      console.error('❌ Error sending notifications:', error);
+      // Don't fail the appointment creation if notifications fail
+    }
+    
+    // Create internal notifications for admins/staff (legacy system)
+    await createInternalNotifications(appointment, customer);
+
+    // Track notification creation for debugging (moved functions to earlier in code)
+    let notificationDebug = { attempted: false, created: false, error: null as any };
+
+    // Helper functions for formatting (used in response)
     const formatTime = (time: string) => {
       const [hours, minutes] = time.split(':');
       const hour = parseInt(hours);
@@ -396,120 +467,6 @@ export async function POST(request: NextRequest) {
       };
       return date.toLocaleDateString('en-US', options);
     };
-
-    // Create internal notifications for admins/staff
-    const notificationRepo = await createInternalNotifications(appointment, customer);
-    
-    // Create email notification record for customer
-    try {
-      const { NotificationService } = await import('@/lib/services/notification.service');
-      const notificationService = new NotificationService(true); // Use service role
-      
-      // Get device info for the notification
-      let deviceInfo = { brand: 'Unknown', model: 'Device' };
-      if (data.device.deviceId) {
-        const { data: device } = await publicClient
-          .from('devices')
-          .select('brand, model_name')
-          .eq('id', data.device.deviceId)
-          .single();
-        
-        if (device) {
-          deviceInfo = { brand: device.brand || 'Unknown', model: device.model_name || 'Device' };
-        }
-      }
-      
-      // Format issues for display
-      const issueDisplay = issueNames.length > 0 ? 
-        issueNames.map(issue => issue.replace(/_/g, ' ').charAt(0).toUpperCase() + issue.slice(1)).join(', ') : 
-        'General Diagnosis';
-      
-      // Import and generate the HTML email template
-      const { appointmentConfirmationTemplate } = await import('@/lib/email-templates/appointment-confirmation');
-      
-      const emailTemplate = appointmentConfirmationTemplate({
-        customerName: customer.name,
-        appointmentNumber: appointment.appointment_number,
-        appointmentDate: formatDate(appointment.scheduled_date),
-        appointmentTime: formatTime(appointment.scheduled_time),
-        deviceBrand: deviceInfo.brand,
-        deviceModel: deviceInfo.model || 'Device',
-        issues: issueNames.length > 0 ? issueNames : ['General Diagnosis'],
-        estimatedCost: appointment.estimated_cost ? parseFloat(appointment.estimated_cost) : undefined,
-        notes: data.issueDescription || data.notes,
-        confirmationUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/appointments/${appointment.appointment_number}`
-      });
-      
-      // Create notification in database (this will be picked up by email processor)
-      console.log('📧 Attempting to create notification for:', customer.email);
-      
-      const notificationData = {
-        ticket_id: null, // No ticket yet, just appointment
-        notification_type: 'new_ticket', // Using existing type
-        recipient_email: customer.email,
-        subject: emailTemplate.subject,
-        content: emailTemplate.html, // Use the HTML template
-        status: 'pending',
-        scheduled_for: new Date().toISOString()
-      };
-      
-      console.log('📧 Notification data:', JSON.stringify(notificationData, null, 2));
-      
-      const { data: notification, error: notifError } = await publicClient
-        .from('notifications')
-        .insert(notificationData)
-        .select()
-        .single();
-      
-      if (notifError) {
-        console.error('❌ Failed to create notification:', JSON.stringify(notifError, null, 2));
-        console.error('Error details:', {
-          message: notifError.message,
-          details: notifError.details,
-          hint: notifError.hint,
-          code: notifError.code
-        });
-      } else {
-        console.log(`✅ Notification created successfully:`, notification);
-        console.log(`✅ Notification ID: ${notification?.id}, Email: ${customer.email}`);
-        
-        // Try to send immediately via EmailService  
-        try {
-          const { EmailService } = await import('@/lib/services/email.service');
-          const emailService = EmailService.getInstance();
-          
-          // Send the email using the template we already generated above
-          const emailResult = await emailService.sendEmailWithRetry({
-            to: customer.email,
-            subject: emailTemplate.subject,
-            html: emailTemplate.html,
-            text: emailTemplate.text
-          }, 2, 1000);
-          
-          if (emailResult.success) {
-            // Update notification as sent
-            await publicClient
-              .from('notifications')
-              .update({ 
-                status: 'sent',
-                sent_at: new Date().toISOString()
-              })
-              .eq('id', notification.id);
-            
-            console.log(`✅ Confirmation email sent to ${data.customer.email}`);
-          }
-        } catch (emailError) {
-          console.error('Error sending email directly:', emailError);
-          // Email will be sent by the processor later
-        }
-      }
-    } catch (error) {
-      console.error('Error creating notification:', error);
-      // Don't fail the appointment creation if notification fails
-    }
-
-    // Track notification creation for debugging (moved functions to earlier in code)
-    let notificationDebug = { attempted: false, created: false, error: null as any };
 
     return NextResponse.json(
       {

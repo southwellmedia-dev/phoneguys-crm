@@ -8,16 +8,21 @@
 
 export interface SMSTemplateVariables {
   customerName: string;
-  ticketNumber: string;
+  ticketNumber?: string;
+  appointmentNumber?: string;
+  appointmentDate?: string;
+  appointmentTime?: string;
   deviceBrand: string;
   deviceModel: string;
-  status: string;
+  status?: string;
   businessName: string;
   businessPhone: string;
   businessHours?: string;
   estimatedDate?: string;
   totalCost?: string;
   holdReason?: string;
+  trackingUrl?: string;
+  statusUrl?: string;
 }
 
 export const SMS_TEMPLATES = {
@@ -30,7 +35,7 @@ export const SMS_TEMPLATES = {
 
   // Ticket status: completed  
   status_completed: {
-    template: "🎉 Your {deviceBrand} {deviceModel} is ready for pickup! Ticket #{ticketNumber} completed. Total: ${totalCost}. Visit us during business hours. - {businessName} {businessPhone}",
+    template: "🎉 Your device is ready! Ticket #{ticketNumber}. Total: ${totalCost}. Check: {statusUrl} - {businessName} {businessPhone}",
     maxLength: 160,
     description: "Sent when repair is completed and device is ready"
   },
@@ -69,11 +74,35 @@ export const SMS_TEMPLATES = {
     description: "Sent when repair is cancelled"
   },
 
-  // Appointment related (if needed for future)
-  appointment_confirmed: {
-    template: "Appointment confirmed for {customerName}! Bringing your {deviceBrand} {deviceModel} for repair. See you soon at {businessName}. Questions? {businessPhone}",
+  // Appointment related
+  appointment_received: {
+    template: "Appt request received! #{appointmentNumber} on {appointmentDate} at {appointmentTime}. Check status: {statusUrl} - {businessName}",
     maxLength: 160,
-    description: "Appointment confirmation"
+    description: "Appointment request received SMS"
+  },
+  
+  appointment_confirmed: {
+    template: "Your appointment #{appointmentNumber} is confirmed for {appointmentDate} at {appointmentTime}. See you then! - {businessName}",
+    maxLength: 160,
+    description: "Appointment confirmed by staff SMS"
+  },
+  
+  appointment_reminder: {
+    template: "Reminder: Your appointment is tomorrow at {appointmentTime}. Please bring your {deviceBrand} {deviceModel} and passcode. See you soon! - {businessName}",
+    maxLength: 160,
+    description: "Appointment reminder (day before)"
+  },
+  
+  appointment_day_of: {
+    template: "Today's appointment at {appointmentTime}! We're ready for your {deviceBrand} {deviceModel}. See you soon! - {businessName}",
+    maxLength: 160,
+    description: "Appointment reminder (day of)"
+  },
+  
+  appointment_to_ticket: {
+    template: "Your device has been checked in! Ticket #{ticketNumber} created. We'll update you on repair progress. - {businessName}",
+    maxLength: 160,
+    description: "Appointment converted to ticket"
   }
 } as const;
 
@@ -103,6 +132,9 @@ export function processSMSTemplate(
   const defaults: SMSTemplateVariables = {
     customerName: variables.customerName || 'Customer',
     ticketNumber: variables.ticketNumber || 'N/A',
+    appointmentNumber: variables.appointmentNumber || 'N/A',
+    appointmentDate: variables.appointmentDate || '',
+    appointmentTime: variables.appointmentTime || '',
     deviceBrand: variables.deviceBrand || 'Device',
     deviceModel: variables.deviceModel || '',
     status: variables.status || 'unknown',
@@ -111,12 +143,15 @@ export function processSMSTemplate(
     businessHours: variables.businessHours || '9AM-6PM Mon-Sat',
     estimatedDate: variables.estimatedDate || '',
     totalCost: variables.totalCost || '0.00',
-    holdReason: variables.holdReason || 'awaiting parts'
+    holdReason: variables.holdReason || 'awaiting parts',
+    trackingUrl: variables.trackingUrl || '',
+    statusUrl: variables.statusUrl || ''
   };
 
-  // Replace all template variables
+  // Replace all template variables (including those with # prefix like #{appointmentNumber})
   Object.entries(defaults).forEach(([key, value]) => {
-    const regex = new RegExp(`{${key}}`, 'g');
+    // Replace both {variable} and #{variable} formats
+    const regex = new RegExp(`#?{${key}}`, 'g');
     message = message.replace(regex, value);
   });
 

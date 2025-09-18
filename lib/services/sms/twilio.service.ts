@@ -58,6 +58,13 @@ export class TwilioService {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
 
+    console.log('🔧 Initializing Twilio with:', {
+      accountSid: accountSid ? `${accountSid.substring(0, 6)}...` : 'NOT SET',
+      authTokenSet: !!authToken,
+      phoneNumber: this.phoneNumber || 'NOT SET',
+      messagingServiceSid: this.messagingServiceSid || 'NOT SET'
+    });
+
     if (!accountSid || !authToken) {
       console.error('❌ Twilio credentials not found in environment variables');
       return;
@@ -71,7 +78,7 @@ export class TwilioService {
     try {
       this.client = twilio(accountSid, authToken);
       this.initialized = true;
-      console.log('✅ Twilio initialized successfully');
+      console.log('✅ Twilio initialized successfully with phone:', this.phoneNumber);
     } catch (error) {
       console.error('❌ Failed to initialize Twilio:', error);
     }
@@ -163,6 +170,13 @@ export class TwilioService {
           } else {
             messageOptions.from = options.from || this.phoneNumber;
           }
+          
+          console.log('📱 Sending SMS with options:', {
+            to: messageOptions.to,
+            from: messageOptions.from || messageOptions.messagingServiceSid,
+            bodyLength: options.body.length,
+            bodyPreview: options.body.substring(0, 50) + '...'
+          });
 
           // Add optional parameters
           if (options.mediaUrl && options.mediaUrl.length > 0) {

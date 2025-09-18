@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { EmailService } from '@/lib/services/email.service';
+import { SMSService } from '@/lib/services/sms.service';
 import { appointmentConfirmationTemplate } from '@/lib/email-templates/appointment-confirmation';
 import { repairStatusUpdateTemplate } from '@/lib/email-templates/repair-status-update';
+import { SMS_TEMPLATES, processSMSTemplate } from '@/lib/templates/sms-templates';
 import { RateLimitedAPI } from '@/lib/utils/api-helpers';
 
 /**
@@ -141,13 +143,83 @@ export const GET = RateLimitedAPI.test(async (request: NextRequest) => {
 
 /**
  * POST /api/test/email
- * Test email with custom content
+ * Test email or SMS with custom content
  */
 export const POST = RateLimitedAPI.test(async (request: NextRequest) => {
   try {
     const body = await request.json();
-    const { to, subject, html, text } = body;
+    const { type, to, subject, html, text, message, templateType } = body;
 
+    // Handle SMS testing
+    if (type === 'sms') {
+      if (!to) {
+        return NextResponse.json(
+          { error: 'Missing required field: to (phone number)' },
+          { status: 400 }
+        );
+      }
+
+      const smsService = new SMSService();
+      
+      // Check if SMS is configured
+      if (!smsService.isReady()) {
+        return NextResponse.json({
+          success: false,
+          error: 'SMS service not configured',
+          details: 'Twilio credentials are missing. Please set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in your environment variables.'
+        }, { status: 500 });
+      }
+
+      let smsMessage = message;
+
+      // Use template if specified
+      if (templateType && SMS_TEMPLATES[templateType as keyof typeof SMS_TEMPLATES]) {
+        const processed = processSMSTemplate(templateType as keyof typeof SMS_TEMPLATES, {
+          customerName: 'Test Customer',
+          ticketNumber: 'TK-TEST-001',
+          appointmentNumber: 'APT-TEST-001',
+          appointmentDate: 'Jan 15',
+          appointmentTime: '2:00 PM',
+          deviceBrand: 'iPhone',
+          deviceModel: '15 Pro',
+          status: 'completed',
+          businessName: 'Phone Guys',
+          businessPhone: process.env.BUSINESS_PHONE || '(844) 511-0454',
+          estimatedDate: 'tomorrow',
+          totalCost: '149.99',
+          holdReason: 'waiting for parts'
+        });
+        smsMessage = processed.message;
+      } else if (!smsMessage) {
+        smsMessage = 'Test SMS from Phone Guys CRM - SMS service is working correctly!';
+      }
+
+      const result = await smsService.sendSMS({
+        to,
+        message: smsMessage
+      });
+
+      if (result.success) {
+        return NextResponse.json({
+          success: true,
+          message: `SMS sent successfully to ${result.to}`,
+          messageId: result.messageId,
+          characterCount: smsMessage.length,
+          messageContent: smsMessage
+        });
+      } else {
+        return NextResponse.json(
+          { 
+            success: false,
+            error: result.error || 'Failed to send SMS',
+            to: result.to
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Handle email testing (existing code)
     if (!to || !subject || (!html && !text)) {
       return NextResponse.json(
         { error: 'Missing required fields: to, subject, and either html or text' },
@@ -186,7 +258,7 @@ export const POST = RateLimitedAPI.test(async (request: NextRequest) => {
     }
 
   } catch (error) {
-    console.error('Error in test email endpoint:', error);
+    console.error('Error in test notification endpoint:', error);
     return NextResponse.json(
       { 
         error: 'Internal server error',

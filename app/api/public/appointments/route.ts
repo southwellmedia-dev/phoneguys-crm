@@ -400,25 +400,36 @@ export async function POST(request: NextRequest) {
     // );
 
     // NOW create form submission record with appointment ID (after successful appointment creation)
-    const formSubmissionRepo = getPublicRepository.formSubmissions();
     let formSubmission = null;
     try {
-      formSubmission = await formSubmissionRepo.create({
-        form_type: 'appointment',
-        submission_data: body,
-        customer_name: data.customer.name,
-        customer_email: data.customer.email,
-        customer_phone: data.customer.phone,
-        device_info: data.device,
-        issues: data.issues,
-        preferred_date: data.appointmentDate,
-        preferred_time: data.appointmentTime,
-        status: 'processed', // Mark as processed immediately since appointment was created
-        appointment_id: appointment.id, // Include the appointment ID directly
-        source_url: data.sourceUrl,
-        ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
-        user_agent: request.headers.get('user-agent')
-      });
+      const { data: submissionData, error: submissionError } = await publicClient
+        .from('form_submissions')
+        .insert({
+          form_type: 'appointment',
+          submission_data: body,
+          customer_name: data.customer.name,
+          customer_email: data.customer.email,
+          customer_phone: data.customer.phone,
+          device_info: data.device,
+          issues: data.issues,
+          preferred_date: data.appointmentDate,
+          preferred_time: data.appointmentTime,
+          status: 'processed', // Mark as processed immediately since appointment was created
+          appointment_id: appointment.id, // Include the appointment ID directly
+          source_url: data.sourceUrl,
+          ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+          user_agent: request.headers.get('user-agent'),
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (submissionError) {
+        console.error('Failed to create form submission record:', submissionError);
+      } else {
+        formSubmission = submissionData;
+        console.log('✅ Form submission logged successfully');
+      }
     } catch (error) {
       // Log error but don't fail the appointment creation
       console.error('Failed to create form submission record:', error);

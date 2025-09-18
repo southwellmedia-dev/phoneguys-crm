@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DeviceStep } from './steps/DeviceStep';
-import { IssuesStep } from './steps/IssuesStep';
+import { IssuesStepImproved } from './steps/IssuesStepImproved';
 import { ScheduleStep } from './steps/ScheduleStep';
 import { ContactStep } from './steps/ContactStep';
 import { ConfirmationStep } from './steps/ConfirmationStep';
@@ -96,6 +96,7 @@ export function FormContainer({
   const [services, setServices] = useState<any[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(true);
   const [loadingServices, setLoadingServices] = useState(true);
+  const contentRef = useRef<HTMLDivElement>(null);
   
   // Prefetch availability data when user reaches step 2
   const { prefetchAvailability } = usePrefetchAvailability(apiBaseUrl, apiKey);
@@ -113,6 +114,13 @@ export function FormContainer({
       prefetchAvailability().catch(console.error);
     }
   }, [currentStep, prefetchAvailability]);
+
+  // Scroll to top when step changes
+  useEffect(() => {
+    if (contentRef.current && embedded) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, [currentStep, embedded]);
 
   const fetchDevices = async () => {
     try {
@@ -292,14 +300,19 @@ export function FormContainer({
         </div>
       </div>
 
-      {/* Step Content */}
-      <div className="min-h-[400px]">
+      {/* Step Content - Fixed height with scrollable content */}
+      <div 
+        ref={contentRef}
+        className={cn(
+          "relative",
+          embedded ? "h-[500px] overflow-y-auto" : "min-h-[400px]"
+        )}>
         {loadingDevices || loadingServices ? (
           <div className="flex items-center justify-center h-[400px]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <>
+          <div className={embedded ? "pb-4" : ""}>
             {currentStep === 1 && (
               <DeviceStep
                 devices={devices}
@@ -309,7 +322,7 @@ export function FormContainer({
             )}
             
             {currentStep === 2 && (
-              <IssuesStep
+              <IssuesStepImproved
                 services={services}
                 selectedIssues={formData.issues || []}
                 issueDescription={formData.issueDescription}
@@ -353,7 +366,7 @@ export function FormContainer({
                 }}
               />
             )}
-          </>
+          </div>
         )}
       </div>
 

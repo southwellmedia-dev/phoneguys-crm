@@ -112,20 +112,12 @@ export default function EmbedAppointmentForm() {
   return (
     <div ref={containerRef} className="bg-white">
       <div className="w-full">
-        <div className="space-y-4">
-          <div className="text-center pb-4 border-b">
-            <h1 className="text-2xl font-semibold">Schedule Your Repair</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Book an appointment in just a few steps
-            </p>
-          </div>
-
-          <FormContainer
-            apiBaseUrl={`${process.env.NEXT_PUBLIC_APP_URL || 'https://dashboard.phoneguysrepair.com'}/api/public`}
-            onSuccess={handleSuccess}
-            onError={handleError}
-          />
-        </div>
+        <FormContainer
+          apiBaseUrl={`${process.env.NEXT_PUBLIC_APP_URL || 'https://dashboard.phoneguysrepair.com'}/api/public`}
+          onSuccess={handleSuccess}
+          onError={handleError}
+          embedded={true}
+        />
       </div>
     </div>
   );

@@ -17,6 +17,11 @@ export async function GET(request: NextRequest) {
       token_hash,
     });
     if (!error) {
+      // Check if this is a password recovery flow
+      if (type === "recovery" || type === "email") {
+        // For password recovery, redirect to the update password page
+        redirect("/auth/update-password");
+      }
       // redirect user to specified redirect URL or root of app
       redirect(next);
     } else {

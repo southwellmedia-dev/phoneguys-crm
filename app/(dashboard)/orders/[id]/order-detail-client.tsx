@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { 
   OrderDetail, 
   OrderDetailClientProps, 
@@ -96,9 +96,49 @@ export function OrderDetailClient({
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
   const [showAddDeviceDialog, setShowAddDeviceDialog] = useState(false);
+  const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
+  };
+
+  const handleDownloadInvoice = async () => {
+    console.log('Download invoice clicked');
+    setIsGeneratingInvoice(true);
+    try {
+      const response = await fetch(`/api/tickets/${orderId}/invoice?format=download`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/pdf',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Invoice generation failed:', errorText);
+        throw new Error('Failed to generate invoice');
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoice-${order.ticket_number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Invoice downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      toast.error('Failed to download invoice');
+    } finally {
+      setIsGeneratingInvoice(false);
+    }
   };
 
   const handleStatusChange = (newStatus: any, reason?: string) => {
@@ -179,7 +219,7 @@ export function OrderDetailClient({
     },
   ];
 
-  const headerActions = [
+  const headerActions = useMemo(() => [
     {
       label: "Back to Orders",
       href: "/orders",
@@ -209,10 +249,15 @@ export function OrderDetailClient({
       onClick: () => console.log("Email customer"),
     },
     {
-      label: "Print Invoice",
-      icon: <Printer className="h-4 w-4" />,
+      label: isGeneratingInvoice ? "Generating..." : "Print Invoice",
+      icon: isGeneratingInvoice ? (
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+      ) : (
+        <Printer className="h-4 w-4" />
+      ),
       variant: "outline" as const,
-      onClick: () => console.log("Print invoice"),
+      onClick: handleDownloadInvoice,
+      disabled: isGeneratingInvoice,
     },
     {
       label: "Edit Order",
@@ -223,7 +268,7 @@ export function OrderDetailClient({
           ? ("outline" as const)
           : ("default" as const),
     },
-  ];
+  ], [isGeneratingInvoice, order.status, orderId, handleDownloadInvoice, handleReopen]);
 
   // Show skeleton during navigation or loading
   if (showSkeleton) {
@@ -241,6 +286,17 @@ export function OrderDetailClient({
       }
       actions={headerActions}
     >
+      {/* Test Invoice Button - TEMPORARY */}
+      <div className="mb-4">
+        <Button
+          onClick={handleDownloadInvoice}
+          disabled={isGeneratingInvoice}
+          variant="outline"
+        >
+          {isGeneratingInvoice ? "Generating..." : "Test Download Invoice"}
+        </Button>
+      </div>
+
       {/* Key Metrics Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {/* Total Time - Primary metric with cyan accent */}

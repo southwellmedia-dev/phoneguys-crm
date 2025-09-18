@@ -114,8 +114,9 @@ export class ApiKeysService {
       origin
     });
     
-    // Create a separate repository instance for verification
-    const verifyRepo = new ApiKeysRepository();
+    // Create a repository instance using public client for verification
+    // This ensures we're using the anon key, not requiring authentication
+    const verifyRepo = new ApiKeysRepository(false, true); // Use public client
     const client = await (verifyRepo as any).getClient();
     
     // First get the API key without the join to avoid the single object error
@@ -126,11 +127,35 @@ export class ApiKeysService {
       .eq('is_active', true)
       .maybeSingle(); // Use maybeSingle to handle 0 or 1 results
 
+    console.log('[ApiKeysService] API key query result:', {
+      found: !!apiKeyData,
+      error: keyError?.message,
+      keyHash: keyHash.substring(0, 16),
+      queryDetails: {
+        table: 'api_keys',
+        filter: `key_hash=${keyHash.substring(0, 8)}..., is_active=true`
+      }
+    });
+
     if (keyError || !apiKeyData) {
-      console.log('[ApiKeysService] API key query error:', {
-        error: keyError?.message,
-        keyPrefix: apiKey.substring(0, 8)
+      // Let's also check if any API key exists with this prefix for debugging
+      const { data: anyKey } = await client
+        .from('api_keys')
+        .select('key_prefix, key_hash, is_active')
+        .eq('key_prefix', apiKey.substring(0, 8))
+        .maybeSingle();
+      
+      console.log('[ApiKeysService] Debug - API key with prefix:', {
+        keyPrefix: apiKey.substring(0, 8),
+        foundWithPrefix: !!anyKey,
+        details: anyKey ? {
+          storedHashPrefix: anyKey.key_hash?.substring(0, 8),
+          providedHashPrefix: keyHash.substring(0, 8),
+          isActive: anyKey.is_active,
+          hashMatches: anyKey.key_hash === keyHash
+        } : null
       });
+      
       return { valid: false, error: 'Invalid API key' };
     }
 
@@ -178,10 +203,22 @@ export class ApiKeysService {
       }
     }
 
-    // Update last used timestamp
-    await this.apiKeysRepo.update(apiKeyData.id, {
-      last_used_at: new Date().toISOString()
-    });
+    // Try to update last used timestamp, but don't fail validation if it doesn't work
+    // (The update might fail due to RLS restrictions when using public client)
+    try {
+      // Only update if we have a service role key available
+      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        await this.apiKeysRepo.update(apiKeyData.id, {
+          last_used_at: new Date().toISOString()
+        });
+      }
+    } catch (updateError) {
+      // Log but don't fail the validation
+      console.log('[ApiKeysService] Could not update last_used_at (non-critical):', {
+        error: updateError instanceof Error ? updateError.message : 'Unknown error',
+        apiKeyId: apiKeyData.id
+      });
+    }
 
     return { valid: true, apiKeyData };
   }

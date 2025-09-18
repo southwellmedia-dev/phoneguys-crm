@@ -6,8 +6,8 @@ type ApiKeyInsert = Database['public']['Tables']['api_keys']['Insert'];
 type ApiKeyUpdate = Database['public']['Tables']['api_keys']['Update'];
 
 export class ApiKeysRepository extends BaseRepository<ApiKey> {
-  constructor(useServiceRole = false) {
-    super('api_keys', useServiceRole);
+  constructor(useServiceRole = false, usePublicClient = false) {
+    super('api_keys', useServiceRole, usePublicClient);
   }
 
   async findAll() {

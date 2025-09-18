@@ -293,6 +293,43 @@ export class RepairOrderService {
     const customer = await this.customerRepo.findById(ticket.customer_id);
     if (!customer) return;
 
+    // Get the ticket notification service and send actual emails/SMS
+    try {
+      const { getTicketNotificationService } = await import('./ticket-notifications.service');
+      const notificationService = getTicketNotificationService();
+
+      // Get full ticket data with device info
+      const fullTicket = await this.ticketRepo.findById(ticket.id);
+      
+      // Get device details if available
+      let device = null;
+      if (fullTicket.device_id) {
+        const { DeviceRepository } = require('@/lib/repositories');
+        const { RepositoryManager } = require('@/lib/repositories/repository-manager');
+        const deviceRepo = RepositoryManager.get(DeviceRepository, this.useServiceRole);
+        device = await deviceRepo.findById(fullTicket.device_id);
+      }
+
+      // Send status update notifications
+      const result = await notificationService.sendStatusUpdateNotifications({
+        ticket: fullTicket,
+        customer: customer,
+        device: device,
+        previousStatus: ticket.status,
+        newStatus: newStatus,
+        totalCost: newStatus === 'completed' ? fullTicket.total_cost : undefined,
+        completionNotes: fullTicket.completion_notes,
+        holdReason: newStatus === 'on_hold' ? fullTicket.hold_reason : undefined,
+        cancellationReason: newStatus === 'cancelled' ? fullTicket.cancellation_reason : undefined
+      });
+
+      console.log('✅ Status update notifications sent:', result);
+    } catch (error) {
+      console.error('❌ Failed to send status update notifications:', error);
+      // Don't fail the status update if notifications fail
+    }
+
+    // Still create the notification record in the database for tracking
     let subject = `Repair Status Update - ${ticket.ticket_number}`;
     let content = '';
 

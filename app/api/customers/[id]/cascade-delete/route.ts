@@ -213,7 +213,36 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       stepNames.push('ticket_notes');
     }
 
-    // 3. Delete repair tickets first (since they reference appointments via appointment_id)
+    // 2b. Delete ticket services (if there are tickets)
+    if (ticketIdList.length > 0) {
+      deletionSteps.push(
+        supabase.from('ticket_services').delete().in('ticket_id', ticketIdList)
+      );
+      stepNames.push('ticket_services');
+    }
+
+    // 2c. Delete notifications related to tickets
+    if (ticketIdList.length > 0) {
+      deletionSteps.push(
+        supabase.from('notifications').delete().in('ticket_id', ticketIdList)
+      );
+      stepNames.push('ticket_notifications');
+    }
+
+    // 3. Clear the converted_to_ticket_id references in appointments
+    // This must be done before deleting repair tickets
+    if (ticketIdList.length > 0) {
+      deletionSteps.push(
+        supabase
+          .from('appointments')
+          .update({ converted_to_ticket_id: null })
+          .in('converted_to_ticket_id', ticketIdList)
+          .select()
+      );
+      stepNames.push('clear_appointment_ticket_refs');
+    }
+
+    // 4. Now we can safely delete repair tickets
     if (ticketIdList.length > 0) {
       deletionSteps.push(
         supabase.from('repair_tickets').delete().eq('customer_id', customerId).select()
@@ -221,25 +250,25 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       stepNames.push('repair_tickets');
     }
 
-    // 4. Delete ALL appointments for this customer (after tickets are deleted)
+    // 5. Delete ALL appointments for this customer
     deletionSteps.push(
       supabase.from('appointments').delete().eq('customer_id', customerId).select()
     );
     stepNames.push('appointments');
 
-    // 5. Delete customer_devices (the junction table)
+    // 6. Delete customer_devices (the junction table)
     deletionSteps.push(
       supabase.from('customer_devices').delete().eq('customer_id', customerId).select()
     );
     stepNames.push('customer_devices');
 
-    // 6. Delete notification preferences for this customer
+    // 7. Delete notification preferences for this customer
     deletionSteps.push(
       supabase.from('notification_preferences').delete().eq('customer_id', customerId).select()
     );
     stepNames.push('notification_preferences');
 
-    // 7. Delete any comments related to customer entities
+    // 8. Delete any comments related to customer entities
     deletionSteps.push(
       supabase.from('comments').delete().eq('entity_type', 'customer').eq('entity_id', customerId).select()
     );

@@ -486,8 +486,9 @@ export class AppointmentService {
 
     // Send customer notifications for appointment conversion to ticket
     try {
-      const { getAppointmentNotificationService } = await import('./appointment-notifications.service');
-      const notificationService = getAppointmentNotificationService();
+      // Use the ticket notification service for conversion notifications
+      const { getTicketNotificationService } = await import('./ticket-notifications.service');
+      const ticketNotificationService = getTicketNotificationService();
 
       // Get full appointment data with relationships
       const fullAppointment = await this.appointmentRepo.findById(appointmentId);
@@ -503,14 +504,13 @@ export class AppointmentService {
                 .join(' ')
             ) : ['General Diagnosis'];
 
-        // Send conversion notifications
-        await notificationService.sendAppointmentToTicketNotifications({
-          appointment: fullAppointment,
+        // Send ticket creation notifications
+        await ticketNotificationService.sendTicketCreatedNotifications({
+          ticket: ticket,
           customer: fullAppointment.customers,
           device: fullAppointment.devices,
-          issues: formattedIssues,
-          ticket: ticket,
-          convertedBy: ticket.created_by
+          appointment: fullAppointment,
+          issues: formattedIssues
         });
 
         console.log('✅ Appointment to ticket conversion notifications sent');

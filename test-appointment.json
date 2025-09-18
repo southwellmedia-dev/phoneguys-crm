@@ -5,12 +5,19 @@
     "phone": "1234567890"
   },
   "device": {
-    "deviceId": "9255349c-0287-4987-a931-210520d556fd",
+    "deviceId": "3813aef0-341c-4555-a57b-79aaf1c60ae6",
+    "color": "Black",
+    "storageSize": "128GB",
     "condition": "good"
   },
-  "issues": ["Screen Repair"],
-  "appointmentDate": "2025-09-15",
+  "issues": ["screen_repair"],
+  "issueDescription": "Screen is cracked",
+  "appointmentDate": "2025-01-20",
   "appointmentTime": "10:00",
   "duration": 30,
+  "consent": {
+    "email": true,
+    "sms": true
+  },
   "source": "website"
 }

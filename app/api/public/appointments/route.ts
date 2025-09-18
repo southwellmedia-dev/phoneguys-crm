@@ -232,24 +232,34 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Convert service IDs to service names for the issues field
+    // Convert service categories to service IDs and names
     let issueNames: string[] = [];
+    let serviceIds: string[] = [];
+    
     if (data.issues && data.issues.length > 0) {
-      // Fetch service names from the services table
+      // data.issues contains category names like ["screen_repair", "battery_replacement"]
+      // We need to look up the services by category
       const { data: services, error: servicesError } = await publicClient
         .from('services')
-        .select('id, name')
-        .in('id', data.issues);
+        .select('id, name, category')
+        .in('category', data.issues);
       
       if (servicesError) {
         console.error('Error fetching services:', servicesError);
-        // Fall back to using the IDs if we can't fetch names
+        // Fall back to using the categories as issue names
         issueNames = data.issues;
-      } else if (services) {
-        // Convert service names to snake_case format for consistency
+        serviceIds = [];
+      } else if (services && services.length > 0) {
+        // Extract service IDs for the service_ids column
+        serviceIds = services.map(service => service.id);
+        // Convert service names to snake_case format for the issues column
         issueNames = services.map(service => 
           service.name.toLowerCase().replace(/\s+/g, '_')
         );
+      } else {
+        // No matching services found, use the categories as issue names
+        issueNames = data.issues;
+        serviceIds = [];
       }
     }
 
@@ -300,8 +310,8 @@ export async function POST(request: NextRequest) {
       scheduled_date: data.appointmentDate,
       scheduled_time: normalizedTime,
       duration_minutes: data.duration || 30,
-      issues: issueNames.length > 0 ? issueNames : null, // Use service names instead of IDs
-      service_ids: data.issues || null, // Store the actual service IDs separately if needed
+      issues: issueNames.length > 0 ? issueNames : null, // Use service names/categories
+      service_ids: serviceIds.length > 0 ? serviceIds : null, // Use actual service UUIDs
       description: data.issueDescription || null,
       source: 'website', // This must be 'website' for RLS policy
       urgency: 'scheduled',
@@ -309,15 +319,24 @@ export async function POST(request: NextRequest) {
       status: 'scheduled'
     };
     
+    // Log appointment data before insertion for debugging
+    console.log('📝 Attempting to create appointment with data:', JSON.stringify(appointmentData, null, 2));
+    
     // Insert the appointment using the same client that created the customer
     const { data: appointment, error: appointmentError } = await publicClient
       .from('appointments')
       .insert(appointmentData)
-      .select()
+      .select('id, appointment_number, status, scheduled_date, scheduled_time')
       .single();
 
     if (appointmentError) {
-      console.error('Appointment creation error:', appointmentError.message);
+      console.error('❌ Appointment creation error:', {
+        message: appointmentError.message,
+        details: appointmentError.details,
+        hint: appointmentError.hint,
+        code: appointmentError.code,
+        appointmentData
+      });
       throw new Error(`Failed to create appointment: ${appointmentError.message}`);
     }
 
@@ -573,40 +592,63 @@ export async function GET(request: NextRequest) {
     const appointmentNumber = searchParams.get('appointmentNumber');
     const debug = searchParams.get('debug');
     
-    // Debug mode - run RLS diagnostics
+    // Debug mode - test table structure and permissions
     if (debug === 'true') {
       const publicClient = createPublicClient();
       
-      // Run the diagnostic function
-      const { data: diagnostic, error: diagError } = await publicClient
-        .rpc('debug_appointment_insert', {
-          p_customer_id: 'a462e5b4-76e7-4762-9bbd-bdcad2963f46',
-          p_device_id: '3813aef0-341c-4555-a57b-79aaf1c60ae6',
-          p_customer_device_id: 'eae34363-535b-499d-98b4-51007a738bed',
-          p_scheduled_date: '2025-01-15',
-          p_scheduled_time: '10:00',
-          p_source: 'website'
-        });
+      // Test 1: Check if we can query appointments table
+      const { data: testQuery, error: queryError } = await publicClient
+        .from('appointments')
+        .select('id')
+        .limit(1);
       
-      if (diagError) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Diagnostic failed',
-            details: diagError
-          },
-          { 
-            status: 500,
-            headers: corsHeaders
-          }
-        );
-      }
+      // Test 2: Get table columns
+      const { data: columns, error: columnsError } = await publicClient
+        .rpc('get_table_columns', { table_name: 'appointments' })
+        .catch(() => ({ data: null, error: 'Function not available' }));
+      
+      // Test 3: Try a minimal insert (will likely fail but shows the error)
+      const testData = {
+        customer_id: '00000000-0000-0000-0000-000000000000',
+        scheduled_date: '2025-01-20',
+        scheduled_time: '10:00',
+        duration_minutes: 30,
+        status: 'scheduled',
+        source: 'website'
+      };
+      
+      const { data: testInsert, error: insertError } = await publicClient
+        .from('appointments')
+        .insert(testData)
+        .select()
+        .single();
       
       return NextResponse.json(
         {
           success: true,
-          diagnostic: diagnostic,
-          message: 'Diagnostic results - check the diagnostic object for details'
+          debug: {
+            canQuery: !queryError,
+            queryError: queryError ? {
+              message: queryError.message,
+              details: queryError.details,
+              hint: queryError.hint,
+              code: queryError.code
+            } : null,
+            columns: columns || 'Could not fetch columns',
+            columnsError,
+            testInsert: {
+              success: !insertError,
+              data: testInsert,
+              error: insertError ? {
+                message: insertError.message,
+                details: insertError.details,
+                hint: insertError.hint,
+                code: insertError.code
+              } : null,
+              testData
+            }
+          },
+          message: 'Debug information - check the debug object for details'
         },
         { headers: corsHeaders }
       );

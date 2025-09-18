@@ -21,8 +21,7 @@ BEGIN
     -- Notify all admins and staff about new appointment
     FOR v_admin IN 
         SELECT id FROM public.users 
-        WHERE role IN ('admin', 'staff', 'technician') 
-          AND is_active = true
+        WHERE role IN ('admin', 'staff', 'technician')
     LOOP
         INSERT INTO public.notifications (
             user_id,

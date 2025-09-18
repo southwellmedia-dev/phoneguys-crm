@@ -110,14 +110,30 @@ export async function POST(request: NextRequest) {
     // Get request data
     const body = await request.json();
     
+    console.log('[Public Appointments] Request body:', {
+      hasCustomer: !!body.customer,
+      hasDevice: !!body.device,
+      hasIssues: !!body.issues,
+      appointmentDate: body.appointmentDate,
+      appointmentTime: body.appointmentTime,
+      bodyKeys: Object.keys(body)
+    });
+    
     // Validate input
     const validation = publicAppointmentSchema.safeParse(body);
     if (!validation.success) {
+      const errors = validation.error.flatten();
+      console.log('[Public Appointments] Validation failed:', {
+        fieldErrors: errors.fieldErrors,
+        formErrors: errors.formErrors,
+        issues: validation.error.issues
+      });
+      
       return NextResponse.json(
         {
           success: false,
           error: 'Validation failed',
-          details: validation.error.flatten()
+          details: errors
         },
         { 
           status: 400,

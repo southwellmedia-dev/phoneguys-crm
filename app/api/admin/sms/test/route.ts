@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission, handleApiError, successResponse } from '@/lib/auth/helpers';
 import { Permission } from '@/lib/services/authorization.service';
-import { getSMSService } from '@/lib/services/sms.service';
+import { TwilioService } from '@/lib/services/sms/twilio.service';
 import { z } from 'zod';
 
 const testSMSSchema = z.object({
@@ -28,17 +28,20 @@ export async function POST(request: NextRequest) {
     const { phoneNumber } = validation.data;
     
     // Get SMS service
-    const smsService = getSMSService();
+    const smsService = TwilioService.getInstance();
     
-    if (!smsService.isReady()) {
+    if (!smsService.isInitialized()) {
       return NextResponse.json(
         { error: 'SMS service is not configured. Please check your Twilio credentials.' },
         { status: 503 }
       );
     }
 
-    // Test SMS configuration
-    const result = await smsService.testConfiguration(phoneNumber);
+    // Send test SMS
+    const result = await smsService.sendSMS({
+      to: phoneNumber,
+      body: 'Test message from The Phone Guys CRM - SMS integration is working!'
+    });
     
     if (result.success) {
       return successResponse(

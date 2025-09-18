@@ -132,6 +132,13 @@ export class TwilioService {
   }
 
   /**
+   * Check if service is initialized
+   */
+  isInitialized(): boolean {
+    return this.initialized;
+  }
+
+  /**
    * Send SMS via Twilio
    */
   async sendSMS(options: TwilioSMSOptions): Promise<TwilioResponse> {

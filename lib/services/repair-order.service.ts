@@ -17,6 +17,16 @@ export class RepairOrderService {
     this.useServiceRole = useServiceRole;
   }
 
+  async getRepairOrder(ticketId: string): Promise<RepairTicket | null> {
+    try {
+      const ticket = await this.ticketRepo.findByIdWithRelations(ticketId);
+      return ticket;
+    } catch (error) {
+      console.error('Error getting repair order:', error);
+      return null;
+    }
+  }
+
   // Lazy load repositories using singleton manager
   private get ticketRepo() {
     return getRepository.tickets(this.useServiceRole);
@@ -289,7 +299,7 @@ export class RepairOrderService {
     await this.notificationRepo.createNotification(notification);
   }
 
-  private async createStatusUpdateNotification(ticket: RepairTicket, newStatus: TicketStatus): Promise<void> {
+  async createStatusUpdateNotification(ticket: RepairTicket, newStatus: TicketStatus): Promise<void> {
     const customer = await this.customerRepo.findById(ticket.customer_id);
     if (!customer) return;
 

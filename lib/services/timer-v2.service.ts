@@ -154,14 +154,39 @@ export class TimerServiceV2 {
       const fullTimer = await this.getTicketTimer(ticketId);
 
       // Update ticket status to in_progress if needed
-      await this.supabase
+      // Check if ticket is currently 'new'
+      const { data: ticket } = await this.supabase
         .from('repair_tickets')
-        .update({ 
-          status: 'in_progress',
-          updated_at: new Date().toISOString(),
-        })
+        .select('status, customer_id')
         .eq('id', ticketId)
-        .eq('status', 'new');
+        .single();
+      
+      if (ticket?.status === 'new') {
+        // Update status
+        await this.supabase
+          .from('repair_tickets')
+          .update({ 
+            status: 'in_progress',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', ticketId);
+        
+        // Trigger notifications for status change
+        try {
+          const { RepairOrderService } = await import('./repair-order.service');
+          const repairService = new RepairOrderService(true);
+          
+          // Get the full ticket data
+          const fullTicket = await repairService.getRepairOrder(ticketId);
+          if (fullTicket) {
+            // This will trigger the notification
+            await repairService.createStatusUpdateNotification(fullTicket, 'in_progress');
+          }
+        } catch (error) {
+          console.error('Failed to send status update notification:', error);
+          // Don't fail the timer start if notification fails
+        }
+      }
 
       return {
         success: true,

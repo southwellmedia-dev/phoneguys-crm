@@ -66,8 +66,8 @@ async function updateStatus(request: NextRequest, params: RouteParams) {
       );
     }
 
-    // Get updated ticket for notification (it's already returned from update)
-    const ticket = updatedTicket;
+    // Get updated ticket with full relationships for notification
+    const ticket = await repairService.getRepairOrder(ticketId);
 
     if (ticket) {
       // Send SMS/email notifications - skip for reopening to avoid spam

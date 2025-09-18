@@ -38,6 +38,26 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
     return this.findAll({ assigned_to: userId });
   }
 
+  async findByIdWithRelations(id: string): Promise<RepairTicket | null> {
+    const client = await this.getClient();
+    const { data, error } = await client
+      .from(this.tableName)
+      .select(`
+        *,
+        customers:customer_id (*),
+        devices:device_id (*),
+        assigned_user:assigned_to (id, email, full_name, username)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw new Error(`Failed to fetch repair ticket with relations: ${error.message}`);
+    }
+
+    return data as RepairTicket | null;
+  }
+
   async searchTickets(filters: RepairTicketFilters): Promise<RepairTicket[]> {
     const client = await this.getClient();
     let query = client.from(this.tableName).select('*');

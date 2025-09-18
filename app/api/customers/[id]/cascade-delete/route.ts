@@ -213,19 +213,15 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       stepNames.push('ticket_notes');
     }
 
-    // 3. Clear appointment references to tickets (if any appointments are converted)
+    // 3. Delete repair tickets first (since they reference appointments via appointment_id)
     if (ticketIdList.length > 0) {
       deletionSteps.push(
-        supabase
-          .from('appointments')
-          .update({ converted_to_ticket_id: null })
-          .in('converted_to_ticket_id', ticketIdList)
-          .select()
+        supabase.from('repair_tickets').delete().eq('customer_id', customerId).select()
       );
-      stepNames.push('clear_appointment_ticket_refs');
+      stepNames.push('repair_tickets');
     }
 
-    // 4. Delete ALL appointments for this customer (whether they have tickets or not)
+    // 4. Delete ALL appointments for this customer (after tickets are deleted)
     deletionSteps.push(
       supabase.from('appointments').delete().eq('customer_id', customerId).select()
     );
@@ -237,11 +233,17 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     );
     stepNames.push('customer_devices');
 
-    // 6. Delete repair tickets
+    // 6. Delete notification preferences for this customer
     deletionSteps.push(
-      supabase.from('repair_tickets').delete().eq('customer_id', customerId).select()
+      supabase.from('notification_preferences').delete().eq('customer_id', customerId).select()
     );
-    stepNames.push('repair_tickets');
+    stepNames.push('notification_preferences');
+
+    // 7. Delete any comments related to customer entities
+    deletionSteps.push(
+      supabase.from('comments').delete().eq('entity_type', 'customer').eq('entity_id', customerId).select()
+    );
+    stepNames.push('customer_comments');
 
     // Execute all deletions
     console.log(`Starting cascade deletion for customer ${customerId}`);
@@ -285,7 +287,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     
     console.log('All related data deleted successfully');
 
-    // 7. Finally, delete the customer
+    // 8. Finally, delete the customer
     const { data: deletedCustomer, error: deleteError } = await supabase
       .from('customers')
       .delete()

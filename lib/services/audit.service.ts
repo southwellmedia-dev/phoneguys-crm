@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import { NextRequest } from 'next/server';
 import { SupabaseClient } from '@supabase/supabase-js';
 
@@ -55,6 +56,7 @@ export interface SecurityEventLog {
 export class AuditService {
   private static instance: AuditService;
   private supabase: SupabaseClient | null = null;
+  private serviceClient: SupabaseClient | null = null;
 
   private constructor() {}
 
@@ -66,11 +68,14 @@ export class AuditService {
   }
 
   /**
-   * Initialize with Supabase client (server-side)
+   * Initialize with Supabase clients (server-side)
    */
   public async initialize() {
     if (!this.supabase) {
       this.supabase = await createClient();
+    }
+    if (!this.serviceClient) {
+      this.serviceClient = createServiceClient();
     }
   }
 
@@ -104,12 +109,14 @@ export class AuditService {
 
   /**
    * Log API request to api_request_logs table
+   * Uses service client to bypass RLS policies
    */
   public async logAPIRequest(request: APIRequestLog): Promise<void> {
     try {
       await this.initialize();
       
-      const { error } = await this.supabase!
+      // Use service client to bypass RLS for logging operations
+      const { error } = await this.serviceClient!
         .from('api_request_logs')
         .insert({
           api_key_id: request.apiKeyId || null,
@@ -137,6 +144,7 @@ export class AuditService {
 
   /**
    * Log system event as user activity (for system-wide events)
+   * Uses service client to ensure system events can always be logged
    */
   public async logSystemEvent(event: SystemEventLog): Promise<void> {
     try {
@@ -158,7 +166,8 @@ export class AuditService {
         created_at: event.timestamp?.toISOString() || new Date().toISOString()
       };
 
-      const { error } = await this.supabase!
+      // Use service client for system events to ensure they're always logged
+      const { error } = await this.serviceClient!
         .from('user_activity_logs')
         .insert(logEntry);
 

@@ -178,53 +178,27 @@ export async function POST(request: NextRequest) {
     // Store consent preferences if provided
     if (data.consent && customer) {
       try {
-        // Check if preferences already exist for this customer
-        const { data: existingPrefs } = await publicClient
+        // Use upsert to handle duplicates gracefully
+        const { error: prefError } = await publicClient
           .from('notification_preferences')
-          .select('id')
-          .eq('customer_id', customer.id)
-          .single();
+          .upsert({
+            customer_id: customer.id,
+            email_enabled: data.consent.email ?? true,
+            sms_enabled: data.consent.sms ?? true,
+            email_address: customer.email,
+            phone_number: customer.phone,
+            consent_given_at: data.consent.consent_given_at || new Date().toISOString(),
+            consent_ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'customer_id',
+            ignoreDuplicates: false
+          });
         
-        if (!existingPrefs) {
-          // Create new preferences record
-          const { error: prefError } = await publicClient
-            .from('notification_preferences')
-            .insert({
-              customer_id: customer.id,
-              email_enabled: data.consent.email ?? true,
-              sms_enabled: data.consent.sms ?? true,
-              email_address: customer.email,
-              phone_number: customer.phone,
-              consent_given_at: data.consent.consent_given_at || new Date().toISOString(),
-              consent_ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
-              created_at: new Date().toISOString()
-            });
-          
-          if (prefError) {
-            console.error('Failed to store consent preferences:', prefError);
-          } else {
-            console.log('✅ Consent preferences stored for customer:', customer.id);
-          }
+        if (prefError) {
+          console.error('Failed to store consent preferences:', prefError);
         } else {
-          // Update existing preferences
-          const { error: updateError } = await publicClient
-            .from('notification_preferences')
-            .update({
-              email_enabled: data.consent.email ?? true,
-              sms_enabled: data.consent.sms ?? true,
-              email_address: customer.email,
-              phone_number: customer.phone,
-              consent_given_at: data.consent.consent_given_at || new Date().toISOString(),
-              consent_ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
-              updated_at: new Date().toISOString()
-            })
-            .eq('customer_id', customer.id);
-          
-          if (updateError) {
-            console.error('Failed to update consent preferences:', updateError);
-          } else {
-            console.log('✅ Consent preferences updated for customer:', customer.id);
-          }
+          console.log('✅ Consent preferences stored/updated for customer:', customer.id);
         }
       } catch (error) {
         console.error('Error handling consent preferences:', error);
@@ -266,19 +240,24 @@ export async function POST(request: NextRequest) {
     // Create or find customer device
     let customerDevice = null;
     
-    // Check if customer already has this device
-    // Use findAll with filters instead of findByCustomer to avoid bundling issues
+    // Check if customer already has this device using serial number or IMEI
     const existingDevices = await customerDeviceRepo.findAll({ 
       customer_id: customer.id,
       is_active: true 
     });
+    
+    // First check by device_id and serial_number/IMEI combination
     customerDevice = existingDevices.find(d => 
       d.device_id === data.device.deviceId &&
-      (!data.device.serialNumber || d.serial_number === data.device.serialNumber)
+      (
+        (data.device.serialNumber && d.serial_number === data.device.serialNumber) ||
+        (data.device.imei && d.imei === data.device.imei) ||
+        (!data.device.serialNumber && !data.device.imei) // No unique identifiers
+      )
     );
     
     if (!customerDevice) {
-      // Create new customer device
+      // Create new customer device with upsert to handle race conditions
       const customerDeviceData = {
         customer_id: customer.id,
         device_id: data.device.deviceId,
@@ -288,18 +267,86 @@ export async function POST(request: NextRequest) {
         storage_size: data.device.storageSize || null,
         condition: data.device.condition || null,
         is_primary: existingDevices.length === 0, // First device is primary
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
       
       console.log('📱 Creating customer device with data:', JSON.stringify(customerDeviceData, null, 2));
       
       try {
-        customerDevice = await customerDeviceRepo.create(customerDeviceData);
-        console.log('✅ Customer device created:', customerDevice);
+        // Try to create the customer device first
+        const { data: deviceResult, error: deviceError } = await publicClient
+          .from('customer_devices')
+          .insert(customerDeviceData)
+          .select()
+          .single();
+        
+        if (deviceError) {
+          // Check if it's a duplicate error for serial number or IMEI
+          if (deviceError.code === '23505' && 
+              (deviceError.message.includes('unique_customer_serial') || 
+               deviceError.message.includes('unique_customer_imei'))) {
+            
+            console.log('Device already exists, finding existing device...');
+            
+            // Find the existing device by customer_id and either serial_number or IMEI
+            let query = publicClient
+              .from('customer_devices')
+              .select('*')
+              .eq('customer_id', customer.id)
+              .eq('device_id', data.device.deviceId);
+            
+            if (data.device.serialNumber) {
+              query = query.eq('serial_number', data.device.serialNumber);
+            } else if (data.device.imei) {
+              query = query.eq('imei', data.device.imei);
+            }
+            
+            const { data: existingDevice } = await query.single();
+            
+            if (existingDevice) {
+              customerDevice = existingDevice;
+              console.log('✅ Found existing customer device:', customerDevice.id);
+              
+              // Update the existing device with any new information
+              const updateData: any = {
+                updated_at: new Date().toISOString()
+              };
+              
+              if (data.device.color && !existingDevice.color) {
+                updateData.color = data.device.color;
+              }
+              if (data.device.storageSize && !existingDevice.storage_size) {
+                updateData.storage_size = data.device.storageSize;
+              }
+              if (data.device.condition && !existingDevice.condition) {
+                updateData.condition = data.device.condition;
+              }
+              
+              if (Object.keys(updateData).length > 1) { // More than just updated_at
+                await publicClient
+                  .from('customer_devices')
+                  .update(updateData)
+                  .eq('id', existingDevice.id);
+                
+                console.log('✅ Updated existing customer device with new info');
+              }
+            } else {
+              throw new Error(`Device exists but could not be found: ${deviceError.message}`);
+            }
+          } else {
+            throw new Error(`Failed to create customer device: ${deviceError.message}`);
+          }
+        } else {
+          customerDevice = deviceResult;
+          console.log('✅ Customer device created:', customerDevice.id);
+        }
       } catch (error) {
         console.error('❌ Failed to create customer device:', error);
         throw error;
       }
+    } else {
+      console.log('✅ Using existing customer device:', customerDevice.id);
     }
 
     // Create appointment with the customer device FIRST

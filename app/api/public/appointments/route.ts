@@ -247,21 +247,36 @@ export async function POST(request: NextRequest) {
       const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
       
       // Clean and validate UUIDs (remove any extra characters)
-      const cleanedIssues = data.issues.map((issue: string) => {
-        // First, try standard UUID pattern
-        const standardMatch = issue.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-        if (standardMatch) {
-          console.log(`✅ Valid UUID found: "${standardMatch[0]}"`);
-          return standardMatch[0];
+      const cleanedIssues = data.issues.flatMap((issue: string) => {
+        // First, check for concatenated UUIDs (multiple UUIDs stuck together)
+        // This handles cases where the external form concatenates service IDs
+        const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+        const allMatches = issue.match(uuidPattern);
+        
+        if (allMatches && allMatches.length > 1) {
+          console.log(`🔄 Found ${allMatches.length} concatenated UUIDs in "${issue}"`);
+          allMatches.forEach(uuid => console.log(`  - Extracted: ${uuid}`));
+          return allMatches;
         }
         
-        // Handle malformed UUIDs with missing or extra characters
-        // Extract hex segments and try to reconstruct
-        const hexPattern = /([0-9a-f]{8})[^0-9a-f]*([0-9a-f]{4})[^0-9a-f]*([0-9a-f]{4})[^0-9a-f]*([0-9a-f]{4})[^0-9a-f]*([0-9a-f]{12})/i;
-        const malformedMatch = issue.match(hexPattern);
-        if (malformedMatch) {
-          const reconstructed = `${malformedMatch[1]}-${malformedMatch[2]}-${malformedMatch[3]}-${malformedMatch[4]}-${malformedMatch[5]}`;
-          console.log(`🔧 Reconstructed UUID from malformed "${issue}" to "${reconstructed}"`);
+        // Single UUID match
+        if (allMatches && allMatches.length === 1) {
+          console.log(`✅ Valid UUID found: "${allMatches[0]}"`);
+          return allMatches[0];
+        }
+        
+        // Handle malformed UUIDs with missing dashes
+        // Look for 32 hex characters that might be a UUID without dashes
+        const hexOnly = issue.replace(/[^0-9a-f]/gi, '');
+        if (hexOnly.length === 32) {
+          const reconstructed = [
+            hexOnly.slice(0, 8),
+            hexOnly.slice(8, 12),
+            hexOnly.slice(12, 16),
+            hexOnly.slice(16, 20),
+            hexOnly.slice(20, 32)
+          ].join('-');
+          console.log(`🔧 Reconstructed UUID from hex string "${issue}" to "${reconstructed}"`);
           return reconstructed;
         }
         

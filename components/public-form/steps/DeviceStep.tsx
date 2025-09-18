@@ -50,7 +50,7 @@ export function DeviceStep({ devices, selectedDevice, onUpdate }: DeviceStepProp
   const manufacturers = Object.keys(devicesByManufacturer).sort();
 
   // Filter devices based on search
-  const filteredDevices = useMemo(() => {
+  const { filteredDevices, totalCount } = useMemo(() => {
     let filtered = devices;
     
     if (selectedManufacturer) {
@@ -65,7 +65,11 @@ export function DeviceStep({ devices, selectedDevice, onUpdate }: DeviceStepProp
       );
     }
     
-    return filtered.slice(0, 20); // Limit to 20 results
+    const total = filtered.length;
+    return { 
+      filteredDevices: filtered.slice(0, 30), // Limit to 30 results for better selection
+      totalCount: total
+    };
   }, [devices, searchQuery, selectedManufacturer, devicesByManufacturer]);
 
   const handleDeviceSelect = (device: Device) => {
@@ -103,9 +107,9 @@ export function DeviceStep({ devices, selectedDevice, onUpdate }: DeviceStepProp
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold mb-2">Select Your Device</h2>
-        <p className="text-gray-600">Choose your device model to get started</p>
+      <div className="mb-6">
+        <h2 className="text-xl font-bold mb-1">Select Your Device</h2>
+        <p className="text-sm text-gray-600">Choose your device model to get started</p>
       </div>
 
       {/* Search Bar */}
@@ -152,8 +156,9 @@ export function DeviceStep({ devices, selectedDevice, onUpdate }: DeviceStepProp
       </div>
 
       {/* Device Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto">
-        {filteredDevices.map((device) => (
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {filteredDevices.map((device) => (
           <Card
             key={device.id}
             className={cn(
@@ -184,6 +189,13 @@ export function DeviceStep({ devices, selectedDevice, onUpdate }: DeviceStepProp
             </CardContent>
           </Card>
         ))}
+        </div>
+        
+        {totalCount > 30 && (
+          <div className="text-center py-2 text-sm text-gray-500">
+            Showing 30 of {totalCount} devices. Use search to find your specific model.
+          </div>
+        )}
       </div>
 
       {/* Device Details (Optional) */}

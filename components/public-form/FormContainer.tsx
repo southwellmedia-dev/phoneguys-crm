@@ -305,14 +305,14 @@ export function FormContainer({
         ref={contentRef}
         className={cn(
           "relative",
-          embedded ? "h-[500px] overflow-y-auto" : "min-h-[400px]"
+          embedded ? "h-[520px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100" : "min-h-[400px]"
         )}>
         {loadingDevices || loadingServices ? (
           <div className="flex items-center justify-center h-[400px]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <div className={embedded ? "pb-4" : ""}>
+          <div className={embedded ? "pr-2" : ""}>
             {currentStep === 1 && (
               <DeviceStep
                 devices={devices}

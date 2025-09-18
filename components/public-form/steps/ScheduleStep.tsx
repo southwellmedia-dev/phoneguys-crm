@@ -14,10 +14,11 @@ interface ScheduleStepProps {
   selectedDate?: string;
   selectedTime?: string;
   apiBaseUrl: string;
+  apiKey?: string;
   onUpdate: (date: string, time: string) => void;
 }
 
-export function ScheduleStep({ selectedDate, selectedTime, apiBaseUrl, onUpdate }: ScheduleStepProps) {
+export function ScheduleStep({ selectedDate, selectedTime, apiBaseUrl, apiKey, onUpdate }: ScheduleStepProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   
   // Use the optimized availability hook
@@ -28,7 +29,7 @@ export function ScheduleStep({ selectedDate, selectedTime, apiBaseUrl, onUpdate 
     isLoadingDates,
     isLoadingSlots,
     selectDate: selectDateInHook,
-  } = useAvailabilityFlow(apiBaseUrl);
+  } = useAvailabilityFlow(apiBaseUrl, apiKey);
 
   // Sync external selection with hook
   useEffect(() => {

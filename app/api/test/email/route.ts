@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { EmailService } from '@/lib/services/email.service';
-import { SMSService } from '@/lib/services/sms.service';
+import { SendGridService } from '@/lib/services/email/sendgrid.service';
+import { TwilioService } from '@/lib/services/sms/twilio.service';
 import { appointmentConfirmationTemplate } from '@/lib/email-templates/appointment-confirmation';
 import { repairStatusUpdateTemplate } from '@/lib/email-templates/repair-status-update';
 import { SMS_TEMPLATES, processSMSTemplate } from '@/lib/templates/sms-templates';
@@ -23,7 +23,7 @@ export const GET = RateLimitedAPI.test(async (request: NextRequest) => {
       );
     }
 
-    const emailService = EmailService.getInstance();
+    const emailService = SendGridService.getInstance();
     let result;
 
     switch (type) {
@@ -159,10 +159,10 @@ export const POST = RateLimitedAPI.test(async (request: NextRequest) => {
         );
       }
 
-      const smsService = new SMSService();
+      const smsService = TwilioService.getInstance();
       
       // Check if SMS is configured
-      if (!smsService.isReady()) {
+      if (!smsService.isInitialized()) {
         return NextResponse.json({
           success: false,
           error: 'SMS service not configured',
@@ -196,7 +196,7 @@ export const POST = RateLimitedAPI.test(async (request: NextRequest) => {
 
       const result = await smsService.sendSMS({
         to,
-        message: smsMessage
+        body: smsMessage
       });
 
       if (result.success) {
@@ -227,7 +227,7 @@ export const POST = RateLimitedAPI.test(async (request: NextRequest) => {
       );
     }
 
-    const emailService = EmailService.getInstance();
+    const emailService = SendGridService.getInstance();
     const result = await emailService.sendEmail({
       to,
       subject,

@@ -3,10 +3,11 @@ import { CustomerRepository } from '../repositories/customer.repository';
 import { RepairTicketRepository } from '../repositories/repair-ticket.repository';
 import { Notification, CreateNotificationDto, NotificationType, NotificationStatus } from '../types/database.types';
 import { Customer, RepairTicket } from '../types/database.types';
-import { getSMSService, SMSMessage } from './sms.service';
+import { TwilioService } from './sms/twilio.service';
 import { processSMSTemplate, getSMSTemplateByStatus, SMSTemplateVariables } from '../templates/sms-templates';
 import { createServiceClient } from '../supabase/service';
 import { CustomerWithSMSPreferences, NotificationResult } from '../types/sms.types';
+import { SendGridService } from './email/sendgrid.service';
 
 // Email templates
 const EMAIL_TEMPLATES = {
@@ -250,9 +251,9 @@ export class NotificationService {
     newStatus: string,
     message?: string
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    const smsService = getSMSService();
+    const smsService = TwilioService.getInstance();
     
-    if (!smsService.isReady()) {
+    if (!smsService.isInitialized()) {
       throw new Error('SMS service not configured');
     }
 
@@ -286,7 +287,10 @@ export class NotificationService {
       message: processedTemplate.message
     };
 
-    const result = await smsService.sendSMS(smsMessage);
+    const result = await smsService.sendSMS({
+      to: customer.phone,
+      body: smsMessage.message
+    });
     
     // Log SMS notification to database
     await this.logSMSNotification(
@@ -680,8 +684,7 @@ export class NotificationService {
    */
   private async sendEmail(notification: Notification): Promise<void> {
     // Import EmailService
-    const { EmailService } = await import('./email.service');
-    const emailService = EmailService.getInstance();
+    const emailService = SendGridService.getInstance();
     
     // Send the email
     const result = await emailService.sendEmailWithRetry({

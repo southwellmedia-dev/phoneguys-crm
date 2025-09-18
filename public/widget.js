@@ -10,7 +10,7 @@
     fontFamily: script.dataset.fontFamily || 'system-ui, -apple-system, sans-serif',
     locale: script.dataset.locale || 'en-US',
     env: script.dataset.env || 'production',
-    baseUrl: script.dataset.baseUrl || 'https://yourcrm.com'
+    baseUrl: script.dataset.baseUrl || 'https://dashboard.phoneguysrepair.com'
   };
 
   // Widget styles

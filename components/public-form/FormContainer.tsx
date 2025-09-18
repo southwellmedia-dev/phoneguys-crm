@@ -57,9 +57,11 @@ export interface FormData {
 }
 
 interface FormContainerProps {
+  apiKey?: string;
   apiBaseUrl?: string;
   onSuccess?: (appointmentData: any) => void;
   onError?: (error: any) => void;
+  embedded?: boolean;
   className?: string;
 }
 
@@ -72,9 +74,11 @@ const STEPS = [
 ];
 
 export function FormContainer({
+  apiKey,
   apiBaseUrl = '/api/public',
   onSuccess,
   onError,
+  embedded = false,
   className
 }: FormContainerProps) {
   const [currentStep, setCurrentStep] = useState(1);
@@ -94,7 +98,7 @@ export function FormContainer({
   const [loadingServices, setLoadingServices] = useState(true);
   
   // Prefetch availability data when user reaches step 2
-  const { prefetchAvailability } = usePrefetchAvailability(apiBaseUrl);
+  const { prefetchAvailability } = usePrefetchAvailability(apiBaseUrl, apiKey);
 
   // Load devices and services on mount
   useEffect(() => {
@@ -112,7 +116,13 @@ export function FormContainer({
 
   const fetchDevices = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/devices`);
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      if (apiKey) {
+        headers['x-api-key'] = apiKey;
+      }
+      const response = await fetch(`${apiBaseUrl}/devices`, { headers });
       const data = await response.json();
       if (data.success) {
         setDevices(data.data.devices || []);
@@ -126,7 +136,13 @@ export function FormContainer({
 
   const fetchServices = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/services`);
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      if (apiKey) {
+        headers['x-api-key'] = apiKey;
+      }
+      const response = await fetch(`${apiBaseUrl}/services`, { headers });
       const data = await response.json();
       if (data.success) {
         setServices(data.data.services || []);
@@ -180,22 +196,32 @@ export function FormContainer({
 
     setIsSubmitting(true);
     try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      if (apiKey) {
+        headers['x-api-key'] = apiKey;
+      }
+      
       const response = await fetch(`${apiBaseUrl}/appointments`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(formData)
       });
 
       const result = await response.json();
 
       if (result.success) {
+        // Update formData with the appointment number from the response
+        setFormData(prev => ({
+          ...prev,
+          appointmentNumber: result.data.appointmentNumber
+        }));
         onSuccess?.(result.data);
         // Show success message and reset form
         setCurrentStep(STEPS.length + 1); // Show success state
       } else {
-        throw new Error(result.message || 'Failed to submit appointment');
+        throw new Error(result.message || result.error || 'Failed to submit appointment');
       }
     } catch (error) {
       console.error('Submission error:', error);
@@ -298,6 +324,7 @@ export function FormContainer({
                 selectedDate={formData.appointmentDate}
                 selectedTime={formData.appointmentTime}
                 apiBaseUrl={apiBaseUrl}
+                apiKey={apiKey}
                 onUpdate={(date, time) => 
                   updateFormData({ appointmentDate: date, appointmentTime: time })
                 }

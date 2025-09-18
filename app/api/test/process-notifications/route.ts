@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { EmailService } from '@/lib/services/email.service';
+import { SendGridService } from '@/lib/services/email/sendgrid.service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'No pending notifications' });
     }
     
-    const emailService = EmailService.getInstance();
+    const emailService = SendGridService.getInstance();
     const results = [];
     
     for (const notification of notifications) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSMSService } from '@/lib/services/sms.service';
+import { TwilioService } from '@/lib/services/sms/twilio.service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,10 +13,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Get SMS service instance (server-side only)
-    const smsService = getSMSService();
+    const smsService = TwilioService.getInstance();
+    
+    if (!smsService.isInitialized()) {
+      return NextResponse.json({
+        success: false,
+        error: 'SMS service is not configured. Please check your Twilio credentials.'
+      }, { status: 503 });
+    }
     
     // Test SMS
-    const result = await smsService.testSMS(phoneNumber);
+    const result = await smsService.sendSMS({
+      to: phoneNumber,
+      body: 'Test message from The Phone Guys CRM - SMS integration is working!'
+    });
     
     return NextResponse.json(result);
   } catch (error) {

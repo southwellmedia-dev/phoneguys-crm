@@ -40,6 +40,7 @@ import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { FormFieldWrapper, FormGrid } from '@/components/premium/ui/forms/form-field-wrapper';
 import { InputPremium } from '@/components/premium/ui/forms/input-premium';
 import { updateAppointmentDetails, convertAppointmentToTicket, cancelAppointment } from '../actions';
+import { createClient } from '@/lib/supabase/client';
 
 interface AppointmentAssistantProps {
   appointment: any;
@@ -139,6 +140,39 @@ export function AppointmentAssistant({
         ? prev.filter(id => id !== serviceId)
         : [...prev, serviceId]
     );
+  };
+
+  const handleSaveDeviceChanges = async () => {
+    if (!selectedCustomerDeviceId) return false;
+    
+    try {
+      const supabase = createClient();
+      
+      // Update the customer device record
+      const { error } = await supabase
+        .from('customer_devices')
+        .update({
+          serial_number: deviceData.serialNumber || null,
+          imei: deviceData.imei || null,
+          color: deviceData.color || null,
+          storage_size: deviceData.storageSize || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedCustomerDeviceId);
+      
+      if (error) {
+        console.error('Failed to update customer device:', error);
+        toast.error('Failed to update device information');
+        return false;
+      }
+      
+      toast.success('Device information updated successfully');
+      return true;
+    } catch (error) {
+      console.error('Error updating device:', error);
+      toast.error('Failed to update device information');
+      return false;
+    }
   };
 
   const handleSave = async () => {
@@ -531,12 +565,12 @@ export function AppointmentAssistant({
                           setIsEditingDevice(true);
                           setOriginalDeviceData({ ...deviceData });
                         }}
-                        className="text-sm font-medium text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 transition-colors flex items-center gap-1"
+                        className="p-1 rounded hover:bg-green-600/20 transition-colors"
+                        title="Edit device details"
                       >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-4 w-4 text-green-700 dark:text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
-                        Edit Details
                       </button>
                     </div>
                   </div>
@@ -548,9 +582,9 @@ export function AppointmentAssistant({
                       <div className="flex items-center gap-2 text-sm">
                         <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                         <span className="font-semibold text-amber-900 dark:text-amber-100">Editing device information</span>
-                        <span className="text-amber-700 dark:text-amber-300">• Changes will update the customer's saved device</span>
+                        <span className="text-amber-700 dark:text-amber-300">• Updates will be saved</span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => {
@@ -558,20 +592,25 @@ export function AppointmentAssistant({
                             setIsEditingDevice(false);
                             setOriginalDeviceData(null);
                           }}
-                          className="text-sm font-medium text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 transition-colors"
+                          className="p-1 rounded hover:bg-amber-600/20 transition-colors"
+                          title="Cancel changes"
                         >
-                          Cancel
+                          <XCircle className="h-4 w-4 text-amber-700 dark:text-amber-300" />
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            // Device data will be saved with the appointment
-                            setIsEditingDevice(false);
-                            setOriginalDeviceData(null);
+                          onClick={async () => {
+                            // Save the device changes to the database
+                            const saved = await handleSaveDeviceChanges();
+                            if (saved) {
+                              setIsEditingDevice(false);
+                              setOriginalDeviceData(null);
+                            }
                           }}
-                          className="text-sm font-medium bg-amber-600 text-white px-3 py-1 rounded hover:bg-amber-700 transition-colors"
+                          className="p-1 rounded hover:bg-amber-600/20 transition-colors"
+                          title="Save changes"
                         >
-                          Save Changes
+                          <CheckCircle className="h-4 w-4 text-amber-700 dark:text-amber-300" />
                         </button>
                       </div>
                     </div>

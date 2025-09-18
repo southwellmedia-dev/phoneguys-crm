@@ -7,6 +7,7 @@ import { useTicket, useUpdateTicketStatus, useStartTimer, useStopTimer, useClear
 import { useTimer } from "@/lib/contexts/timer-context";
 import { useRealtime } from "@/lib/hooks/use-realtime";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { PageContainer } from "@/components/layout/page-container";
 import { StatusBadge, RepairStatus } from "@/components/orders/status-badge";
 import { StatusChangeDialog } from "@/components/orders/status-change-dialog";
@@ -90,6 +91,7 @@ export function TicketDetailPremium({
   const [showAddDeviceDialog, setShowAddDeviceDialog] = useState(false);
   const [assignedTechId, setAssignedTechId] = useState(order.assigned_to || 'unassigned');
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
   
   // Timer context
   const { startTimer } = useTimer();
@@ -102,6 +104,45 @@ export function TicketDetailPremium({
       return date.toLocaleString();
     } catch {
       return '';
+    }
+  };
+
+  const handleDownloadInvoice = async () => {
+    console.log('Download invoice clicked - premium version');
+    setIsGeneratingInvoice(true);
+    try {
+      const response = await fetch(`/api/tickets/${orderId}/invoice?format=download`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/pdf',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Invoice generation failed:', errorText);
+        throw new Error('Failed to generate invoice');
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoice-${order.ticket_number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Invoice downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      toast.error('Failed to download invoice');
+    } finally {
+      setIsGeneratingInvoice(false);
     }
   };
 
@@ -277,10 +318,15 @@ export function TicketDetailPremium({
       onClick: () => console.log("Email customer"),
     },
     {
-      label: "Print Invoice",
-      icon: <Printer className="h-4 w-4" />,
+      label: isGeneratingInvoice ? "Generating..." : "Print Invoice",
+      icon: isGeneratingInvoice ? (
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+      ) : (
+        <Printer className="h-4 w-4" />
+      ),
       variant: "outline" as const,
-      onClick: () => console.log("Print invoice"),
+      onClick: handleDownloadInvoice,
+      disabled: isGeneratingInvoice,
     },
     {
       label: "Edit Order",

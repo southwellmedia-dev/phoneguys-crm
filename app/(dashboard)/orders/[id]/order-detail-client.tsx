@@ -219,7 +219,7 @@ export function OrderDetailClient({
     },
   ];
 
-  const headerActions = useMemo(() => [
+  const headerActions = [
     {
       label: "Back to Orders",
       href: "/orders",
@@ -256,7 +256,10 @@ export function OrderDetailClient({
         <Printer className="h-4 w-4" />
       ),
       variant: "outline" as const,
-      onClick: handleDownloadInvoice,
+      onClick: () => {
+        console.log("Print Invoice clicked");
+        handleDownloadInvoice();
+      },
       disabled: isGeneratingInvoice,
     },
     {
@@ -268,7 +271,7 @@ export function OrderDetailClient({
           ? ("outline" as const)
           : ("default" as const),
     },
-  ], [isGeneratingInvoice, order.status, orderId, handleDownloadInvoice, handleReopen]);
+  ];
 
   // Show skeleton during navigation or loading
   if (showSkeleton) {
@@ -286,14 +289,39 @@ export function OrderDetailClient({
       }
       actions={headerActions}
     >
-      {/* Test Invoice Button - TEMPORARY */}
-      <div className="mb-4">
+      {/* Debug Invoice Button */}
+      <div className="mb-4 flex gap-2">
         <Button
-          onClick={handleDownloadInvoice}
-          disabled={isGeneratingInvoice}
+          onClick={() => {
+            console.log("Direct button clicked");
+            window.location.href = `/api/tickets/${orderId}/invoice?format=download`;
+          }}
           variant="outline"
         >
-          {isGeneratingInvoice ? "Generating..." : "Test Download Invoice"}
+          Direct Download (href)
+        </Button>
+        <Button
+          onClick={async () => {
+            console.log("Fetch button clicked");
+            try {
+              const response = await fetch(`/api/tickets/${orderId}/invoice?format=download`);
+              console.log("Response:", response);
+              if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `invoice-${order.ticket_number}.pdf`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+              }
+            } catch (err) {
+              console.error("Error:", err);
+            }
+          }}
+          variant="outline"
+        >
+          Direct Download (fetch)
         </Button>
       </div>
 

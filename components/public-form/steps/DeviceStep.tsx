@@ -67,7 +67,7 @@ export function DeviceStep({ devices, selectedDevice, onUpdate }: DeviceStepProp
     
     const total = filtered.length;
     return { 
-      filteredDevices: filtered.slice(0, 30), // Limit to 30 results for better selection
+      filteredDevices: filtered.slice(0, 45), // Increased limit with wider layout
       totalCount: total
     };
   }, [devices, searchQuery, selectedManufacturer, devicesByManufacturer]);
@@ -157,7 +157,7 @@ export function DeviceStep({ devices, selectedDevice, onUpdate }: DeviceStepProp
 
       {/* Device Grid */}
       <div className="space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {filteredDevices.map((device) => (
           <Card
             key={device.id}
@@ -191,9 +191,9 @@ export function DeviceStep({ devices, selectedDevice, onUpdate }: DeviceStepProp
         ))}
         </div>
         
-        {totalCount > 30 && (
+        {totalCount > 45 && (
           <div className="text-center py-2 text-sm text-gray-500">
-            Showing 30 of {totalCount} devices. Use search to find your specific model.
+            Showing 45 of {totalCount} devices. Use search to find your specific model.
           </div>
         )}
       </div>

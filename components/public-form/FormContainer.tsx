@@ -244,7 +244,10 @@ export function FormContainer({
   // Success state
   if (currentStep > STEPS.length) {
     return (
-      <div className="text-center py-12">
+      <div className={cn(
+        "text-center py-12 w-full mx-auto",
+        embedded ? "max-w-4xl" : "max-w-2xl"
+      )}>
         <div className="mb-4">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
             <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -281,7 +284,11 @@ export function FormContainer({
   }
 
   return (
-    <div className={cn("w-full max-w-2xl mx-auto", className)}>
+    <div className={cn(
+      "w-full mx-auto", 
+      embedded ? "max-w-4xl" : "max-w-2xl",
+      className
+    )}>
       {/* Progress Bar */}
       <div className="mb-8">
         <Progress value={progress} className="h-2" />
@@ -305,7 +312,7 @@ export function FormContainer({
         ref={contentRef}
         className={cn(
           "relative",
-          embedded ? "h-[520px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100" : "min-h-[400px]"
+          embedded ? "h-[650px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100" : "min-h-[400px]"
         )}>
         {loadingDevices || loadingServices ? (
           <div className="flex items-center justify-center h-[400px]">

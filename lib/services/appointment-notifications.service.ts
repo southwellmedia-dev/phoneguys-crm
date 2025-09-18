@@ -19,9 +19,11 @@ export class AppointmentNotificationService {
   private supabase: any;
 
   constructor() {
+    console.log('🔄 Initializing AppointmentNotificationService...');
     this.emailService = SendGridService.getInstance();
     this.smsService = TwilioService.getInstance();
     this.supabase = createServiceClient();
+    console.log('✅ AppointmentNotificationService initialized');
   }
 
   /**

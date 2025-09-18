@@ -13,8 +13,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CheckCircle2 } from "lucide-react";
 
 export function LoginForm({
   className,
@@ -23,8 +25,22 @@ export function LoginForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // Check for success message in URL params
+    const message = searchParams.get('message');
+    if (message) {
+      setSuccessMessage(message);
+      // Clear the message from URL after displaying
+      const url = new URL(window.location.href);
+      url.searchParams.delete('message');
+      window.history.replaceState({}, '', url);
+    }
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +73,14 @@ export function LoginForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {successMessage && (
+            <Alert className="mb-4 border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
+              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <AlertDescription className="text-green-700 dark:text-green-300">
+                {successMessage}
+              </AlertDescription>
+            </Alert>
+          )}
           <form onSubmit={handleLogin}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">

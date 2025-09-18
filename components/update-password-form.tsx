@@ -66,8 +66,11 @@ export function UpdatePasswordForm({
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       
-      // Successfully updated password
-      router.push("/");
+      // Sign out and redirect to login with success message
+      await supabase.auth.signOut();
+      
+      // Successfully updated password - redirect to login
+      router.push("/auth/login?message=Password updated successfully. Please login with your new password.");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {

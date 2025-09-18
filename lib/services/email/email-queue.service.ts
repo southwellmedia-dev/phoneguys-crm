@@ -223,8 +223,8 @@ export class EmailQueueService {
 
     try {
       // Import email service dynamically to avoid circular dependency
-      const { EmailService } = await import('../email.service');
-      const emailService = EmailService.getInstance();
+      const { SendGridService } = await import('./sendgrid.service');
+      const emailService = SendGridService.getInstance();
 
       // Send email
       const result = await emailService.sendEmail({

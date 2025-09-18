@@ -92,6 +92,8 @@ export function AppointmentAssistant({
     : null;
     
   const [selectedCustomerDeviceId, setSelectedCustomerDeviceId] = useState(appointment.customer_device_id || null);
+  const [isEditingDevice, setIsEditingDevice] = useState(false);
+  const [originalDeviceData, setOriginalDeviceData] = useState(null);
   const [deviceData, setDeviceData] = useState({
     id: appointment.device_id || initialCustomerDevice?.device_id || '',
     serialNumber: initialCustomerDevice?.serial_number || appointment.customer_devices?.serial_number || '',
@@ -399,6 +401,21 @@ export function AppointmentAssistant({
                 <CardDescription>Select the device for repair</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* No device info message */}
+                {!deviceData.id && !selectedCustomerDeviceId && customerDevices.length === 0 && (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-amber-900 dark:text-amber-100">No device information provided</p>
+                        <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                          Please select a device model below to continue with the appointment.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Customer's Devices Grid */}
                 {customerDevices.length > 0 && (
                   <div className="space-y-2">
@@ -482,11 +499,11 @@ export function AppointmentAssistant({
                       setSelectedCustomerDeviceId(null);
                       setDeviceData({
                         id: deviceId,
-                        serialNumber: '',
-                        imei: '',
-                        color: '',
-                        storageSize: '',
-                        condition: 'good'
+                        serialNumber: deviceData.serialNumber || '', // Preserve existing data if editing
+                        imei: deviceData.imei || '',
+                        color: deviceData.color || '',
+                        storageSize: deviceData.storageSize || '',
+                        condition: deviceData.condition || 'good'
                       });
                     }
                   }}
@@ -500,61 +517,124 @@ export function AppointmentAssistant({
             {/* Device Details */}
             {(deviceData.id || selectedCustomerDeviceId) && (
               <>
-                {selectedCustomerDeviceId && (
+                {selectedCustomerDeviceId && !isEditingDevice && (
                   <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border-2 border-green-500 shadow-sm">
-                    <div className="flex items-center gap-2 text-sm">
-                      <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                      <span className="font-semibold text-green-900 dark:text-green-100">Using saved device information</span>
-                      <span className="text-green-700 dark:text-green-300">• Fields are pre-filled from customer's device</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        <span className="font-semibold text-green-900 dark:text-green-100">Using saved device information</span>
+                        <span className="text-green-700 dark:text-green-300">• Fields are pre-filled from customer's device</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingDevice(true);
+                          setOriginalDeviceData({ ...deviceData });
+                        }}
+                        className="text-sm font-medium text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 transition-colors flex items-center gap-1"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Edit Details
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {isEditingDevice && selectedCustomerDeviceId && (
+                  <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border-2 border-amber-500 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm">
+                        <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        <span className="font-semibold text-amber-900 dark:text-amber-100">Editing device information</span>
+                        <span className="text-amber-700 dark:text-amber-300">• Changes will update the customer's saved device</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeviceData(originalDeviceData);
+                            setIsEditingDevice(false);
+                            setOriginalDeviceData(null);
+                          }}
+                          className="text-sm font-medium text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Device data will be saved with the appointment
+                            setIsEditingDevice(false);
+                            setOriginalDeviceData(null);
+                          }}
+                          className="text-sm font-medium bg-amber-600 text-white px-3 py-1 rounded hover:bg-amber-700 transition-colors"
+                        >
+                          Save Changes
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
                 <FormGrid columns={2}>
                   <FormFieldWrapper
                     label="Serial Number"
-                    description={selectedCustomerDeviceId ? "From saved device" : "Device serial number"}
+                    description={
+                      isEditingDevice ? "Update the serial number" : 
+                      selectedCustomerDeviceId ? "From saved device" : "Device serial number"
+                    }
                   >
                     <InputPremium
                       value={deviceData.serialNumber}
-                      onChange={(e) => !selectedCustomerDeviceId && setDeviceData(prev => ({ ...prev, serialNumber: e.target.value }))}
+                      onChange={(e) => setDeviceData(prev => ({ ...prev, serialNumber: e.target.value }))}
                       placeholder="Enter serial number"
-                      disabled={!!selectedCustomerDeviceId}
+                      disabled={selectedCustomerDeviceId && !isEditingDevice}
                     />
                   </FormFieldWrapper>
 
                   <FormFieldWrapper
                     label="IMEI"
-                    description={selectedCustomerDeviceId ? "From saved device" : "Device IMEI number"}
+                    description={
+                      isEditingDevice ? "Update the IMEI number" :
+                      selectedCustomerDeviceId ? "From saved device" : "Device IMEI number"
+                    }
                   >
                     <InputPremium
                       value={deviceData.imei}
-                      onChange={(e) => !selectedCustomerDeviceId && setDeviceData(prev => ({ ...prev, imei: e.target.value }))}
+                      onChange={(e) => setDeviceData(prev => ({ ...prev, imei: e.target.value }))}
                       placeholder="Enter IMEI"
-                      disabled={!!selectedCustomerDeviceId}
+                      disabled={selectedCustomerDeviceId && !isEditingDevice}
                     />
                   </FormFieldWrapper>
 
                   <FormFieldWrapper
                     label="Color"
-                    description={selectedCustomerDeviceId ? "From saved device" : "Device color"}
+                    description={
+                      isEditingDevice ? "Update the device color" :
+                      selectedCustomerDeviceId ? "From saved device" : "Device color"
+                    }
                   >
                     <InputPremium
                       value={deviceData.color}
-                      onChange={(e) => !selectedCustomerDeviceId && setDeviceData(prev => ({ ...prev, color: e.target.value }))}
+                      onChange={(e) => setDeviceData(prev => ({ ...prev, color: e.target.value }))}
                       placeholder="e.g., Black, White, Blue"
-                      disabled={!!selectedCustomerDeviceId}
+                      disabled={selectedCustomerDeviceId && !isEditingDevice}
                     />
                   </FormFieldWrapper>
 
                   <FormFieldWrapper
                     label="Storage Size"
-                    description={selectedCustomerDeviceId ? "From saved device" : "Storage capacity"}
+                    description={
+                      isEditingDevice ? "Update the storage capacity" :
+                      selectedCustomerDeviceId ? "From saved device" : "Storage capacity"
+                    }
                   >
                     <InputPremium
                       value={deviceData.storageSize}
-                      onChange={(e) => !selectedCustomerDeviceId && setDeviceData(prev => ({ ...prev, storageSize: e.target.value }))}
+                      onChange={(e) => setDeviceData(prev => ({ ...prev, storageSize: e.target.value }))}
                       placeholder="e.g., 128GB, 256GB"
-                      disabled={!!selectedCustomerDeviceId}
+                      disabled={selectedCustomerDeviceId && !isEditingDevice}
                     />
                   </FormFieldWrapper>
                 </FormGrid>

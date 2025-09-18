@@ -108,6 +108,12 @@ export class ApiKeysService {
   async verifyApiKey(apiKey: string, origin: string | null) {
     const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
     
+    console.log('[ApiKeysService] Verifying API key:', {
+      keyPrefix: apiKey.substring(0, 8),
+      hashPrefix: keyHash.substring(0, 8),
+      origin
+    });
+    
     // Create a separate repository instance for verification
     const verifyRepo = new ApiKeysRepository();
     const client = await (verifyRepo as any).getClient();
@@ -128,6 +134,10 @@ export class ApiKeysService {
     const { data: apiKeyData, error } = await query;
 
     if (error || !apiKeyData) {
+      console.log('[ApiKeysService] API key not found or error:', {
+        error: error?.message,
+        keyPrefix: apiKey.substring(0, 8)
+      });
       return { valid: false, error: 'Invalid API key' };
     }
 

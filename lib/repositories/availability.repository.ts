@@ -33,8 +33,8 @@ export interface DayAvailability {
 }
 
 export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
-  constructor(useServiceRole = false) {
-    super('appointment_slots', useServiceRole);
+  constructor(useServiceRole = false, usePublicClient = false) {
+    super('appointment_slots', useServiceRole, usePublicClient);
   }
 
   /**

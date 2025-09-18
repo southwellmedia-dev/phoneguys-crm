@@ -9,14 +9,11 @@ import { ApiKeysService } from '@/lib/services/api-keys.service';
 
 // CORS headers for embeddable widget
 const corsHeaders = {
-  'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGINS || '*',
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, x-api-key, x-widget-key, X-Requested-With',
+  'Access-Control-Allow-Headers': 'Content-Type, x-api-key, x-widget-key, X-Requested-With, Accept, Origin',
   'Access-Control-Allow-Credentials': 'true',
   'Access-Control-Max-Age': '86400',
-  // Additional headers for iframe embedding
-  'X-Frame-Options': 'ALLOWALL', // Allow embedding in iframes
-  'Content-Security-Policy': "frame-ancestors *;", // Allow any site to embed
 };
 
 // Schema for public form submission
@@ -71,16 +68,33 @@ export async function POST(request: NextRequest) {
     const apiKey = request.headers.get('x-api-key');
     const origin = request.headers.get('origin') || request.headers.get('referer');
     
+    console.log('[Public Appointments] Request received:', {
+      hasApiKey: !!apiKey,
+      apiKeyPrefix: apiKey ? apiKey.substring(0, 8) : null,
+      origin,
+      timestamp: new Date().toISOString()
+    });
+    
     if (apiKey) {
       // Verify API key if provided
       const apiKeysService = new ApiKeysService();
       const verification = await apiKeysService.verifyApiKey(apiKey, origin);
       
+      console.log('[Public Appointments] API Key verification result:', {
+        valid: verification.valid,
+        error: verification.error,
+        apiKeyPrefix: apiKey.substring(0, 8)
+      });
+      
       if (!verification.valid) {
         return NextResponse.json(
           {
             success: false,
-            error: verification.error || 'Invalid API key'
+            error: verification.error || 'Invalid API key',
+            details: process.env.NODE_ENV === 'development' ? {
+              providedKeyPrefix: apiKey.substring(0, 8),
+              origin
+            } : undefined
           },
           { 
             status: 401,
@@ -88,9 +102,10 @@ export async function POST(request: NextRequest) {
           }
         );
       }
+    } else {
+      // For now, allow requests without API key for testing
+      console.log('[Public Appointments] No API key provided, allowing request for testing');
     }
-    // If no API key provided, allow request (for backward compatibility)
-    // You may want to require API keys in production
     
     // Get request data
     const body = await request.json();

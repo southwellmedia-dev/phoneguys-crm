@@ -35,8 +35,8 @@ export interface Appointment {
 }
 
 export class AppointmentRepository extends BaseRepository<Appointment> {
-  constructor(useServiceRole: boolean = false) {
-    super('appointments', useServiceRole);
+  constructor(useServiceRole: boolean = false, usePublicClient: boolean = false) {
+    super('appointments', useServiceRole, usePublicClient);
   }
 
   /**

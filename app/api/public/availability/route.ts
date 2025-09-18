@@ -4,9 +4,9 @@ import { z } from 'zod';
 
 // CORS headers for embeddable widget
 const corsHeaders = {
-  'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGINS || '*',
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, x-api-key',
+  'Access-Control-Allow-Headers': 'Content-Type, x-api-key, x-widget-key, X-Requested-With, Accept, Origin',
   'Access-Control-Max-Age': '86400',
 };
 
@@ -59,7 +59,8 @@ export async function GET(request: NextRequest) {
     // Generate cache key based on parameters
     const cacheKey = JSON.stringify(validation.data);
     
-    const availabilityService = new AvailabilityService(true); // Use service role for public access
+    // Use public client (anon key) for public endpoints
+    const availabilityService = new AvailabilityService(false, true); // Use public client
 
     // Handle different query types
     let result: any;

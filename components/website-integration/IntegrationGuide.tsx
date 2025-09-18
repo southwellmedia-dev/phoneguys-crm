@@ -28,7 +28,7 @@ export function IntegrationGuide({ apiKey }: IntegrationGuideProps) {
   const [activeTab, setActiveTab] = useState('quickstart');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://crm.phoneguys.com';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://dashboard.phoneguysrepair.com';
 
   const tabs = [
     { id: 'quickstart', label: 'Quick Start', icon: <Zap className="h-4 w-4" /> },

@@ -29,9 +29,9 @@ export class AvailabilityService {
   private availabilityRepo: AvailabilityRepository;
   private appointmentRepo: AppointmentRepository;
 
-  constructor(useServiceRole = false) {
-    this.availabilityRepo = new AvailabilityRepository(useServiceRole);
-    this.appointmentRepo = new AppointmentRepository(useServiceRole);
+  constructor(useServiceRole = false, usePublicClient = false) {
+    this.availabilityRepo = new AvailabilityRepository(useServiceRole, usePublicClient);
+    this.appointmentRepo = new AppointmentRepository(useServiceRole, usePublicClient);
   }
 
   /**

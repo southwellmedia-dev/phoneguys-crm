@@ -159,7 +159,7 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
       .gte('date', startDate)
       .lte('date', endDate)
       .eq('is_available', true)
-      .lt('current_capacity', client.raw('max_capacity'))
+      // Note: We can't use raw SQL with public client, so filtering will be done in code
       .order('date')
       .order('start_time');
 
@@ -169,9 +169,15 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
       return {};
     }
 
+    // Filter slots where current capacity is less than max capacity
+    // (can't use raw SQL with public client)
+    const availableSlots = (data || []).filter(slot => 
+      slot.current_capacity < slot.max_capacity
+    );
+
     // Group slots by date
     const slotsByDate: Record<string, TimeSlot[]> = {};
-    (data || []).forEach(slot => {
+    availableSlots.forEach(slot => {
       const dateKey = slot.date;
       if (!slotsByDate[dateKey]) {
         slotsByDate[dateKey] = [];
@@ -234,12 +240,27 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
    */
   async reserveSlot(slotId: string, appointmentId: string): Promise<boolean> {
     const client = await this.getClient();
+    
+    // First get current slot data
+    const { data: slot, error: fetchError } = await client
+      .from('appointment_slots')
+      .select('current_capacity')
+      .eq('id', slotId)
+      .eq('is_available', true)
+      .single();
+    
+    if (fetchError || !slot) {
+      console.error('Error fetching slot:', fetchError);
+      return false;
+    }
+    
+    // Then update with incremented value
     const { error } = await client
       .from('appointment_slots')
       .update({
         appointment_id: appointmentId,
         is_available: false,
-        current_capacity: client.raw('current_capacity + 1')
+        current_capacity: slot.current_capacity + 1
       })
       .eq('id', slotId)
       .eq('is_available', true);
@@ -256,12 +277,26 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
    */
   async releaseSlot(slotId: string): Promise<boolean> {
     const client = await this.getClient();
+    
+    // First get current slot data
+    const { data: slot, error: fetchError } = await client
+      .from('appointment_slots')
+      .select('current_capacity')
+      .eq('id', slotId)
+      .single();
+    
+    if (fetchError || !slot) {
+      console.error('Error fetching slot:', fetchError);
+      return false;
+    }
+    
+    // Then update with decremented value (minimum 0)
     const { error } = await client
       .from('appointment_slots')
       .update({
         appointment_id: null,
         is_available: true,
-        current_capacity: client.raw('GREATEST(0, current_capacity - 1)')
+        current_capacity: Math.max(0, slot.current_capacity - 1)
       })
       .eq('id', slotId);
 

@@ -77,7 +77,8 @@ export class AppointmentNotificationService {
           issues: data.issues || ['General Diagnosis'],
           estimatedCost: data.appointment.estimated_cost ? parseFloat(data.appointment.estimated_cost) : undefined,
           notes: data.appointment.description || data.appointment.notes,
-          confirmationUrl: `https://status.phoneguysrepair.com?appointment=${data.appointment.appointment_number}`
+          confirmationUrl: `https://status.phoneguysrepair.com?appointment=${data.appointment.appointment_number}`,
+          isInitialRequest: true // This is the initial appointment request
         });
 
         const emailResult = await this.emailService.sendEmail({
@@ -412,41 +413,26 @@ export class AppointmentNotificationService {
       try {
         console.log('📧 Sending appointment confirmed email to:', data.customer.email);
         
-        // Create a simple HTML email for confirmation
-        const subject = `Appointment Confirmed - ${data.appointment.appointment_number}`;
-        const html = `
-          <h2>Your Appointment Has Been Confirmed!</h2>
-          <p>Hi ${data.customer.name},</p>
-          <p>Great news! Your appointment has been confirmed by our team.</p>
-          
-          <h3>Appointment Details:</h3>
-          <ul>
-            <li><strong>Date:</strong> ${formatDate(data.appointment.scheduled_date)}</li>
-            <li><strong>Time:</strong> ${formatTime(data.appointment.scheduled_time)}</li>
-            <li><strong>Confirmation #:</strong> ${data.appointment.appointment_number}</li>
-            <li><strong>Device:</strong> ${data.device?.brand || ''} ${data.device?.model_name || 'Device'}</li>
-            <li><strong>Services:</strong> ${data.issues?.join(', ') || 'General Diagnosis'}</li>
-          </ul>
-          
-          <p><strong>What's Next:</strong></p>
-          <ul>
-            <li>Please arrive 5 minutes early for check-in</li>
-            <li>Bring your device charger if available</li>
-            <li>Remove any screen locks or passwords</li>
-            <li>Backup your data if possible</li>
-          </ul>
-          
-          <p>You can check your appointment status anytime at: <a href="https://status.phoneguysrepair.com?appointment=${data.appointment.appointment_number}">https://status.phoneguysrepair.com</a></p>
-          
-          <p>See you soon!</p>
-          <p>The Phone Guys Team</p>
-        `;
+        // Use the styled template with isInitialRequest: false for actual confirmation
+        const emailTemplate = appointmentConfirmationTemplate({
+          customerName: data.customer.name,
+          appointmentNumber: data.appointment.appointment_number,
+          appointmentDate: formatDate(data.appointment.scheduled_date),
+          appointmentTime: formatTime(data.appointment.scheduled_time),
+          deviceBrand: data.device?.brand || 'Your',
+          deviceModel: data.device?.model_name || 'Device',
+          issues: data.issues || ['General Diagnosis'],
+          estimatedCost: data.appointment.estimated_cost ? parseFloat(data.appointment.estimated_cost) : undefined,
+          notes: data.appointment.description || data.appointment.notes,
+          confirmationUrl: `https://status.phoneguysrepair.com?appointment=${data.appointment.appointment_number}`,
+          isInitialRequest: false // This is an actual confirmation from staff
+        });
 
         const emailResult = await this.emailService.sendEmail({
           to: data.customer.email,
-          subject: subject,
-          html: html,
-          text: `Your appointment ${data.appointment.appointment_number} has been confirmed for ${formatDate(data.appointment.scheduled_date)} at ${formatTime(data.appointment.scheduled_time)}. Please arrive 5 minutes early and bring your charger.`
+          subject: emailTemplate.subject,
+          html: emailTemplate.html,
+          text: emailTemplate.text
         });
 
         if (emailResult.success) {

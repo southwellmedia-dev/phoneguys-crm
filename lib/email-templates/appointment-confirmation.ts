@@ -11,6 +11,7 @@ export interface AppointmentConfirmationData {
   estimatedCost?: number;
   notes?: string;
   confirmationUrl?: string;
+  isInitialRequest?: boolean; // true for initial submission, false for staff confirmation
 }
 
 export function appointmentConfirmationTemplate(data: AppointmentConfirmationData): {
@@ -33,9 +34,18 @@ export function appointmentConfirmationTemplate(data: AppointmentConfirmationDat
 
   const deviceInfo = deviceBrand && deviceModel ? `${deviceBrand} ${deviceModel}` : 'Your device';
 
+  const isRequest = data.isInitialRequest !== false; // Default to true for backward compatibility
+  
   const content = `
+    <!-- Logo Header -->
+    <div style="text-align: center; margin-bottom: 30px;">
+      <img src="https://egotypldqzdzjclikmeg.supabase.co/storage/v1/object/public/device-images/phoneguys-logo.png" 
+           alt="The Phone Guys" 
+           style="max-width: 200px; height: auto;" />
+    </div>
+    
     <h2 style="margin: 0 0 20px 0; color: #333333; font-size: 24px; font-weight: 600;">
-      Appointment Confirmed!
+      ${isRequest ? 'Appointment Request Received!' : 'Appointment Confirmed!'}
     </h2>
     
     <p style="margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 24px;">
@@ -43,13 +53,16 @@ export function appointmentConfirmationTemplate(data: AppointmentConfirmationDat
     </p>
     
     <p style="margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 24px;">
-      Thank you for scheduling an appointment with The Phone Guys. Your appointment has been confirmed.
+      ${isRequest 
+        ? 'Thank you for requesting an appointment with The Phone Guys. We have received your appointment request and will contact you within 24 hours to confirm your appointment time and provide any additional details.'
+        : 'Great news! Your appointment with The Phone Guys has been confirmed by our team.'
+      }
     </p>
     
     <!-- Appointment Details Box -->
     <div style="background-color: #f8f9fa; border-left: 4px solid #0094CA; padding: 20px; margin: 30px 0; border-radius: 4px;">
       <h3 style="margin: 0 0 15px 0; color: #333333; font-size: 18px;">
-        Appointment Details
+        ${isRequest ? 'Requested Appointment Details' : 'Confirmed Appointment Details'}
       </h3>
       
       <table style="width: 100%; border-collapse: collapse;">
@@ -133,19 +146,29 @@ export function appointmentConfirmationTemplate(data: AppointmentConfirmationDat
       If you need to reschedule or cancel your appointment, please call us at <strong>(555) 123-4567</strong> as soon as possible.
     </p>
     
+    ${isRequest ? `
     <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 15px; margin: 30px 0;">
       <p style="margin: 0; color: #856404; font-size: 14px;">
-        <strong>Important:</strong> We will call you within 24 hours to confirm your appointment and provide any additional details.
+        <strong>⚠️ Next Steps:</strong> This is an appointment request. We will call you within 24 hours to confirm your appointment time and availability. Your appointment is not confirmed until you speak with our team.
       </p>
     </div>
+    ` : `
+    <div style="background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; padding: 15px; margin: 30px 0;">
+      <p style="margin: 0; color: #155724; font-size: 14px;">
+        <strong>✅ Confirmed:</strong> Your appointment has been confirmed. We look forward to seeing you on ${appointmentDate} at ${appointmentTime}.
+      </p>
+    </div>
+    `}
   `;
 
   const templateData: EmailTemplateData = {
-    title: 'Appointment Confirmation',
-    preheader: `Your appointment on ${appointmentDate} at ${appointmentTime} has been confirmed`,
+    title: isRequest ? 'Appointment Request Received' : 'Appointment Confirmation',
+    preheader: isRequest 
+      ? `Your appointment request for ${appointmentDate} at ${appointmentTime} has been received`
+      : `Your appointment on ${appointmentDate} at ${appointmentTime} has been confirmed`,
     content,
     ctaButton: confirmationUrl ? {
-      text: 'View Appointment Details',
+      text: isRequest ? 'Check Appointment Status' : 'View Appointment Details',
       url: confirmationUrl
     } : undefined,
     footer: 'Thank you for choosing The Phone Guys for your device repair needs!'
@@ -154,11 +177,13 @@ export function appointmentConfirmationTemplate(data: AppointmentConfirmationDat
   const html = baseEmailTemplate(templateData);
   
   const text = `
-Appointment Confirmation
+${isRequest ? 'Appointment Request Received' : 'Appointment Confirmation'}
 
 Dear ${customerName},
 
-Thank you for scheduling an appointment with The Phone Guys. Your appointment has been confirmed.
+${isRequest 
+  ? 'Thank you for requesting an appointment with The Phone Guys. We have received your appointment request and will contact you within 24 hours to confirm your appointment time and provide any additional details.'
+  : 'Great news! Your appointment with The Phone Guys has been confirmed by our team.'}
 
 APPOINTMENT DETAILS
 -------------------
@@ -182,7 +207,9 @@ NEED TO RESCHEDULE?
 ------------------
 If you need to reschedule or cancel your appointment, please call us at (555) 123-4567 as soon as possible.
 
-IMPORTANT: We will call you within 24 hours to confirm your appointment and provide any additional details.
+${isRequest 
+  ? 'IMPORTANT: This is an appointment request. We will call you within 24 hours to confirm your appointment time and availability. Your appointment is not confirmed until you speak with our team.'
+  : 'CONFIRMED: Your appointment has been confirmed. We look forward to seeing you!'}
 
 Thank you for choosing The Phone Guys for your device repair needs!
 
@@ -192,7 +219,9 @@ Phone: (555) 123-4567 | Email: support@phoneguys.com
   `.trim();
 
   return {
-    subject: `Appointment Confirmed - ${appointmentDate} at ${appointmentTime} | The Phone Guys`,
+    subject: isRequest 
+      ? `Appointment Request Received - ${appointmentDate} at ${appointmentTime} | The Phone Guys`
+      : `Appointment Confirmed - ${appointmentDate} at ${appointmentTime} | The Phone Guys`,
     html,
     text
   };

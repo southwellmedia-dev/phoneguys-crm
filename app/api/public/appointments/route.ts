@@ -206,32 +206,52 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Convert service categories to service IDs and names
+    // Convert service categories or IDs to service names
     let issueNames: string[] = [];
     let serviceIds: string[] = [];
     
     if (data.issues && data.issues.length > 0) {
-      // data.issues contains category names like ["screen_repair", "battery_replacement"]
-      // We need to look up the services by category
-      const { data: services, error: servicesError } = await publicClient
-        .from('services')
-        .select('id, name, category')
-        .in('category', data.issues);
+      // Check if data.issues contains UUIDs (service IDs) or category names
+      // UUIDs have a specific format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+      const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+      
+      let services;
+      let servicesError;
+      
+      if (data.issues.some(issue => isUUID(issue))) {
+        // data.issues contains service IDs (UUIDs)
+        console.log('📋 Issues contain service IDs, fetching service names...');
+        const result = await publicClient
+          .from('services')
+          .select('id, name, category')
+          .in('id', data.issues);
+        services = result.data;
+        servicesError = result.error;
+      } else {
+        // data.issues contains category names
+        console.log('📋 Issues contain category names, fetching services...');
+        const result = await publicClient
+          .from('services')
+          .select('id, name, category')
+          .in('category', data.issues);
+        services = result.data;
+        servicesError = result.error;
+      }
       
       if (servicesError) {
         console.error('Error fetching services:', servicesError);
-        // Fall back to using the categories as issue names
+        // Fall back to using the raw values as issue names
         issueNames = data.issues;
         serviceIds = [];
       } else if (services && services.length > 0) {
         // Extract service IDs for the service_ids column
         serviceIds = services.map(service => service.id);
-        // Convert service names to snake_case format for the issues column
-        issueNames = services.map(service => 
-          service.name.toLowerCase().replace(/\s+/g, '_')
-        );
+        // Use actual service names for the issues column
+        issueNames = services.map(service => service.name);
+        console.log('✅ Resolved services:', { serviceIds, issueNames });
       } else {
-        // No matching services found, use the categories as issue names
+        // No matching services found, use the raw values as issue names
+        console.warn('⚠️ No matching services found for:', data.issues);
         issueNames = data.issues;
         serviceIds = [];
       }

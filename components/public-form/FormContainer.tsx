@@ -249,7 +249,7 @@ export function FormContainer({
       <div
         className={cn(
           "text-center py-12 px-6 w-full mx-auto",
-          embedded ? "max-w-4xl" : "max-w-2xl"
+          embedded ? "max-w-4xl px-6" : "max-w-2xl"
         )}
       >
         <div className="mb-4">

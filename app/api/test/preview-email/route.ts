@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
         issues: appointment.issues || ['General Diagnosis'],
         estimatedCost: appointment.estimated_cost ? parseFloat(appointment.estimated_cost) : undefined,
         notes: appointment.notes,
-        confirmationUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/appointments/${appointment.appointment_number}`
+        confirmationUrl: `https://status.phoneguysrepair.com?appointment=${appointment.appointment_number}`
       });
       
       htmlContent = template.html;

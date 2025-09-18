@@ -77,7 +77,7 @@ export class AppointmentNotificationService {
           issues: data.issues || ['General Diagnosis'],
           estimatedCost: data.appointment.estimated_cost ? parseFloat(data.appointment.estimated_cost) : undefined,
           notes: data.appointment.description || data.appointment.notes,
-          confirmationUrl: `${process.env.NEXT_PUBLIC_APP_URL}/track/${data.appointment.appointment_number}`
+          confirmationUrl: `https://status.phoneguysrepair.com?appointment=${data.appointment.appointment_number}`
         });
 
         const emailResult = await this.emailService.sendEmail({
@@ -436,7 +436,7 @@ export class AppointmentNotificationService {
             <li>Backup your data if possible</li>
           </ul>
           
-          <p>You can check your appointment status anytime at: <a href="${process.env.NEXT_PUBLIC_STATUS_URL}">${process.env.NEXT_PUBLIC_STATUS_URL}</a></p>
+          <p>You can check your appointment status anytime at: <a href="https://status.phoneguysrepair.com?appointment=${data.appointment.appointment_number}">https://status.phoneguysrepair.com</a></p>
           
           <p>See you soon!</p>
           <p>The Phone Guys Team</p>

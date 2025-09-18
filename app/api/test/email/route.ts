@@ -39,7 +39,7 @@ export const GET = RateLimitedAPI.test(async (request: NextRequest) => {
           issues: ['Screen Replacement', 'Battery Replacement'],
           estimatedCost: 299.99,
           notes: 'Customer mentioned device was dropped in water',
-          confirmationUrl: 'http://localhost:3000/appointments/APT-2025-0001'
+          confirmationUrl: 'https://status.phoneguysrepair.com?appointment=APT-2025-0001'
         });
 
         result = await emailService.sendEmail({

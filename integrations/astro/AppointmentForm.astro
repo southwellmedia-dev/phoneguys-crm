@@ -1,0 +1,60 @@
+---
+// Astro component for Phone Guys Appointment Form
+export interface Props {
+  apiKey: string;
+  apiBaseUrl?: string;
+  primaryColor?: string;
+  class?: string;
+}
+
+const { 
+  apiKey, 
+  apiBaseUrl = 'https://dashboard.phoneguysrepair.com/api/public',
+  primaryColor = '#06b6d4',
+  class: className = ''
+} = Astro.props;
+---
+
+<div class={`phoneguys-appointment-wrapper ${className}`}>
+  <div id="phoneguys-form-root"></div>
+</div>
+
+<script define:vars={{ apiKey, apiBaseUrl, primaryColor }}>
+  import PhoneGuysAppointmentForm from './PhoneGuysAppointmentForm.tsx';
+  import React from 'react';
+  import ReactDOM from 'react-dom/client';
+  
+  // Wait for DOM to be ready
+  document.addEventListener('DOMContentLoaded', () => {
+    const root = document.getElementById('phoneguys-form-root');
+    if (root) {
+      const reactRoot = ReactDOM.createRoot(root);
+      reactRoot.render(
+        React.createElement(PhoneGuysAppointmentForm, {
+          apiKey: apiKey,
+          apiBaseUrl: apiBaseUrl,
+          primaryColor: primaryColor,
+          onSuccess: (data) => {
+            // Dispatch custom event that can be handled in Astro
+            window.dispatchEvent(new CustomEvent('phoneguys:appointment-success', { 
+              detail: data 
+            }));
+          },
+          onError: (error) => {
+            // Dispatch custom event for error handling
+            window.dispatchEvent(new CustomEvent('phoneguys:appointment-error', { 
+              detail: error 
+            }));
+          }
+        })
+      );
+    }
+  });
+</script>
+
+<style>
+  .phoneguys-appointment-wrapper {
+    width: 100%;
+    min-height: 500px;
+  }
+</style>

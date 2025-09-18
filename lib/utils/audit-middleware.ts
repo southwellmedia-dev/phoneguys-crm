@@ -149,14 +149,14 @@ async function getCurrentUser(request: NextRequest) {
 /**
  * Audit middleware wrapper
  */
-export function withAudit(
-  handler: (request: NextRequest) => Promise<NextResponse>,
+export function withAudit<T extends any[]>(
+  handler: (request: NextRequest, ...args: T) => Promise<NextResponse>,
   config: AuditConfig = auditConfigs.general
 ) {
-  return async (request: NextRequest): Promise<NextResponse> => {
+  return async (request: NextRequest, ...args: T): Promise<NextResponse> => {
     // Skip if disabled or skip function returns true
     if (!config.enabled || (config.skip && config.skip(request))) {
-      return handler(request);
+      return handler(request, ...args);
     }
 
     const auditService = AuditService.getInstance();
@@ -182,8 +182,8 @@ export function withAudit(
         }
       }
 
-      // Execute the actual handler
-      response = await handler(request);
+      // Execute the actual handler with all arguments
+      response = await handler(request, ...args);
       
       // Log successful request
       if (config.logRequests) {

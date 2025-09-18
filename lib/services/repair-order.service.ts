@@ -132,6 +132,8 @@ export class RepairOrderService {
 
     // Validate status transition if status is being changed
     if (data.status && data.status !== existingTicket.status) {
+      console.log(`📝 RepairOrderService.updateRepairOrder: Status changing from ${existingTicket.status} to ${data.status}`);
+      
       this.validateStatusTransition(existingTicket.status, data.status);
       
       // Create status change note
@@ -143,6 +145,7 @@ export class RepairOrderService {
       }, userId);
 
       // Send status update notification
+      console.log(`📧 RepairOrderService: Calling createStatusUpdateNotification for status: ${data.status}`);
       await this.createStatusUpdateNotification(existingTicket, data.status);
     }
 

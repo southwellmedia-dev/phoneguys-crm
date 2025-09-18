@@ -171,11 +171,12 @@
         
         .phoneguys-widget-iframe {
           width: 100%;
-          height: ${this.config.height === 'auto' ? '800px' : this.config.height};
+          height: ${this.config.height === 'auto' ? '600px' : this.config.height};
           min-height: 400px;
           border: none;
           display: block;
           overflow: hidden;
+          transition: height 0.3s ease;
         }
         
         .phoneguys-widget-container.modal .phoneguys-widget-iframe {
@@ -395,10 +396,17 @@
 
     setupMessageListeners() {
       window.addEventListener('message', (event) => {
-        // Verify origin
-        if (!event.origin.startsWith(this.config.baseUrl)) return;
+        // For local development, allow localhost origins
+        const isLocalDev = event.origin.includes('localhost') || event.origin.includes('127.0.0.1');
+        const isValidOrigin = event.origin.startsWith(this.config.baseUrl) || isLocalDev;
+        
+        if (!isValidOrigin) {
+          console.log('[Widget] Ignoring message from invalid origin:', event.origin);
+          return;
+        }
         
         const { type, data } = event.data;
+        console.log('[Widget] Received message:', type, data);
         
         switch (type) {
           case 'appointment-confirmed':
@@ -450,21 +458,46 @@
     }
 
     handleResize(data) {
-      if (data.height && this.iframe) {
-        // Just use the height as-is, with a small buffer
-        const newHeight = Math.max(400, data.height + 20);
+      console.log('[Widget] handleResize called:', {
+        hasHeight: !!data.height,
+        height: data.height,
+        hasIframe: !!this.iframe,
+        configHeight: this.config.height,
+        isAuto: this.config.height === 'auto'
+      });
+      
+      if (data.height && this.iframe && this.config.height === 'auto') {
+        // Add a small buffer for padding
+        const newHeight = Math.max(400, data.height + 40);
         
-        // Only update if height changed significantly
+        // Only update if height changed significantly (more than 10px)
         const currentHeight = parseInt(this.iframe.style.height) || 0;
-        if (Math.abs(currentHeight - newHeight) > 5) {
+        console.log('[Widget] Height comparison:', {
+          current: currentHeight,
+          new: newHeight,
+          difference: Math.abs(currentHeight - newHeight)
+        });
+        
+        if (Math.abs(currentHeight - newHeight) > 10) {
+          console.log('[Widget] Resizing iframe to:', newHeight);
           this.iframe.style.height = `${newHeight}px`;
-          this.iframe.style.minHeight = '400px';
+          
+          // Also update the container height if inline mode
+          if (this.config.position === 'inline') {
+            const container = this.container.querySelector('.phoneguys-widget-container');
+            if (container) {
+              container.style.height = 'auto';
+              container.style.minHeight = `${newHeight}px`;
+            }
+          }
           
           // Notify parent if they want to know about resize
           if (this.config.onResize) {
             this.config.onResize({ height: newHeight });
           }
         }
+      } else {
+        console.log('[Widget] Resize conditions not met');
       }
     }
 

@@ -97,6 +97,7 @@ export function FormContainer({
   const [loadingDevices, setLoadingDevices] = useState(true);
   const [loadingServices, setLoadingServices] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
+  const lastHeightRef = useRef<number>(0);
 
   // Prefetch availability data when user reaches step 2
   const { prefetchAvailability } = usePrefetchAvailability(apiBaseUrl, apiKey);
@@ -121,6 +122,75 @@ export function FormContainer({
       contentRef.current.scrollTop = 0;
     }
   }, [currentStep, embedded]);
+
+  // Send height updates to parent iframe when embedded
+  useEffect(() => {
+    if (!embedded) return;
+
+    const sendHeightUpdate = () => {
+      const body = document.body;
+      const html = document.documentElement;
+      
+      // Get the maximum height of all possible measurements
+      const height = Math.max(
+        body.scrollHeight,
+        body.offsetHeight,
+        html.clientHeight,
+        html.scrollHeight,
+        html.offsetHeight
+      );
+
+      // Only send if height changed
+      if (height !== lastHeightRef.current) {
+        lastHeightRef.current = height;
+        
+        // Send message to parent window
+        window.parent.postMessage(
+          {
+            type: 'resize',
+            data: { height }
+          },
+          '*' // You might want to restrict this to specific origins in production
+        );
+      }
+    };
+
+    // Send initial height
+    sendHeightUpdate();
+
+    // Set up ResizeObserver to detect content changes
+    const resizeObserver = new ResizeObserver(() => {
+      sendHeightUpdate();
+    });
+
+    // Observe body for size changes
+    resizeObserver.observe(document.body);
+
+    // Also check on step changes, form updates, etc.
+    const mutationObserver = new MutationObserver(() => {
+      sendHeightUpdate();
+    });
+
+    // Observe DOM changes
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class']
+    });
+
+    // Send height on window events
+    window.addEventListener('load', sendHeightUpdate);
+    window.addEventListener('resize', sendHeightUpdate);
+
+    // Cleanup
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      window.removeEventListener('load', sendHeightUpdate);
+      window.removeEventListener('resize', sendHeightUpdate);
+    };
+  }, [embedded, currentStep, formData]); // Re-run when step or form data changes
 
   const fetchDevices = async () => {
     try {
@@ -331,13 +401,13 @@ export function FormContainer({
         </div>
       </div>
 
-      {/* Step Content - Fixed height with scrollable content */}
+      {/* Step Content - Auto height for embedded, fixed for standalone */}
       <div
         ref={contentRef}
         className={cn(
           "relative",
           embedded
-            ? "h-[800px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+            ? "min-h-[400px]" // Remove fixed height and overflow for embedded
             : "min-h-[500px]"
         )}
       >

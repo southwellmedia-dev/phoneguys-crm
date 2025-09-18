@@ -1,0 +1,31 @@
+{
+  "name": "@phoneguys/astro-appointment-form",
+  "version": "1.0.0",
+  "description": "Native Astro integration for Phone Guys appointment booking system",
+  "main": "PhoneGuysAppointmentForm.tsx",
+  "files": [
+    "PhoneGuysAppointmentForm.tsx",
+    "AppointmentForm.astro",
+    "styles.css",
+    "README.md"
+  ],
+  "keywords": [
+    "phoneguys",
+    "appointment",
+    "booking",
+    "astro",
+    "react",
+    "form"
+  ],
+  "author": "Phone Guys",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "astro": "^3.0.0 || ^4.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/phoneguys/astro-appointment-form"
+  }
+}

@@ -11,12 +11,28 @@ export default function EmbedAppointmentForm() {
   useEffect(() => {
     // Function to send height to parent
     const sendHeight = () => {
-      if (window.parent !== window && containerRef.current && !isUpdatingRef.current) {
-        // Get the height of our content container, not the whole document
-        const height = containerRef.current.scrollHeight;
+      if (window.parent !== window && !isUpdatingRef.current) {
+        // Get ALL possible height measurements
+        const body = document.body;
+        const html = document.documentElement;
+        const container = containerRef.current;
+        
+        // Get the maximum height from all sources
+        const height = Math.max(
+          container ? container.scrollHeight : 0,
+          container ? container.offsetHeight : 0,
+          body.scrollHeight,
+          body.offsetHeight,
+          html.clientHeight,
+          html.scrollHeight,
+          html.offsetHeight,
+          // Also check the actual content bounds
+          document.documentElement.getBoundingClientRect().height
+        );
         
         // Only send if height actually changed (with 5px tolerance)
         if (Math.abs(height - lastHeightRef.current) > 5) {
+          console.log('[Embed] Sending height update:', height);
           lastHeightRef.current = height;
           isUpdatingRef.current = true;
           
@@ -110,7 +126,15 @@ export default function EmbedAppointmentForm() {
   };
 
   return (
-    <div ref={containerRef} className="bg-white">
+    <div ref={containerRef} className="bg-white min-h-screen">
+      <style jsx global>{`
+        html, body {
+          height: auto !important;
+          overflow: visible !important;
+          margin: 0;
+          padding: 0;
+        }
+      `}</style>
       <div className="w-full">
         <FormContainer
           apiBaseUrl={`${process.env.NEXT_PUBLIC_APP_URL || 'https://dashboard.phoneguysrepair.com'}/api/public`}

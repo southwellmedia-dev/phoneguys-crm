@@ -34,6 +34,9 @@ export class TicketNotificationService {
    * Send notifications when ticket status changes
    */
   async sendStatusUpdateNotifications(data: TicketNotificationData) {
+    console.log(`🔔 TicketNotificationService.sendStatusUpdateNotifications called for status: ${data.newStatus}`);
+    console.log(`   Ticket: ${data.ticket?.ticket_number}, Customer: ${data.customer?.name}`);
+    
     const results = {
       customerEmail: false,
       customerSMS: false,

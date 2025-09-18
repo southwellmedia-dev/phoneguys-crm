@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RepairOrderService } from '@/lib/services/repair-order.service';
-import { NotificationService } from '@/lib/services/notification.service';
 import { InternalNotificationService } from '@/lib/services/internal-notification.service';
 import { requirePermission, handleApiError, successResponse, requireAuth } from '@/lib/auth/helpers';
 import { Permission } from '@/lib/services/authorization.service';
 import { auditLog } from '@/lib/services/audit.service';
 import { withAudit, auditConfigs } from '@/lib/utils/audit-middleware';
+import { createServiceClient } from '@/lib/supabase/service';
 
 interface RouteParams {
   params: Promise<{
@@ -13,14 +13,27 @@ interface RouteParams {
   }>;
 }
 
-async function updateStatus(request: NextRequest, params: RouteParams) {
+async function updateStatus(request: NextRequest, context: RouteParams) {
   try {
     // Await params in Next.js 15
-    const resolvedParams = await params;
+    const resolvedParams = await context.params;
+    
+    if (!resolvedParams || !resolvedParams.id) {
+      return NextResponse.json(
+        { error: 'Invalid request - missing ticket ID' },
+        { status: 400 }
+      );
+    }
     
     // Require authentication and status change permission
     const authResult = await requirePermission(request, Permission.TICKET_CHANGE_STATUS);
     if (authResult instanceof NextResponse) return authResult;
+
+    console.log('Auth result:', { 
+      hasUser: !!authResult.user, 
+      userId: authResult.userId,
+      userRole: authResult.role 
+    });
 
     const ticketId = resolvedParams.id;
     const { status, reason } = await request.json();
@@ -43,13 +56,14 @@ async function updateStatus(request: NextRequest, params: RouteParams) {
 
     // Create service instances
     const repairService = new RepairOrderService();
-    const notificationService = new NotificationService();
+    const supabase = createServiceClient();
 
     // Get current ticket for audit trail
     const currentTicket = await repairService.getRepairOrder(ticketId);
     const previousStatus = currentTicket?.status;
 
     // Update status using the service's update method
+    // NOTE: updateRepairOrder already sends notifications internally via createStatusUpdateNotification
     const updatedTicket = await repairService.updateRepairOrder(
       ticketId, 
       { status }, 
@@ -66,20 +80,20 @@ async function updateStatus(request: NextRequest, params: RouteParams) {
       );
     }
 
-    // Get updated ticket with full relationships for notification
+    // Get updated ticket with full relationships for logging
     const ticket = await repairService.getRepairOrder(ticketId);
+    
+    console.log('Fetched ticket:', {
+      hasTicket: !!ticket,
+      hasCustomers: !!ticket?.customers,
+      customerId: ticket?.customer_id,
+      ticketNumber: ticket?.ticket_number
+    });
 
     if (ticket) {
-      // Send SMS/email notifications - skip for reopening to avoid spam
-      if (status !== 'in_progress' || reason !== 'Order reopened') {
-        try {
-          // Try SMS notification first, with email fallback
-          await notificationService.notifyStatusChangeWithSMS(ticket, status, reason);
-        } catch (error) {
-          console.error('Failed to send customer notification:', error);
-          // Still proceed with internal notifications even if customer notification fails
-        }
-      }
+      // REMOVED: Duplicate notification sending - already handled in updateRepairOrder
+      // The RepairOrderService.updateRepairOrder method already calls createStatusUpdateNotification
+      // which sends all necessary email/SMS notifications
 
       // Create internal notifications for status changes
       try {
@@ -138,12 +152,12 @@ const auditedUpdateStatus = withAudit(updateStatus, {
   }
 });
 
-export async function POST(request: NextRequest, { params }: RouteParams) {
-  return auditedUpdateStatus(request, { params });
+export async function POST(request: NextRequest, context: RouteParams) {
+  return auditedUpdateStatus(request, context);
 }
 
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  return auditedUpdateStatus(request, { params });
+export async function PATCH(request: NextRequest, context: RouteParams) {
+  return auditedUpdateStatus(request, context);
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {

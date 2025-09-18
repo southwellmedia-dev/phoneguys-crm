@@ -173,17 +173,46 @@ export class TimerServiceV2 {
         
         // Trigger notifications for status change
         try {
+          console.log('🔔 Timer started - triggering in_progress status notifications');
+          
+          const { getTicketNotificationService } = await import('./ticket-notifications.service');
+          const ticketNotificationService = getTicketNotificationService();
+          
+          // Get the full ticket data with customer info
           const { RepairOrderService } = await import('./repair-order.service');
           const repairService = new RepairOrderService(true);
-          
-          // Get the full ticket data
           const fullTicket = await repairService.getRepairOrder(ticketId);
-          if (fullTicket) {
-            // This will trigger the notification
-            await repairService.createStatusUpdateNotification(fullTicket, 'in_progress');
+          
+          if (fullTicket && fullTicket.customers) {
+            console.log('📧 Sending in_progress notification to:', fullTicket.customers.email);
+            
+            // Get device info if available
+            let device = null;
+            if (fullTicket.device_id) {
+              const { data: deviceData } = await this.supabase
+                .from('devices')
+                .select('*')
+                .eq('id', fullTicket.device_id)
+                .single();
+              device = deviceData;
+            }
+            
+            // Send status update notification
+            const notificationResult = await ticketNotificationService.sendStatusUpdateNotifications({
+              ticket: fullTicket,
+              customer: fullTicket.customers,
+              device: device,
+              previousStatus: 'new',
+              newStatus: 'in_progress',
+              notes: 'Work has started on your device'
+            });
+            
+            console.log('✅ Timer in_progress notification result:', notificationResult);
+          } else {
+            console.log('⚠️ No customer data found for in_progress notification');
           }
         } catch (error) {
-          console.error('Failed to send status update notification:', error);
+          console.error('❌ Failed to send status update notification:', error);
           // Don't fail the timer start if notification fails
         }
       }

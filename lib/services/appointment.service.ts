@@ -486,17 +486,40 @@ export class AppointmentService {
 
     // Send customer notifications for appointment conversion to ticket
     try {
+      console.log('🔄 Starting notification process for appointment to ticket conversion');
+      
       // Use the ticket notification service for conversion notifications
       const { getTicketNotificationService } = await import('./ticket-notifications.service');
       const ticketNotificationService = getTicketNotificationService();
 
       // Get full appointment data with relationships
-      const fullAppointment = await this.appointmentRepo.findById(appointmentId);
+      const fullAppointment = await this.appointmentRepo.findByIdWithDetails(appointmentId);
       
-      if (fullAppointment?.customers) {
+      console.log('📋 Full appointment data for notification:', {
+        hasAppointment: !!fullAppointment,
+        hasCustomer: !!fullAppointment?.customers,
+        customerName: fullAppointment?.customers?.name,
+        customerEmail: fullAppointment?.customers?.email,
+        customerPhone: fullAppointment?.customers?.phone,
+        hasDevice: !!fullAppointment?.devices,
+        deviceInfo: fullAppointment?.devices ? `${fullAppointment.devices.brand} ${fullAppointment.devices.model_name}` : 'No device'
+      });
+      
+      // If customer data is not populated, try to get it separately
+      let customerData = fullAppointment?.customers;
+      if (!customerData && appointment.customer_id) {
+        console.log('⚠️ Customer data not in appointment, fetching separately...');
+        const customer = await this.customerRepo.findById(appointment.customer_id);
+        if (customer) {
+          customerData = customer;
+          console.log('✅ Found customer separately:', customer.name);
+        }
+      }
+      
+      if (customerData) {
         // Format issues for display
-        const formattedIssues = fullAppointment.issues ? 
-          (Array.isArray(fullAppointment.issues) ? fullAppointment.issues : [fullAppointment.issues])
+        const formattedIssues = fullAppointment?.issues || appointment.issues ? 
+          (Array.isArray(fullAppointment?.issues || appointment.issues) ? (fullAppointment?.issues || appointment.issues) : [fullAppointment?.issues || appointment.issues])
             .map((issue: string) => 
               issue.replace(/_/g, ' ')
                 .split(' ')
@@ -504,19 +527,23 @@ export class AppointmentService {
                 .join(' ')
             ) : ['General Diagnosis'];
 
+        console.log('📧 Sending ticket creation notifications to customer:', customerData.email || 'No email');
+        
         // Send ticket creation notifications
-        await ticketNotificationService.sendTicketCreatedNotifications({
+        const notificationResult = await ticketNotificationService.sendTicketCreatedNotifications({
           ticket: ticket,
-          customer: fullAppointment.customers,
-          device: fullAppointment.devices,
-          appointment: fullAppointment,
+          customer: customerData,
+          device: fullAppointment?.devices || fullAppointment?.customer_devices?.devices,
+          appointment: fullAppointment || appointment,
           issues: formattedIssues
         });
 
-        console.log('✅ Appointment to ticket conversion notifications sent');
+        console.log('✅ Appointment to ticket conversion notification result:', notificationResult);
+      } else {
+        console.log('❌ No customer data available for notifications');
       }
     } catch (error) {
-      console.error('Error sending conversion notifications:', error);
+      console.error('❌ Error sending conversion notifications:', error);
       // Don't fail the conversion if notifications fail
     }
 

@@ -327,6 +327,265 @@ export class AppointmentNotificationService {
 
     return true;
   }
+
+  /**
+   * Send notifications when appointment is confirmed by staff
+   */
+  async sendAppointmentConfirmedNotifications(data: AppointmentNotificationData & { confirmedBy?: string }) {
+    const results = {
+      customerEmail: false,
+      customerSMS: false,
+      adminNotifications: false,
+      errors: [] as string[]
+    };
+
+    // Format time and date helpers
+    const formatTime = (time: string) => {
+      const [hours, minutes] = time.split(':');
+      const hour = parseInt(hours);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour % 12 || 12;
+      return `${displayHour}:${minutes} ${ampm}`;
+    };
+
+    const formatDate = (dateStr: string) => {
+      const date = new Date(dateStr + 'T00:00:00');
+      const options: Intl.DateTimeFormatOptions = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      };
+      return date.toLocaleDateString('en-US', options);
+    };
+
+    const formatShortDate = (dateStr: string) => {
+      const date = new Date(dateStr + 'T00:00:00');
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    // 1. Send customer SMS notification
+    if (data.customer.phone && data.consentSMS !== false) {
+      try {
+        console.log('📱 Sending appointment confirmed SMS to:', data.customer.phone);
+        
+        // Generate status page URL
+        const statusDomain = process.env.NEXT_PUBLIC_STATUS_URL || 'https://status.phoneguysrepair.com';
+        
+        const smsTemplate = processSMSTemplate('appointment_confirmed', {
+          customerName: data.customer.name,
+          appointmentNumber: data.appointment.appointment_number,
+          appointmentDate: formatShortDate(data.appointment.scheduled_date),
+          appointmentTime: formatTime(data.appointment.scheduled_time),
+          deviceBrand: data.device?.brand || 'Your',
+          deviceModel: data.device?.model_name || 'Device',
+          businessName: 'Phone Guys',
+          businessPhone: process.env.BUSINESS_PHONE || '(844) 511-0454',
+          statusUrl: statusDomain
+        });
+
+        // TEMPORARY: Send to Virtual Phone for testing
+        const testPhoneNumber = '+18777804236';
+        console.log('📱 TEST MODE: Sending confirmation SMS to Virtual Phone instead of:', data.customer.phone);
+
+        const smsResult = await this.smsService.sendSMS({
+          to: testPhoneNumber,
+          body: smsTemplate.message
+        });
+
+        if (smsResult.success) {
+          console.log('✅ Customer confirmation SMS sent successfully');
+          results.customerSMS = true;
+        } else {
+          throw new Error(smsResult.error || 'SMS send failed');
+        }
+      } catch (error) {
+        console.error('❌ Failed to send customer confirmation SMS:', error);
+        results.errors.push(`Customer SMS failed: ${error.message}`);
+      }
+    }
+
+    // 2. Send customer email notification
+    if (data.customer.email && data.consentEmail !== false) {
+      try {
+        console.log('📧 Sending appointment confirmed email to:', data.customer.email);
+        
+        // Create a simple HTML email for confirmation
+        const subject = `Appointment Confirmed - ${data.appointment.appointment_number}`;
+        const html = `
+          <h2>Your Appointment Has Been Confirmed!</h2>
+          <p>Hi ${data.customer.name},</p>
+          <p>Great news! Your appointment has been confirmed by our team.</p>
+          
+          <h3>Appointment Details:</h3>
+          <ul>
+            <li><strong>Date:</strong> ${formatDate(data.appointment.scheduled_date)}</li>
+            <li><strong>Time:</strong> ${formatTime(data.appointment.scheduled_time)}</li>
+            <li><strong>Confirmation #:</strong> ${data.appointment.appointment_number}</li>
+            <li><strong>Device:</strong> ${data.device?.brand || ''} ${data.device?.model_name || 'Device'}</li>
+            <li><strong>Services:</strong> ${data.issues?.join(', ') || 'General Diagnosis'}</li>
+          </ul>
+          
+          <p><strong>What's Next:</strong></p>
+          <ul>
+            <li>Please arrive 5 minutes early for check-in</li>
+            <li>Bring your device charger if available</li>
+            <li>Remove any screen locks or passwords</li>
+            <li>Backup your data if possible</li>
+          </ul>
+          
+          <p>You can check your appointment status anytime at: <a href="${process.env.NEXT_PUBLIC_STATUS_URL}">${process.env.NEXT_PUBLIC_STATUS_URL}</a></p>
+          
+          <p>See you soon!</p>
+          <p>The Phone Guys Team</p>
+        `;
+
+        const emailResult = await this.emailService.sendEmail({
+          to: data.customer.email,
+          subject: subject,
+          html: html,
+          text: `Your appointment ${data.appointment.appointment_number} has been confirmed for ${formatDate(data.appointment.scheduled_date)} at ${formatTime(data.appointment.scheduled_time)}. Please arrive 5 minutes early and bring your charger.`
+        });
+
+        if (emailResult.success) {
+          console.log('✅ Customer confirmation email sent successfully');
+          results.customerEmail = true;
+        } else {
+          throw new Error(emailResult.error || 'Email send failed');
+        }
+      } catch (error) {
+        console.error('❌ Failed to send customer confirmation email:', error);
+        results.errors.push(`Customer email failed: ${error.message}`);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Send notifications when appointment is converted to ticket
+   */
+  async sendAppointmentToTicketNotifications(data: AppointmentNotificationData & { ticket: any; convertedBy?: string }) {
+    const results = {
+      customerEmail: false,
+      customerSMS: false,
+      adminNotifications: false,
+      errors: [] as string[]
+    };
+
+    // Format time and date helpers
+    const formatTime = (time: string) => {
+      const [hours, minutes] = time.split(':');
+      const hour = parseInt(hours);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour % 12 || 12;
+      return `${displayHour}:${minutes} ${ampm}`;
+    };
+
+    const formatDate = (dateStr: string) => {
+      const date = new Date(dateStr + 'T00:00:00');
+      const options: Intl.DateTimeFormatOptions = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      };
+      return date.toLocaleDateString('en-US', options);
+    };
+
+    const formatShortDate = (dateStr: string) => {
+      const date = new Date(dateStr + 'T00:00:00');
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    // 1. Send customer SMS notification
+    if (data.customer.phone && data.consentSMS !== false) {
+      try {
+        console.log('📱 Sending ticket creation SMS to:', data.customer.phone);
+        
+        // Generate status page URL
+        const statusDomain = process.env.NEXT_PUBLIC_STATUS_URL || 'https://status.phoneguysrepair.com';
+        
+        const message = `Great news! Your appointment (${data.appointment.appointment_number}) has been converted to repair ticket ${data.ticket.ticket_number}. We've started working on your ${data.device?.brand || ''} ${data.device?.model_name || 'device'}. Track progress: ${statusDomain} - Phone Guys`;
+
+        // TEMPORARY: Send to Virtual Phone for testing
+        const testPhoneNumber = '+18777804236';
+        console.log('📱 TEST MODE: Sending conversion SMS to Virtual Phone instead of:', data.customer.phone);
+
+        const smsResult = await this.smsService.sendSMS({
+          to: testPhoneNumber,
+          body: message
+        });
+
+        if (smsResult.success) {
+          console.log('✅ Customer conversion SMS sent successfully');
+          results.customerSMS = true;
+        } else {
+          throw new Error(smsResult.error || 'SMS send failed');
+        }
+      } catch (error) {
+        console.error('❌ Failed to send customer conversion SMS:', error);
+        results.errors.push(`Customer SMS failed: ${error.message}`);
+      }
+    }
+
+    // 2. Send customer email notification
+    if (data.customer.email && data.consentEmail !== false) {
+      try {
+        console.log('📧 Sending ticket creation email to:', data.customer.email);
+        
+        // Create a simple HTML email for conversion
+        const subject = `Your Repair Has Started - Ticket ${data.ticket.ticket_number}`;
+        const html = `
+          <h2>Your Repair Has Started!</h2>
+          <p>Hi ${data.customer.name},</p>
+          <p>Great news! We've checked in your device and started working on your repair.</p>
+          
+          <h3>Repair Details:</h3>
+          <ul>
+            <li><strong>Ticket Number:</strong> ${data.ticket.ticket_number}</li>
+            <li><strong>Original Appointment:</strong> ${data.appointment.appointment_number}</li>
+            <li><strong>Device:</strong> ${data.device?.brand || ''} ${data.device?.model_name || 'Device'}</li>
+            <li><strong>Services:</strong> ${data.issues?.join(', ') || 'General Diagnosis'}</li>
+          </ul>
+          
+          <p><strong>What's Happening:</strong></p>
+          <ul>
+            <li>Your device is now in our repair queue</li>
+            <li>Our technicians are evaluating the issues</li>
+            <li>We'll provide updates as work progresses</li>
+            <li>You'll be notified when your device is ready</li>
+          </ul>
+          
+          <p>You can track your repair progress anytime at: <a href="${process.env.NEXT_PUBLIC_STATUS_URL}">${process.env.NEXT_PUBLIC_STATUS_URL}</a></p>
+          
+          <p>Questions? Just reply to this email or call us at ${process.env.BUSINESS_PHONE || '(844) 511-0454'}.</p>
+          
+          <p>Thanks for choosing The Phone Guys!</p>
+          <p>The Phone Guys Team</p>
+        `;
+
+        const emailResult = await this.emailService.sendEmail({
+          to: data.customer.email,
+          subject: subject,
+          html: html,
+          text: `Your repair has started! Ticket ${data.ticket.ticket_number} for your ${data.device?.brand || ''} ${data.device?.model_name || 'device'} is now in progress. Track status at ${process.env.NEXT_PUBLIC_STATUS_URL}.`
+        });
+
+        if (emailResult.success) {
+          console.log('✅ Customer conversion email sent successfully');
+          results.customerEmail = true;
+        } else {
+          throw new Error(emailResult.error || 'Email send failed');
+        }
+      } catch (error) {
+        console.error('❌ Failed to send customer conversion email:', error);
+        results.errors.push(`Customer email failed: ${error.message}`);
+      }
+    }
+
+    return results;
+  }
 }
 
 // Export singleton instance

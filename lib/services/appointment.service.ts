@@ -484,6 +484,42 @@ export class AppointmentService {
       }
     }
 
+    // Send customer notifications for appointment conversion to ticket
+    try {
+      const { getAppointmentNotificationService } = await import('./appointment-notifications.service');
+      const notificationService = getAppointmentNotificationService();
+
+      // Get full appointment data with relationships
+      const fullAppointment = await this.appointmentRepo.findById(appointmentId);
+      
+      if (fullAppointment?.customers) {
+        // Format issues for display
+        const formattedIssues = fullAppointment.issues ? 
+          (Array.isArray(fullAppointment.issues) ? fullAppointment.issues : [fullAppointment.issues])
+            .map((issue: string) => 
+              issue.replace(/_/g, ' ')
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ')
+            ) : ['General Diagnosis'];
+
+        // Send conversion notifications
+        await notificationService.sendAppointmentToTicketNotifications({
+          appointment: fullAppointment,
+          customer: fullAppointment.customers,
+          device: fullAppointment.devices,
+          issues: formattedIssues,
+          ticket: ticket,
+          convertedBy: ticket.created_by
+        });
+
+        console.log('✅ Appointment to ticket conversion notifications sent');
+      }
+    } catch (error) {
+      console.error('Error sending conversion notifications:', error);
+      // Don't fail the conversion if notifications fail
+    }
+
     return {
       appointment: updatedAppointment,
       ticket

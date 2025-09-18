@@ -338,6 +338,49 @@ export async function confirmAppointment(appointmentId: string, confirmationNote
       }
     }
     
+    // Send customer notifications for appointment confirmation
+    try {
+      const { data: appointmentData } = await supabase
+        .from('appointments')
+        .select(`
+          *,
+          customers(*),
+          devices(id, brand, model_name),
+          customer_devices(*)
+        `)
+        .eq('id', appointmentId)
+        .single();
+
+      if (appointmentData && appointmentData.customers) {
+        const { getAppointmentNotificationService } = await import('@/lib/services/appointment-notifications.service');
+        const notificationService = getAppointmentNotificationService();
+
+        // Format issues for display
+        const formattedIssues = appointmentData.issues ? 
+          (Array.isArray(appointmentData.issues) ? appointmentData.issues : [appointmentData.issues])
+            .map((issue: string) => 
+              issue.replace(/_/g, ' ')
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ')
+            ) : ['General Diagnosis'];
+
+        // Send confirmation notifications
+        await notificationService.sendAppointmentConfirmedNotifications({
+          appointment: appointmentData,
+          customer: appointmentData.customers,
+          device: appointmentData.devices,
+          issues: formattedIssues,
+          confirmedBy: user?.id
+        });
+
+        console.log('✅ Appointment confirmation notifications sent');
+      }
+    } catch (error) {
+      console.error('Error sending confirmation notifications:', error);
+      // Don't fail the confirmation if notifications fail
+    }
+    
     revalidatePath('/appointments');
     revalidatePath(`/appointments/${appointmentId}`);
     

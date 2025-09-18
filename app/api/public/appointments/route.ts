@@ -718,7 +718,7 @@ async function createInternalNotifications(appointment: any, customer: any) {
       appointment.id,
       customer.name,
       `${formattedDate} at ${formattedTime}`,
-      'system' // Created by system since it's from public form
+      null // Created by system since it's from public form
     );
     
     console.log('✅ Internal notifications created for new appointment');

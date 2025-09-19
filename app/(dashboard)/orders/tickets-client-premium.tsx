@@ -54,16 +54,15 @@ interface Ticket {
 
 export function TicketsClientPremium({ tickets: initialTickets }: { tickets: Ticket[] }) {
   const router = useRouter();
-  const [selectedTab, setSelectedTab] = useState("all");
+  const [selectedTab, setSelectedTab] = useState("active");
   const [searchQuery, setSearchQuery] = useState("");
   const [showMyTickets, setShowMyTickets] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Additional filter states
+  // Simplified filter states - removed device brand
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-  const [deviceBrandFilter, setDeviceBrandFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
 
   // Set up real-time subscriptions
@@ -102,23 +101,21 @@ export function TicketsClientPremium({ tickets: initialTickets }: { tickets: Tic
 
   // Filter management functions
   const clearAllFilters = () => {
-    setSelectedTab("all");
+    setSelectedTab("active");
     setSearchQuery("");
     setShowMyTickets(false);
     setPriorityFilter("all");
     setAssigneeFilter("all");
-    setDeviceBrandFilter("all");
-    toast.success("All filters cleared");
+    toast.success("Filters cleared");
   };
 
   const getActiveFilterCount = () => {
     let count = 0;
-    if (selectedTab !== "all") count++;
+    if (selectedTab !== "active") count++;
     if (searchQuery) count++;
     if (showMyTickets) count++;
     if (priorityFilter !== "all") count++;
     if (assigneeFilter !== "all") count++;
-    if (deviceBrandFilter !== "all") count++;
     return count;
   };
 
@@ -153,17 +150,21 @@ export function TicketsClientPremium({ tickets: initialTickets }: { tickets: Tic
     },
   ];
 
-  // Tab configurations
+  // Simplified tab configurations - cleaner like appointments page
   const tabs = [
-    { id: 'all', label: 'All Active', icon: <Package className="h-4 w-4" /> },
-    { id: 'new', label: 'New', icon: <AlertCircle className="h-4 w-4" /> },
+    { id: 'active', label: 'Active', icon: <Package className="h-4 w-4" />, description: 'New, In Progress, On Hold' },
     { id: 'in_progress', label: 'In Progress', icon: <Clock className="h-4 w-4" /> },
     { id: 'on_hold', label: 'On Hold', icon: <PauseCircle className="h-4 w-4" /> },
     { id: 'completed', label: 'Completed', icon: <CheckCircle2 className="h-4 w-4" /> },
+    { id: 'all', label: 'All', description: 'All tickets' },
   ];
 
   // Map selected tab to status filter for the table
   const getStatusFilter = () => {
+    if (selectedTab === 'active') {
+      // Active means everything except completed and cancelled
+      return 'new,in_progress,on_hold';
+    }
     if (selectedTab === 'all') return 'all';
     return selectedTab as any;
   };
@@ -249,30 +250,30 @@ export function TicketsClientPremium({ tickets: initialTickets }: { tickets: Tic
                 </div>
               </div>
 
-              {/* Advanced Filters */}
+              {/* Simplified Advanced Filters - less clutter */}
               {showFilters && (
-                <div className="border-t bg-muted/30 -mx-6 px-6 py-4 space-y-4">
+                <div className="border-t bg-muted/30 -mx-6 px-6 py-3 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium">Advanced Filters</h4>
+                    <h4 className="text-sm font-medium">Filters</h4>
                     {hasActiveFilters && (
                       <ButtonPremium
                         variant="ghost"
                         size="sm"
                         onClick={clearAllFilters}
-                        className="text-muted-foreground hover:text-destructive"
+                        className="text-muted-foreground hover:text-destructive h-7"
                       >
-                        <X className="h-4 w-4 mr-1" />
-                        Clear All
+                        <X className="h-3 w-3 mr-1" />
+                        Clear
                       </ButtonPremium>
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {/* Priority Filter */}
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Priority</label>
                       <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                        <SelectTrigger className="h-9">
+                        <SelectTrigger className="h-8 text-sm">
                           <SelectValue placeholder="All priorities" />
                         </SelectTrigger>
                         <SelectContent>
@@ -286,34 +287,16 @@ export function TicketsClientPremium({ tickets: initialTickets }: { tickets: Tic
                     </div>
 
                     {/* Assignee Filter */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Assignee</label>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Assignment</label>
                       <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="All assignees" />
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="All tickets" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Assignees</SelectItem>
-                          <SelectItem value="unassigned">Unassigned</SelectItem>
+                          <SelectItem value="all">All Tickets</SelectItem>
+                          <SelectItem value="unassigned">Unassigned Only</SelectItem>
                           <SelectItem value="assigned">Assigned Only</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Device Brand Filter */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Device Brand</label>
-                      <Select value={deviceBrandFilter} onValueChange={setDeviceBrandFilter}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="All brands" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Brands</SelectItem>
-                          <SelectItem value="apple">Apple</SelectItem>
-                          <SelectItem value="samsung">Samsung</SelectItem>
-                          <SelectItem value="google">Google</SelectItem>
-                          <SelectItem value="oneplus">OnePlus</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -323,12 +306,12 @@ export function TicketsClientPremium({ tickets: initialTickets }: { tickets: Tic
                   {hasActiveFilters && (
                     <div className="flex flex-wrap gap-2">
                       <span className="text-xs text-muted-foreground">Active filters:</span>
-                      {selectedTab !== "all" && (
+                      {selectedTab !== "active" && (
                         <Badge variant="secondary" className="text-xs">
                           Status: {tabs.find(t => t.id === selectedTab)?.label}
                           <X
                             className="h-3 w-3 ml-1 cursor-pointer hover:text-destructive"
-                            onClick={() => setSelectedTab("all")}
+                            onClick={() => setSelectedTab("active")}
                           />
                         </Badge>
                       )}
@@ -361,19 +344,10 @@ export function TicketsClientPremium({ tickets: initialTickets }: { tickets: Tic
                       )}
                       {assigneeFilter !== "all" && (
                         <Badge variant="secondary" className="text-xs">
-                          Assignee: {assigneeFilter}
+                          Assignment: {assigneeFilter === 'unassigned' ? 'Unassigned' : 'Assigned'}
                           <X
                             className="h-3 w-3 ml-1 cursor-pointer hover:text-destructive"
                             onClick={() => setAssigneeFilter("all")}
-                          />
-                        </Badge>
-                      )}
-                      {deviceBrandFilter !== "all" && (
-                        <Badge variant="secondary" className="text-xs">
-                          Brand: {deviceBrandFilter}
-                          <X
-                            className="h-3 w-3 ml-1 cursor-pointer hover:text-destructive"
-                            onClick={() => setDeviceBrandFilter("all")}
                           />
                         </Badge>
                       )}
@@ -393,7 +367,6 @@ export function TicketsClientPremium({ tickets: initialTickets }: { tickets: Tic
               currentUserId={currentUserId}
               priorityFilter={priorityFilter}
               assigneeFilter={assigneeFilter}
-              deviceBrandFilter={deviceBrandFilter}
               onStatusUpdate={handleStatusUpdate}
             />
           </CardContent>

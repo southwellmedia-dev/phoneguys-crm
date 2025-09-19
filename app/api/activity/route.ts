@@ -1,9 +1,177 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { RepairTicketRepository } from '@/lib/repositories/repair-ticket.repository';
-import { CustomerRepository } from '@/lib/repositories/customer.repository';
-import { AppointmentRepository } from '@/lib/repositories/appointment.repository';
-import { type ActivityItem } from '@/lib/hooks/connected/use-activity-feed';
+import { createServiceClient } from '@/lib/supabase/service';
+
+export interface ActivityLogItem {
+  id: string;
+  user_id: string;
+  user_name?: string;
+  user_avatar?: string;
+  activity_type: string;
+  entity_type?: string;
+  entity_id?: string;
+  details?: Record<string, any>;
+  created_at: string;
+  // Formatted fields for display
+  title?: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+}
+
+// Map activity types to user-friendly titles and icons
+const getActivityDisplay = (activity: any): { title: string; description: string; icon: string; color: string; hideActivity?: boolean } => {
+  const { activity_type, entity_type, details, entity_id } = activity;
+  
+  switch (activity_type) {
+    // Ticket events
+    case 'ticket_created':
+      return {
+        title: `New ticket created`,
+        description: details?.ticket_number ? `Ticket #${details.ticket_number}` : 'New repair ticket',
+        icon: 'package',
+        color: 'blue'
+      };
+      
+    case 'ticket_status_changed':
+      const status = details?.new_status || details?.to_status;
+      const oldStatus = details?.old_status || details?.from_status;
+      
+      // Skip if we don't have actual status information
+      if (!status) {
+        return { hideActivity: true, title: '', description: '', icon: '', color: '' };
+      }
+      
+      // Skip the duplicate entries that don't have ticket numbers (entity_type: 'ticket')
+      // We only want the ones with entity_type: 'repair_ticket' that have ticket numbers
+      if (entity_type === 'ticket' && !details?.ticket_number) {
+        return { hideActivity: true, title: '', description: '', icon: '', color: '' };
+      }
+      
+      return {
+        title: `Ticket status changed`,
+        description: `${oldStatus ? `${oldStatus} → ` : ''}${status}${details?.ticket_number ? ` (#${details.ticket_number})` : ''}`,
+        icon: 'refresh',
+        color: status === 'completed' ? 'green' : status === 'in_progress' ? 'yellow' : status === 'on_hold' ? 'orange' : 'blue'
+      };
+      
+    case 'ticket_status_update':
+      // This is just an API call log, skip it
+      return { hideActivity: true, title: '', description: '', icon: '', color: '' };
+      
+    case 'ticket_assigned':
+      return {
+        title: `Ticket assigned`,
+        description: details?.ticket_number ? `Ticket #${details.ticket_number} assigned` : 'Technician assigned',
+        icon: 'user-check',
+        color: 'purple'
+      };
+      
+    case 'ticket_completed':
+      return {
+        title: `Ticket completed`,
+        description: details?.ticket_number ? `Ticket #${details.ticket_number} completed` : 'Repair completed',
+        icon: 'check-circle',
+        color: 'green'
+      };
+      
+    // Timer events
+    case 'timer_start':
+      return {
+        title: `Timer started`,
+        description: details?.ticket_number ? `Working on ticket #${details.ticket_number}` : 
+                     entity_id ? `Working on ticket` : 'Work started',
+        icon: 'play',
+        color: 'blue'
+      };
+      
+    case 'timer_stop':
+    case 'timer_admin_stop':
+      const duration = details?.duration;
+      const formattedDuration = duration ? 
+        (duration >= 60 ? `${Math.floor(duration / 60)}h ${duration % 60}m` : `${duration}m`) : 
+        'Time';
+      return {
+        title: activity_type === 'timer_admin_stop' ? `Timer stopped by admin` : `Timer stopped`,
+        description: `${formattedDuration} recorded${details?.ticket_number ? ` on #${details.ticket_number}` : ''}`,
+        icon: 'pause',
+        color: 'orange'
+      };
+      
+    // Note events
+    case 'note_created':
+      // Hide internal notes from activity feed
+      if (details?.note_type === 'internal') {
+        return { hideActivity: true, title: '', description: '', icon: '', color: '' };
+      }
+      return {
+        title: `Note added`,
+        description: details?.ticket_number ? `Note added to ticket #${details.ticket_number}` : 'Note added to ticket',
+        icon: 'message-circle',
+        color: 'blue'
+      };
+      
+    // Customer events
+    case 'customer_created':
+      return {
+        title: `New customer`,
+        description: details?.customer_name || 'Customer registered',
+        icon: 'user-plus',
+        color: 'green'
+      };
+      
+    case 'customer_updated':
+      return {
+        title: `Customer updated`,
+        description: details?.customer_name || 'Customer information updated',
+        icon: 'user',
+        color: 'blue'
+      };
+      
+    // Appointment events
+    case 'appointment_created':
+      return {
+        title: `Appointment scheduled`,
+        description: details?.appointment_date ? `Scheduled for ${new Date(details.appointment_date).toLocaleDateString()}` : 'New appointment',
+        icon: 'calendar',
+        color: 'purple'
+      };
+      
+    case 'appointment_converted':
+      return {
+        title: `Appointment converted`,
+        description: `Converted to ticket${details?.ticket_number ? ` #${details.ticket_number}` : ''}`,
+        icon: 'arrow-right',
+        color: 'green'
+      };
+      
+    // Security events
+    case 'security_login_success':
+      return {
+        title: `User logged in`,
+        description: 'Successful login',
+        icon: 'lock',
+        color: 'green'
+      };
+      
+    case 'security_login_failure':
+      return {
+        title: `Login failed`,
+        description: 'Failed login attempt',
+        icon: 'alert-triangle',
+        color: 'red'
+      };
+      
+    // Default
+    default:
+      return {
+        title: activity_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        description: entity_type || 'System activity',
+        icon: 'activity',
+        color: 'gray'
+      };
+  }
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,113 +183,149 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type') || 'all';
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = parseInt(searchParams.get('offset') || '0');
+    const entityType = searchParams.get('entity_type');
+    const activityType = searchParams.get('activity_type');
     const startDate = searchParams.get('start_date');
     const endDate = searchParams.get('end_date');
 
-    // Initialize repositories with service role for full access
-    const ticketRepo = new RepairTicketRepository(true);
-    const customerRepo = new CustomerRepository(true);
-    const appointmentRepo = new AppointmentRepository(true);
+    // Use service client for full access to activity logs
+    const serviceClient = createServiceClient();
 
-    let activities: ActivityItem[] = [];
+    // Build query for activity logs
+    let query = serviceClient
+      .from('user_activity_logs')
+      .select(`
+        *,
+        user:users!user_activity_logs_user_id_fkey (
+          id,
+          full_name,
+          email,
+          avatar_url
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+      .range(offset, offset + limit - 1);
 
-    // Fetch different types of activities based on request
-    if (type === 'all' || type === 'tickets') {
-      const tickets = await ticketRepo.findAllWithCustomers();
-      const recentTickets = tickets
-        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-        .slice(0, type === 'tickets' ? limit : Math.floor(limit / 3));
+    // Apply filters
+    if (entityType) {
+      query = query.eq('entity_type', entityType);
+    }
 
-      const ticketActivities: ActivityItem[] = recentTickets.map(ticket => ({
-        id: ticket.id,
-        type: 'ticket' as const,
-        action: ticket.status === 'completed' ? 'completed' : 
-                ticket.status === 'new' ? 'created' : 'updated',
-        title: `Ticket #${ticket.ticket_number || ticket.id.slice(-6)}`,
-        description: ticket.device_model ? `${ticket.device_model} repair` : 'Device repair',
-        timestamp: ticket.updated_at,
-        metadata: {
-          customer_name: ticket.customers?.full_name || ticket.customers?.name || 'Unknown',
-          ticket_number: ticket.ticket_number,
-          status: ticket.status,
-          device: ticket.device_model
+    if (activityType) {
+      query = query.eq('activity_type', activityType);
+    }
+
+    // Filter out admin and server events for regular users
+    query = query.not('activity_type', 'like', 'admin_%')
+                 .not('activity_type', 'like', 'server_%')
+                 .not('activity_type', 'like', 'system_%');
+
+    // Date range filter
+    if (startDate) {
+      query = query.gte('created_at', startDate);
+    }
+    if (endDate) {
+      query = query.lte('created_at', endDate);
+    }
+
+    const { data: activities, error } = await query;
+
+    if (error) {
+      console.error('Error fetching activity logs:', error);
+      throw error;
+    }
+
+    // Get ticket numbers for timer activities
+    const timerActivities = (activities || []).filter(a => 
+      (a.activity_type === 'timer_start' || a.activity_type === 'timer_stop' || a.activity_type === 'timer_admin_stop') &&
+      a.entity_id && a.entity_type === 'ticket'
+    );
+    
+    let ticketNumbers: Record<string, string> = {};
+    if (timerActivities.length > 0) {
+      const ticketIds = [...new Set(timerActivities.map(a => a.entity_id).filter(Boolean))];
+      const { data: tickets } = await serviceClient
+        .from('repair_tickets')
+        .select('id, ticket_number')
+        .in('id', ticketIds);
+      
+      if (tickets) {
+        ticketNumbers = tickets.reduce((acc, t) => {
+          acc[t.id] = t.ticket_number;
+          return acc;
+        }, {} as Record<string, string>);
+      }
+    }
+
+    // Format activities for display and filter out phantom activities
+    const formattedActivities: ActivityLogItem[] = (activities || [])
+      .map(activity => {
+        // Add ticket number to details for timer activities
+        if ((activity.activity_type === 'timer_start' || activity.activity_type === 'timer_stop' || activity.activity_type === 'timer_admin_stop') 
+            && activity.entity_id && ticketNumbers[activity.entity_id]) {
+          activity.details = {
+            ...activity.details,
+            ticket_number: ticketNumbers[activity.entity_id]
+          };
         }
-      }));
-
-      activities.push(...ticketActivities);
-    }
-
-    if (type === 'all' || type === 'appointments') {
-      const appointments = await appointmentRepo.findAllWithDetails();
-      const recentAppointments = appointments
-        .sort((a: any, b: any) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())
-        .slice(0, type === 'appointments' ? limit : Math.floor(limit / 3));
-
-      const appointmentActivities: ActivityItem[] = recentAppointments.map((apt: any) => ({
-        id: apt.id,
-        type: 'appointment' as const,
-        action: apt.status === 'cancelled' ? 'cancelled' : 
-                apt.status === 'completed' ? 'completed' : 'updated',
-        title: `Appointment with ${apt.customers?.name || apt.customer_name || 'Customer'}`,
-        description: new Date(apt.scheduled_date).toLocaleDateString(),
-        timestamp: apt.updated_at || apt.created_at,
-        metadata: {
-          customer_name: apt.customers?.name || apt.customer_name,
-          appointment_date: apt.scheduled_date,
-          status: apt.status,
-          services: apt.services
+        
+        const display = getActivityDisplay(activity);
+        
+        // Skip activities that should be hidden
+        if (display.hideActivity) {
+          return null;
         }
-      }));
+        
+        return {
+          id: activity.id,
+          user_id: activity.user_id,
+          user_name: activity.user?.full_name || activity.user?.email || 'System',
+          user_avatar: activity.user?.avatar_url,
+          activity_type: activity.activity_type,
+          entity_type: activity.entity_type,
+          entity_id: activity.entity_id,
+          details: activity.details,
+          created_at: activity.created_at,
+          title: display.title,
+          description: display.description,
+          icon: display.icon,
+          color: display.color
+        };
+      })
+      .filter(activity => activity !== null) as ActivityLogItem[];
 
-      activities.push(...appointmentActivities);
-    }
+    // Get activity type counts for filtering
+    const { data: typeCounts } = await serviceClient
+      .from('user_activity_logs')
+      .select('activity_type')
+      .not('activity_type', 'like', 'admin_%')
+      .not('activity_type', 'like', 'server_%')
+      .not('activity_type', 'like', 'system_%')
+      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()); // Last 7 days
 
-    if (type === 'all' || type === 'customers') {
-      const customers = await customerRepo.findAll();
-      const recentCustomers = customers
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, type === 'customers' ? limit : Math.floor(limit / 3));
-
-      const customerActivities: ActivityItem[] = recentCustomers.map(customer => ({
-        id: customer.id,
-        type: 'customer' as const,
-        action: 'created' as const,
-        title: `Customer ${customer.full_name || customer.name || 'Unknown'}`,
-        description: customer.phone ? `Phone: ${customer.phone}` : 'New customer registration',
-        timestamp: customer.created_at,
-        metadata: {
-          customer_name: customer.full_name || customer.name,
-          phone: customer.phone,
-          email: customer.email
-        }
-      }));
-
-      activities.push(...customerActivities);
-    }
-
-    // Sort all activities by timestamp and limit
-    activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    activities = activities.slice(0, limit);
-
-    // Apply date filtering if provided
-    if (startDate || endDate) {
-      const start = startDate ? new Date(startDate) : new Date(0);
-      const end = endDate ? new Date(endDate) : new Date();
-
-      activities = activities.filter(activity => {
-        const activityDate = new Date(activity.timestamp);
-        return activityDate >= start && activityDate <= end;
-      });
-    }
+    const activityTypeCounts = typeCounts?.reduce((acc: Record<string, number>, item) => {
+      acc[item.activity_type] = (acc[item.activity_type] || 0) + 1;
+      return acc;
+    }, {}) || {};
 
     return NextResponse.json({
-      data: activities,
-      total: activities.length,
-      type,
-      limit
+      data: formattedActivities,
+      total: formattedActivities.length,
+      filters: {
+        limit,
+        offset,
+        entityType,
+        activityType,
+        startDate,
+        endDate
+      },
+      activityTypes: Object.keys(activityTypeCounts).sort(),
+      typeCounts: activityTypeCounts
     });
+    
   } catch (error) {
     console.error('Error fetching activity feed:', error);
     return NextResponse.json(

@@ -540,4 +540,51 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
 
     return { ...counts, total };
   }
+
+  async getWeeklyTrend(): Promise<{ day: string; date: string; tickets: number }[]> {
+    const client = await this.getClient();
+    
+    // Get tickets created in the last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // 6 days ago + today = 7 days
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const { data: tickets, error } = await client
+      .from(this.tableName)
+      .select('created_at')
+      .gte('created_at', sevenDaysAgo.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to fetch weekly trend: ${error.message}`);
+    }
+
+    // Group by day
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const trendData = [];
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+      nextDate.setHours(0, 0, 0, 0);
+      
+      // Count tickets for this day
+      const dayTickets = (tickets || []).filter(ticket => {
+        const ticketDate = new Date(ticket.created_at);
+        return ticketDate >= date && ticketDate < nextDate;
+      }).length;
+      
+      trendData.push({
+        day: i === 0 ? 'Today' : dayNames[date.getDay()],
+        date: date.toISOString().split('T')[0],
+        tickets: dayTickets
+      });
+    }
+
+    return trendData;
+  }
 }

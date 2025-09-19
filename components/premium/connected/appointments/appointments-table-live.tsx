@@ -43,8 +43,8 @@ interface Appointment {
 export interface AppointmentsTableLiveProps {
   /** Initial appointments data for SSR */
   initialData?: Appointment[];
-  /** Filter by status */
-  statusFilter?: 'all' | 'scheduled' | 'confirmed' | 'arrived' | 'no_show' | 'cancelled' | 'converted';
+  /** Filter by status - can be comma-separated for multiple statuses */
+  statusFilter?: string;
   /** Filter by date */
   dateFilter?: 'all' | 'today' | 'upcoming' | 'past';
   /** Search query */
@@ -53,8 +53,6 @@ export interface AppointmentsTableLiveProps {
   showMyAppointments?: boolean;
   /** Current user ID for filtering */
   currentUserId?: string | null;
-  /** Filter by urgency */
-  urgencyFilter?: string;
   /** Filter by source */
   sourceFilter?: string;
   /** Filter by time range */
@@ -205,9 +203,10 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
       filtered = filtered.filter(apt => apt.assigned_to === currentUserId);
     }
 
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(apt => apt.status === statusFilter);
+    // Apply status filter - supports comma-separated values
+    if (statusFilter && statusFilter !== 'all') {
+      const statuses = statusFilter.split(',').map(s => s.trim());
+      filtered = filtered.filter(apt => statuses.includes(apt.status));
     }
 
     // Apply date filter
@@ -233,11 +232,6 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
           return isPast(aptDate) && !isToday(aptDate) && apt.status !== 'converted';
         });
         break;
-    }
-
-    // Apply urgency filter
-    if (urgencyFilter !== 'all') {
-      filtered = filtered.filter(apt => apt.urgency?.toLowerCase() === urgencyFilter.toLowerCase());
     }
 
     // Apply source filter
@@ -278,7 +272,7 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
     }
 
     return filtered;
-  }, [appointments, statusFilter, dateFilter, searchQuery, showMyAppointments, currentUserId, urgencyFilter, sourceFilter, timeRangeFilter, limit]);
+  }, [appointments, statusFilter, dateFilter, searchQuery, showMyAppointments, currentUserId, sourceFilter, timeRangeFilter, limit]);
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
     try {

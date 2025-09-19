@@ -26,6 +26,7 @@ import {
   UserCheck,
   Filter,
   X,
+  CheckCheck,
 } from "lucide-react";
 import { useRealtime } from "@/lib/hooks/use-realtime";
 import { getCurrentUserInfo } from "@/lib/utils/user-mapping";
@@ -59,8 +60,7 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Additional filter states
-  const [urgencyFilter, setUrgencyFilter] = useState<string>("all");
+  // Simplified filter states - removed urgency
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [timeRangeFilter, setTimeRangeFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
@@ -105,10 +105,9 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
     setSelectedTab("upcoming");
     setSearchQuery("");
     setShowMyAppointments(false);
-    setUrgencyFilter("all");
     setSourceFilter("all");
     setTimeRangeFilter("all");
-    toast.success("All filters cleared");
+    toast.success("Filters cleared");
   };
 
   const getActiveFilterCount = () => {
@@ -116,7 +115,6 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
     if (selectedTab !== "upcoming") count++;
     if (searchQuery) count++;
     if (showMyAppointments) count++;
-    if (urgencyFilter !== "all") count++;
     if (sourceFilter !== "all") count++;
     if (timeRangeFilter !== "all") count++;
     return count;
@@ -147,34 +145,35 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
     },
   ];
 
-  // Tab configurations
+  // Simplified tab configurations - only 4 tabs as requested
   const tabs = [
-    { id: 'upcoming', label: 'Upcoming', icon: <Calendar className="h-4 w-4" /> },
-    { id: 'today', label: 'Today', icon: <Clock className="h-4 w-4" /> },
-    { id: 'past', label: 'Past' },
-    { id: 'converted', label: 'Converted' },
-    { id: 'cancelled', label: 'Cancelled' },
-    { id: 'all', label: 'All Active' },
+    { id: 'upcoming', label: 'Upcoming', icon: <Calendar className="h-4 w-4" />, description: 'Future appointments' },
+    { id: 'converted', label: 'Converted', icon: <CheckCheck className="h-4 w-4" />, description: 'Converted to tickets' },
+    { id: 'cancelled', label: 'Cancelled', icon: <X className="h-4 w-4" />, description: 'Cancelled appointments' },
+    { id: 'all', label: 'All', description: 'All appointments' },
   ];
 
   // Map selected tab to date filter for the table
   const getDateFilter = () => {
-    switch (selectedTab) {
-      case 'today': return 'today';
-      case 'upcoming': return 'upcoming';
-      case 'past': return 'past';
-      case 'converted': 
-      case 'cancelled':
-      case 'all':
-      default: return 'all';
-    }
+    // Only upcoming tab uses date filtering
+    if (selectedTab === 'upcoming') return 'upcoming';
+    return 'all';
   };
 
   // Map selected tab to status filter for the table
   const getStatusFilterForTable = () => {
-    if (selectedTab === 'converted') return 'converted';
-    if (selectedTab === 'cancelled') return 'cancelled';
-    return 'all';
+    switch (selectedTab) {
+      case 'upcoming':
+        // Show scheduled and confirmed appointments that are upcoming
+        return 'scheduled,confirmed';
+      case 'converted':
+        return 'converted';
+      case 'cancelled':
+        return 'cancelled';
+      case 'all':
+      default:
+        return 'all';
+    }
   };
 
   return (
@@ -256,47 +255,30 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
                 </div>
               </div>
 
-              {/* Advanced Filters */}
+              {/* Simplified Advanced Filters - less clutter */}
               {showFilters && (
-                <div className="border-t bg-muted/30 -mx-6 px-6 py-4 space-y-4">
+                <div className="border-t bg-muted/30 -mx-6 px-6 py-3 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium">Advanced Filters</h4>
+                    <h4 className="text-sm font-medium">Filters</h4>
                     {hasActiveFilters && (
                       <ButtonPremium
                         variant="ghost"
                         size="sm"
                         onClick={clearAllFilters}
-                        className="text-muted-foreground hover:text-destructive"
+                        className="text-muted-foreground hover:text-destructive h-7"
                       >
-                        <X className="h-4 w-4 mr-1" />
-                        Clear All
+                        <X className="h-3 w-3 mr-1" />
+                        Clear
                       </ButtonPremium>
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Urgency Filter */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Urgency</label>
-                      <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="All urgency levels" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Urgency</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="low">Low</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {/* Source Filter */}
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Source</label>
                       <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                        <SelectTrigger className="h-9">
+                        <SelectTrigger className="h-8 text-sm">
                           <SelectValue placeholder="All sources" />
                         </SelectTrigger>
                         <SelectContent>
@@ -305,23 +287,22 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
                           <SelectItem value="phone">Phone Call</SelectItem>
                           <SelectItem value="walk-in">Walk-in</SelectItem>
                           <SelectItem value="referral">Referral</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     {/* Time Range Filter */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Time Range</label>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Time Slot</label>
                       <Select value={timeRangeFilter} onValueChange={setTimeRangeFilter}>
-                        <SelectTrigger className="h-9">
+                        <SelectTrigger className="h-8 text-sm">
                           <SelectValue placeholder="All times" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Times</SelectItem>
                           <SelectItem value="morning">Morning (9-12)</SelectItem>
-                          <SelectItem value="afternoon">Afternoon (12-17)</SelectItem>
-                          <SelectItem value="evening">Evening (17-21)</SelectItem>
+                          <SelectItem value="afternoon">Afternoon (12-5)</SelectItem>
+                          <SelectItem value="evening">Evening (5-8)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -358,15 +339,6 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
                           />
                         </Badge>
                       )}
-                      {urgencyFilter !== "all" && (
-                        <Badge variant="secondary" className="text-xs">
-                          Urgency: {urgencyFilter}
-                          <X
-                            className="h-3 w-3 ml-1 cursor-pointer hover:text-destructive"
-                            onClick={() => setUrgencyFilter("all")}
-                          />
-                        </Badge>
-                      )}
                       {sourceFilter !== "all" && (
                         <Badge variant="secondary" className="text-xs">
                           Source: {sourceFilter}
@@ -400,7 +372,6 @@ export function AppointmentsClientPremium({ appointments: initialAppointments }:
               searchQuery={searchQuery}
               showMyAppointments={showMyAppointments}
               currentUserId={currentUserId}
-              urgencyFilter={urgencyFilter}
               sourceFilter={sourceFilter}
               timeRangeFilter={timeRangeFilter}
               onStatusUpdate={handleStatusUpdate}

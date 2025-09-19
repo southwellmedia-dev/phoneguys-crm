@@ -235,9 +235,15 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
       filtered = filtered.filter(ticket => ticket.assigned_to === currentUserId);
     }
 
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(ticket => ticket.status === statusFilter);
+    // Apply status filter - supports comma-separated values
+    if (statusFilter && statusFilter !== 'all') {
+      // Check if it's a comma-separated list
+      if (statusFilter.includes(',')) {
+        const statuses = statusFilter.split(',').map(s => s.trim());
+        filtered = filtered.filter(ticket => statuses.includes(ticket.status));
+      } else {
+        filtered = filtered.filter(ticket => ticket.status === statusFilter);
+      }
     }
 
     // Apply priority filter

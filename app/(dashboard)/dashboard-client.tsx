@@ -2,26 +2,21 @@
 
 import { useState } from "react";
 import { PageContainer } from "@/components/layout/page-container";
-import { MetricCardLive, StatCardLive } from "@/components/premium/connected/dashboard";
 import { ActionCard } from "@/components/premium/ui/cards/action-card";
-import { ButtonPremium } from "@/components/premium/ui/buttons/button-premium";
-import { RecentActivityLive } from "@/components/premium/connected/dashboard/recent-activity-live";
+import { RealActivityFeed } from "@/components/dashboard/real-activity-feed";
+import { SearchHintBanner } from "@/components/dashboard/search-hint-banner";
+import { RealDataInsights } from "@/components/dashboard/real-data-insights";
+import { DashboardStatCard } from "@/components/dashboard/dashboard-stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Package,
-  Clock,
   CheckCircle,
-  AlertCircle,
-  TrendingUp,
-  Users,
-  DollarSign,
-  Wrench,
   RefreshCw,
   Plus,
   UserPlus,
-  FileText,
   Calendar,
+  Target,
 } from "lucide-react";
 import Link from "next/link";
 import { useDashboard } from "@/lib/hooks/use-dashboard";
@@ -110,106 +105,18 @@ export function DashboardClient({ metrics: initialMetrics }: DashboardClientProp
   }
 
   return (
-    <PageContainer
-      title="Dashboard"
-      description="Welcome to The Phone Guys CRM System"
-      actions={headerActions}
-    >
+    <>
+      {/* Search Hint Banner - Thin bar at the very top */}
+      <SearchHintBanner />
+      
+      <PageContainer
+        title="Dashboard"
+        description="Welcome to The Phone Guys CRM System"
+        actions={headerActions}
+      >
         <div className="space-y-6">
-        {/* Masonry-style Metrics Grid - Modern asymmetric layout */}
-        <div className="grid gap-4 lg:grid-cols-6 lg:grid-rows-3">
-          {/* Large primary metric - spans 2 cols, 2 rows - SOLID CYAN */}
-          <div className="lg:col-span-2 lg:row-span-2">
-            <MetricCardLive
-              metric="new_tickets"
-              title="New Tickets Today"
-              fallbackSubtitle="Awaiting assignment"
-              icon={<Package />}
-              variant="inverted-primary"
-              showSparkline
-              size="lg"
-              interactive
-              className="h-full"
-            />
-          </div>
-
-          {/* Today's Appointments - spans 2 cols, tall */}
-          <div className="lg:col-span-2 lg:row-span-2">
-            <MetricCardLive
-              metric="total_appointments"
-              title="Today's Appointments"
-              fallbackSubtitle="Scheduled visits"
-              icon={<Calendar />}
-              variant="primary"
-              showSparkline
-              size="lg"
-              interactive
-              className="h-full"
-            />
-          </div>
-
-          {/* In Progress - wide */}
-          <div className="lg:col-span-2">
-            <StatCardLive
-              metric="in_progress"
-              icon={<Clock />}
-              variant="warning"
-              size="md"
-            />
-          </div>
-
-          {/* Completed Today */}
-          <div className="lg:col-span-2">
-            <StatCardLive
-              metric="completed_today"
-              icon={<CheckCircle />}
-              variant="success"
-              size="md"
-            />
-          </div>
-
-          {/* Total Customers - spans 2 cols */}
-          <div className="lg:col-span-2">
-            <StatCardLive
-              metric="total_customers"
-              icon={<Users />}
-              variant="accent-primary"
-              size="md"
-            />
-          </div>
-
-          {/* Total Repairs - wide bottom card */}
-          <div className="lg:col-span-2">
-            <StatCardLive
-              metric="total_repairs"
-              icon={<Wrench />}
-              variant="default"
-              size="md"
-            />
-          </div>
-
-          {/* On Hold - spans 2 cols to match height */}
-          <div className="lg:col-span-2">
-            <StatCardLive
-              metric="on_hold"
-              icon={<AlertCircle />}
-              variant="default"
-              size="md"
-            />
-          </div>
-        </div>
-
-        {/* Recent Activity with Tabs - Using premium table */}
-        <RecentActivityLive 
-          title="Recent Activity"
-          subtitle="Live updates across your system"
-          limit={10}
-          showTabs
-          showViewAll
-        />
-
-        {/* Quick Actions - Consistent styling */}
-        <div className="grid gap-4 lg:grid-cols-3">
+        {/* Quick Actions - First thing users see */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <ActionCard
             title="New Repair Ticket"
             description="Create a walk-in repair order"
@@ -217,33 +124,79 @@ export function DashboardClient({ metrics: initialMetrics }: DashboardClientProp
             variant="default"
             badge="Quick"
             onClick={() => window.location.href = '/orders/new'}
+            arrow={false}
             stats={{
               label: "Today",
               value: metrics.todayOrders
             }}
           />
           <ActionCard
-            title="Add Customer"
+            title="New Appointment"
+            description="Schedule customer appointment"
+            icon={<Calendar />}
+            variant="default"
+            badge="Schedule"
+            onClick={() => window.location.href = '/appointments/new'}
+            arrow={false}
+            stats={{
+              label: "Today",
+              value: metrics.recentAppointments?.filter((apt: any) => {
+                const aptDate = new Date(apt.scheduled_date || apt.appointment_date);
+                const today = new Date();
+                return aptDate.toDateString() === today.toDateString();
+              }).length || 0
+            }}
+          />
+          <ActionCard
+            title="New Customer"
             description="Register new customer"
             icon={<UserPlus />}
             variant="default"
             onClick={() => window.location.href = '/customers/new'}
+            arrow={false}
             stats={{
               label: "Total",
               value: metrics.totalCustomers
             }}
           />
           <ActionCard
-            title="Reports"
-            description="View analytics dashboard"
-            icon={<FileText />}
+            title="View Tickets"
+            description="Browse all repair orders"
+            icon={<Target />}
             variant="default"
-            onClick={() => window.location.href = '/reports'}
+            badge="Manage"
+            onClick={() => window.location.href = '/orders'}
+            arrow={false}
             stats={{
-              label: "Revenue",
-              value: `$${metrics.todayRevenue.toFixed(0)}`
+              label: "Active",
+              value: metrics.todayOrders + metrics.inProgressOrders
             }}
           />
+        </div>
+
+        {/* Activity Feed and Analytics - Real data insights on LEFT, activity on RIGHT */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Real Data Insights - 1/3 width on LEFT */}
+          <div className="lg:col-span-1">
+            <RealDataInsights 
+              className="h-full" 
+              metrics={{
+                todayOrders: metrics.todayOrders,
+                inProgressOrders: metrics.inProgressOrders,
+                completedToday: metrics.completedToday,
+                onHoldOrders: metrics.onHoldOrders
+              }}
+            />
+          </div>
+          
+          {/* Real Activity Feed - 2/3 width on RIGHT */}
+          <div className="lg:col-span-2">
+            <RealActivityFeed 
+              limit={20}
+              className="border-muted h-full"
+              showFilters={true}
+            />
+          </div>
         </div>
 
         {/* System Status - Modern Glass Card */}
@@ -298,6 +251,7 @@ export function DashboardClient({ metrics: initialMetrics }: DashboardClientProp
           </Card>
         </div>
       </div>
-    </PageContainer>
+      </PageContainer>
+    </>
   );
 }

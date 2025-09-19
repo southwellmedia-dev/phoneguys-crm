@@ -310,23 +310,22 @@ export function TicketDetailPremium({
       variant: "outline" as const,
       onClick: () => setShowStatusDialog(true),
     },
-    {
-      label: "Email Customer",
-      icon: <Mail className="h-4 w-4" />,
-      variant: "outline" as const,
-      onClick: () => console.log("Email customer"),
-    },
-    {
-      label: isGeneratingInvoice ? "Generating..." : "Print Invoice",
-      icon: isGeneratingInvoice ? (
-        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-      ) : (
-        <Printer className="h-4 w-4" />
-      ),
-      variant: "outline" as const,
-      onClick: handleDownloadInvoice,
-      disabled: isGeneratingInvoice,
-    },
+    // Only show print invoice for completed tickets
+    ...(order.status === "completed"
+      ? [
+          {
+            label: isGeneratingInvoice ? "Generating..." : "Print Invoice",
+            icon: isGeneratingInvoice ? (
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            ) : (
+              <Printer className="h-4 w-4" />
+            ),
+            variant: "outline" as const,
+            onClick: handleDownloadInvoice,
+            disabled: isGeneratingInvoice,
+          },
+        ]
+      : []),
     {
       label: "Edit Order",
       href: `/orders/${orderId}/edit`,
@@ -350,8 +349,62 @@ export function TicketDetailPremium({
       badge={<StatusBadge status={order.status as RepairStatus} />}
       actions={headerActions}
     >
-      {/* Status Notification Banner - Converted from Appointment - NOW FIRST */}
-      {appointmentData && appointmentData.id && (
+      <div className="relative">
+        {/* Completion overlay for completed tickets */}
+        {order.status === "completed" && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-md">
+            <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 p-8 max-w-md mx-4 text-center">
+              <div className="mb-4 flex justify-center">
+                <div className="p-4 bg-green-100 dark:bg-green-900/30 rounded-full">
+                  <CheckCircle2 className="h-16 w-16 text-green-600 dark:text-green-400" />
+                </div>
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+                Ticket Completed
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                This ticket has been marked as complete and is ready for customer pickup.
+              </p>
+              <div className="space-y-3">
+                <Button
+                  onClick={handleDownloadInvoice}
+                  disabled={isGeneratingInvoice}
+                  className="w-full"
+                  size="lg"
+                >
+                  {isGeneratingInvoice ? (
+                    <>
+                      <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Generating Invoice...
+                    </>
+                  ) : (
+                    <>
+                      <Printer className="h-4 w-4 mr-2" />
+                      Print Invoice
+                    </>
+                  )}
+                </Button>
+                <Button
+                  onClick={handleReopen}
+                  variant="outline"
+                  className="w-full"
+                  size="lg"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Re-open Ticket
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Main content - will be faded when completed */}
+        <div className={cn(
+          "transition-all duration-300",
+          order.status === "completed" && "opacity-20 pointer-events-none select-none saturate-0"
+        )}>
+          {/* Status Notification Banner - Converted from Appointment - NOW FIRST */}
+          {appointmentData && appointmentData.id && (
         <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -672,6 +725,8 @@ export function TicketDetailPremium({
           }}
         />
       )}
+        </div>
+      </div>
     </PageContainer>
   );
 }

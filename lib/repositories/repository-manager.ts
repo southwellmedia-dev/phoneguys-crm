@@ -198,6 +198,7 @@ import { ServiceRepository } from './service.repository';
 import { CustomerDeviceRepository } from './customer-device.repository';
 import { AvailabilityRepository } from './availability.repository';
 import { FormSubmissionRepository } from './form-submission.repository';
+import { ActivityLogRepository } from './activity-log.repository';
 
 /**
  * Convenience function to get commonly used repositories
@@ -233,4 +234,7 @@ export const getRepository = {
   
   formSubmissions: (useServiceRole = false) => 
     RepositoryManager.get(FormSubmissionRepository, useServiceRole),
+  
+  activityLogs: (useServiceRole = false) => 
+    RepositoryManager.get(ActivityLogRepository, useServiceRole),
 };

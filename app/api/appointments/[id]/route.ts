@@ -98,6 +98,51 @@ export async function PATCH(request: NextRequest, params: RouteParams) {
 
     // Update appointment
     const updatedAppointment = await appointmentRepo.update(id, updateData);
+    
+    // Log activity for status changes
+    if (updateData.status && updateData.status !== existingAppointment.status) {
+      try {
+        const activityRepo = getRepository.activityLogs();
+        const customerRepo = getRepository.customers();
+        
+        // Get customer info for the activity log
+        const customer = existingAppointment.customer_id 
+          ? await customerRepo.findById(existingAppointment.customer_id)
+          : null;
+        
+        // Determine the specific activity type based on the status change
+        let activityType = 'appointment_status_changed';
+        if (updateData.status === 'confirmed') {
+          activityType = 'appointment_confirmed';
+        } else if (updateData.status === 'checked_in') {
+          activityType = 'appointment_checked_in';
+        } else if (updateData.status === 'converted') {
+          activityType = 'appointment_converted';
+        } else if (updateData.status === 'cancelled') {
+          activityType = 'appointment_cancelled';
+        } else if (updateData.status === 'no_show') {
+          activityType = 'appointment_no_show';
+        }
+        
+        await activityRepo.create({
+          user_id: authResult.userId,
+          activity_type: activityType,
+          entity_type: 'appointment',
+          entity_id: id,
+          details: {
+            appointment_number: existingAppointment.appointment_number,
+            customer_name: customer?.name || 'Unknown Customer',
+            appointment_date: `${existingAppointment.scheduled_date} ${existingAppointment.scheduled_time}`,
+            old_status: existingAppointment.status,
+            new_status: updateData.status,
+            converted_ticket_id: updatedAppointment.converted_to_ticket_id
+          }
+        });
+      } catch (logError) {
+        console.error('Failed to log activity:', logError);
+        // Don't fail the request if activity logging fails
+      }
+    }
 
     // Handle notifications for assignment changes
     if (updateData.assigned_to !== undefined && updateData.assigned_to !== existingAppointment.assigned_to) {

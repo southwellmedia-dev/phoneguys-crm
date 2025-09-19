@@ -462,6 +462,29 @@ export class AppointmentService {
 
     // Update appointment as converted
     const updatedAppointment = await this.appointmentRepo.convertToTicket(appointmentId, ticket.id);
+    
+    // Log activity for appointment conversion
+    try {
+      const { getRepository } = await import('../repositories/repository-manager');
+      const activityRepo = getRepository.activityLogs(true);
+      
+      await activityRepo.create({
+        user_id: ticket.assigned_to || '11111111-1111-1111-1111-111111111111', // Use assigned tech or system user
+        activity_type: 'appointment_converted',
+        entity_type: 'appointment',
+        entity_id: appointmentId,
+        details: {
+          appointment_number: appointment.appointment_number,
+          customer_name: fullAppointment?.customers?.name || 'Unknown Customer',
+          ticket_number: ticket.ticket_number,
+          ticket_id: ticket.id,
+          converted_by: appointment.created_by || ticket.assigned_to
+        }
+      });
+    } catch (logError) {
+      console.error('Failed to log appointment conversion activity:', logError);
+      // Don't fail the conversion if activity logging fails
+    }
 
     // Send notification to assignee if ticket is assigned
     if (ticket.assigned_to) {

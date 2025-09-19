@@ -242,11 +242,19 @@ export function RealActivityFeed({
                 const content = (
                   <div className={cn(
                     "flex items-start gap-3 p-4 transition-colors",
-                    link && "hover:bg-muted/50 cursor-pointer"
+                    link && "hover:bg-muted/50 cursor-pointer",
+                    // Highlight new appointment requests
+                    activity.activity_type === 'appointment_created' && 
+                    activity.details?.status === 'scheduled' && 
+                    "bg-amber-50/50 dark:bg-amber-900/10 border-l-4 border-amber-500"
                   )}>
                     <div className={cn(
                       "rounded-full p-2",
-                      colorMap[activity.color || 'gray']
+                      colorMap[activity.color || 'gray'],
+                      // Pulse animation for new appointment requests
+                      activity.activity_type === 'appointment_created' && 
+                      activity.details?.status === 'scheduled' && 
+                      "animate-pulse"
                     )}>
                       {iconMap[activity.icon || 'activity']}
                     </div>

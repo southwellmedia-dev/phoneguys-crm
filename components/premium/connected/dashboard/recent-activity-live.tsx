@@ -182,6 +182,16 @@ export const RecentActivityLive = React.forwardRef<HTMLDivElement, RecentActivit
     // Define tab configurations
     const tabs: TabConfig[] = useMemo(() => [
       {
+        id: 'all',
+        label: 'All Activity',
+        icon: <Activity className="h-3.5 w-3.5" />,
+        count: (filteredOrdersData?.length || 0) + (filteredAppointmentsData?.length || 0) + (customersData?.length || 0),
+        endpoint: '/api/activity/all',
+        queryKey: ['all-activity'],
+        basePath: '',
+        columns: []  // Will be defined separately for all activity
+      },
+      {
         id: 'orders',
         label: 'Tickets',
         icon: <Package className="h-3.5 w-3.5" />,
@@ -312,13 +322,18 @@ export const RecentActivityLive = React.forwardRef<HTMLDivElement, RecentActivit
             label: 'Status',
             sortable: true,
             render: (value, row: any) => (
-              <StatusBadgeLive 
-                resourceType="appointment"
-                resourceId={row.id}
-                fallbackStatus={value}
-                size="xs"
-                variant="soft"
-              />
+              <div className="flex items-center gap-2">
+                <StatusBadgeLive 
+                  resourceType="appointment"
+                  resourceId={row.id}
+                  fallbackStatus={value}
+                  size="xs"
+                  variant={value === 'scheduled' ? 'default' : 'soft'}
+                />
+                {value === 'scheduled' && (
+                  <span className="text-xs text-amber-600 font-medium animate-pulse">New!</span>
+                )}
+              </div>
             )
           }
         ]

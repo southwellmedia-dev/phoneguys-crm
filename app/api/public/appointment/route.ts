@@ -332,6 +332,27 @@ export const POST = RateLimitedAPI.public(async (request: NextRequest) => {
               processed_at: new Date().toISOString()
             })
             .eq('id', submission.id);
+
+          // Log activity for new appointment request
+          // Use admin user UUID for system-generated activities
+          const SYSTEM_USER_ID = '11111111-1111-1111-1111-111111111111';
+          
+          await supabase
+            .from('user_activity_logs')
+            .insert({
+              user_id: SYSTEM_USER_ID, // System-generated activity
+              activity_type: 'appointment_created',
+              entity_type: 'appointment',
+              entity_id: appointment.id,
+              details: {
+                appointment_number: appointmentNumber,
+                customer_name: customerName,
+                appointment_date: `${preferredDate} ${preferredTime}`,
+                status: 'scheduled',
+                source: 'website',
+                services: services || []
+              }
+            });
         }
       }
     }

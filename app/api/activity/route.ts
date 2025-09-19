@@ -130,19 +130,76 @@ const getActivityDisplay = (activity: any): { title: string; description: string
       
     // Appointment events
     case 'appointment_created':
+      // Highlight if it's a new appointment request (scheduled status)
+      const isNewRequest = details?.status === 'scheduled' || details?.source === 'website';
       return {
-        title: `Appointment scheduled`,
-        description: details?.appointment_date ? `Scheduled for ${new Date(details.appointment_date).toLocaleDateString()}` : 'New appointment',
+        title: isNewRequest ? `⚡ New Appointment Request` : `Appointment scheduled`,
+        description: details?.appointment_number ? 
+          `${isNewRequest ? '🔔 ' : ''}${details.appointment_number} - ${details?.appointment_date ? new Date(details.appointment_date).toLocaleDateString() : ''}${details?.customer_name ? ` - ${details.customer_name}` : ''}` : 
+          (details?.appointment_date ? `Scheduled for ${new Date(details.appointment_date).toLocaleDateString()}${details?.customer_name ? ` - ${details.customer_name}` : ''}` : 'New appointment'),
         icon: 'calendar',
-        color: 'purple'
+        color: isNewRequest ? 'yellow' : 'purple'
+      };
+    
+    case 'appointment_confirmed':
+      return {
+        title: `✅ Appointment Confirmed`,
+        description: `${details?.appointment_number || 'Appointment'} - ${details?.customer_name || 'Customer'} confirmed for ${details?.appointment_date ? new Date(details.appointment_date).toLocaleDateString() : 'scheduled date'}`,
+        icon: 'check-circle',
+        color: 'green'
+      };
+    
+    case 'appointment_checked_in':
+      return {
+        title: `📍 Customer Checked In`,
+        description: `${details?.appointment_number || 'Appointment'} - ${details?.customer_name || 'Customer'} has arrived`,
+        icon: 'user-check',
+        color: 'blue'
+      };
+    
+    case 'appointment_status_changed':
+      const statusEmoji = {
+        'scheduled': '📅',
+        'confirmed': '✅',
+        'checked_in': '📍',
+        'in_progress': '🔧',
+        'completed': '✨',
+        'cancelled': '❌',
+        'no_show': '👻',
+        'converted': '🔄'
+      };
+      const emoji = statusEmoji[details?.new_status as keyof typeof statusEmoji] || '📋';
+      return {
+        title: `Appointment Status Updated`,
+        description: `${emoji} ${details?.appointment_number || 'Appointment'} - ${details?.old_status ? `${details.old_status} → ` : ''}${details?.new_status || 'status changed'}`,
+        icon: 'refresh',
+        color: details?.new_status === 'cancelled' || details?.new_status === 'no_show' ? 'red' : 
+               details?.new_status === 'confirmed' || details?.new_status === 'completed' ? 'green' :
+               details?.new_status === 'checked_in' || details?.new_status === 'in_progress' ? 'blue' : 'gray'
       };
       
     case 'appointment_converted':
       return {
-        title: `Appointment converted`,
-        description: `Converted to ticket${details?.ticket_number ? ` #${details.ticket_number}` : ''}`,
+        title: `🔄 Appointment Converted to Ticket`,
+        description: `${details?.appointment_number || 'Appointment'} converted to ticket${details?.ticket_number ? ` #${details.ticket_number}` : ''}`,
         icon: 'arrow-right',
         color: 'green'
+      };
+    
+    case 'appointment_cancelled':
+      return {
+        title: `❌ Appointment Cancelled`,
+        description: `${details?.appointment_number || 'Appointment'} - ${details?.customer_name || 'Customer'}${details?.reason ? ` - Reason: ${details.reason}` : ''}`,
+        icon: 'alert-triangle',
+        color: 'red'
+      };
+    
+    case 'appointment_no_show':
+      return {
+        title: `👻 Appointment No Show`,
+        description: `${details?.appointment_number || 'Appointment'} - ${details?.customer_name || 'Customer'} did not arrive`,
+        icon: 'alert-triangle',
+        color: 'orange'
       };
       
     // Security events
@@ -279,10 +336,17 @@ export async function GET(request: NextRequest) {
           return null;
         }
         
+        // Handle system-generated activities (admin user used for system events)
+        const isSystemUser = activity.user_id === '11111111-1111-1111-1111-111111111111' && 
+                            (activity.activity_type === 'appointment_created' && activity.details?.source === 'website');
+        const userName = isSystemUser 
+          ? 'Website Form' 
+          : (activity.user?.full_name || activity.user?.email || 'Unknown');
+        
         return {
           id: activity.id,
           user_id: activity.user_id,
-          user_name: activity.user?.full_name || activity.user?.email || 'System',
+          user_name: userName,
           user_avatar: activity.user?.avatar_url,
           activity_type: activity.activity_type,
           entity_type: activity.entity_type,

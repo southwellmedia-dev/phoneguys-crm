@@ -238,6 +238,50 @@ export class AppointmentService {
     console.log('Creating appointment with data:', JSON.stringify(appointmentData, null, 2));
     const appointment = await this.appointmentRepo.create(appointmentData);
 
+    // Log appointment creation activity
+    try {
+      const { getRepository } = await import('../repositories/repository-manager');
+      const activityRepo = getRepository.activityLogs(true);
+      
+      // Get customer name for the activity log
+      let customerName = 'Unknown Customer';
+      if (data.customer?.name) {
+        customerName = data.customer.name;
+      } else if (customerId) {
+        const customer = await this.customerRepo.findById(customerId);
+        if (customer) {
+          customerName = customer.name;
+        }
+      }
+      
+      // Use system user for activity logging since this is server-side
+      // In the future, we could pass the user ID from the action if needed
+      const userId = '11111111-1111-1111-1111-111111111111';
+      
+      await activityRepo.create({
+        user_id: userId,
+        activity_type: 'appointment_created',
+        entity_type: 'appointment',
+        entity_id: appointment.id,
+        details: {
+          appointment_number: appointment.appointment_number,
+          customer_name: customerName,
+          appointment_date: appointment.scheduled_date,
+          appointment_time: appointment.scheduled_time,
+          status: appointment.status,
+          urgency: appointment.urgency,
+          source: appointment.source,
+          is_walk_in: appointment.urgency === 'walk-in',
+          auto_confirmed: data.auto_confirm || false
+        }
+      });
+      
+      console.log('✅ Appointment creation activity logged');
+    } catch (logError) {
+      console.error('⚠️ Failed to log appointment creation activity:', logError);
+      // Don't fail the appointment creation if activity logging fails
+    }
+
     // Send confirmation email
     if (customerId && data.customer?.email) {
       await this.sendConfirmationEmail(appointment.id, data.customer.email);

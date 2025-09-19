@@ -134,15 +134,25 @@ const getActivityDisplay = (activity: any): { title: string; description: string
       
     // Appointment events
     case 'appointment_created':
-      // Highlight if it's a new appointment request (scheduled status)
-      const isNewRequest = details?.status === 'scheduled' || details?.source === 'website';
+      // Check if it's a walk-in appointment
+      const isWalkIn = details?.is_walk_in || details?.urgency === 'walk-in';
+      const isAutoConfirmed = details?.auto_confirmed || details?.status === 'arrived';
+      const isNewRequest = !isWalkIn && (details?.status === 'scheduled' || details?.source === 'website');
+      
+      let title = 'Appointment created';
+      if (isWalkIn) {
+        title = isAutoConfirmed ? 'Walk-in customer arrived' : 'Walk-in appointment';
+      } else if (isNewRequest) {
+        title = 'New appointment request';
+      }
+      
       return {
-        title: isNewRequest ? `New Appointment Request` : `Appointment scheduled`,
+        title,
         description: details?.appointment_number ? 
           `${details.appointment_number} - ${details?.appointment_date ? new Date(details.appointment_date).toLocaleDateString() : ''}${details?.customer_name ? ` - ${details.customer_name}` : ''}` : 
           (details?.appointment_date ? `Scheduled for ${new Date(details.appointment_date).toLocaleDateString()}${details?.customer_name ? ` - ${details.customer_name}` : ''}` : 'New appointment'),
-        icon: 'calendar',
-        color: isNewRequest ? 'yellow' : 'purple'
+        icon: isWalkIn ? 'user-check' : 'calendar',
+        color: isWalkIn ? 'blue' : (isNewRequest ? 'yellow' : 'purple')
       };
     
     case 'appointment_confirmed':

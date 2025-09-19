@@ -63,7 +63,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
       // Check if this is from an appointment conversion
       const isFromConversion = details?.from_appointment || details?.appointment_number;
       return {
-        title: isFromConversion ? `NEW SALE - Ticket Assigned!` : `Ticket assigned`,
+        title: `Ticket assigned`,
         description: details?.ticket_number ? 
           `Ticket #${details.ticket_number}${details?.assigned_to_name ? ` assigned to ${details.assigned_to_name}` : ' assigned'}${isFromConversion && details?.appointment_number ? ` (from ${details.appointment_number})` : ''}` : 
           'Technician assigned',
@@ -173,7 +173,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
       
     case 'appointment_converted':
       return {
-        title: `SALE! Appointment Converted to Ticket`,
+        title: `Appointment converted to ticket`,
         description: `${details?.appointment_number || 'Appointment'} → Ticket #${details?.ticket_number || 'New'}${details?.customer_name ? ` for ${details.customer_name}` : ''}`,
         icon: 'arrow-right',
         color: 'green'

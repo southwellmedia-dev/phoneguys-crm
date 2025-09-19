@@ -247,7 +247,7 @@ export function RealActivityFeed({
                     activity.activity_type === 'appointment_created' && 
                     activity.details?.status === 'scheduled' && 
                     "bg-amber-50/50 dark:bg-amber-900/10 border-l-4 border-amber-500",
-                    // Highlight appointment conversions (sales!)
+                    // Highlight appointment conversions
                     activity.activity_type === 'appointment_converted' && 
                     "bg-green-50/50 dark:bg-green-900/10 border-l-4 border-green-500",
                     // Highlight ticket assigned from conversion
@@ -262,7 +262,7 @@ export function RealActivityFeed({
                       activity.activity_type === 'appointment_created' && 
                       activity.details?.status === 'scheduled' && 
                       "animate-pulse",
-                      // Pulse animation for conversions (sales!)
+                      // Pulse animation for conversions
                       (activity.activity_type === 'appointment_converted' || 
                        (activity.activity_type === 'ticket_assigned' && 
                         (activity.details?.from_appointment || activity.details?.appointment_number))) && 

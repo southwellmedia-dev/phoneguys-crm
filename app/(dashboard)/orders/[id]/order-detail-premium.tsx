@@ -217,7 +217,16 @@ export function TicketDetailPremium({
       );
 
       if (!response.ok) {
-        throw new Error("Failed to generate report");
+        const errorText = await response.text();
+        console.error("Report generation failed:", errorText);
+        
+        // Try to parse error details
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.details || errorJson.error || "Failed to generate report");
+        } catch {
+          throw new Error("Failed to generate report");
+        }
       }
 
       const blob = await response.blob();

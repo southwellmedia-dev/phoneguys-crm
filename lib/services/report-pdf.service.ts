@@ -74,6 +74,30 @@ export class ReportPDFService {
     });
   }
 
+  private formatRepairIssue(issue: string): string {
+    // Map common repair issues to human-readable format
+    const issueMap: { [key: string]: string } = {
+      'screen_crack': 'Cracked Screen',
+      'screen_shattered': 'Shattered Screen',
+      'battery_drain': 'Battery Drain',
+      'water_damage': 'Water Damage',
+      'charging_port': 'Charging Port Issue',
+      'power_button': 'Power Button Issue',
+      'volume_button': 'Volume Button Issue',
+      'speaker_issue': 'Speaker Issue',
+      'microphone_issue': 'Microphone Issue',
+      'camera_issue': 'Camera Issue',
+      'wifi_issue': 'WiFi Connection Issue',
+      'bluetooth_issue': 'Bluetooth Issue',
+      'software_issue': 'Software Issue',
+      'other': 'Other Issue'
+    };
+    
+    return issueMap[issue] || issue.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+  }
+
   public generateReport(ticket: OrderDetail): Blob {
     this.currentY = 20;
     
@@ -105,11 +129,13 @@ export class ReportPDFService {
     // Company name
     this.pdf.setFontSize(this.config.fontSize.title);
     this.pdf.setTextColor(this.config.colors.primary);
+    this.pdf.setFont(undefined, 'bold');
     this.pdf.text(this.config.companyName, this.marginLeft, this.currentY);
     
     // Report title
     this.pdf.setFontSize(this.config.fontSize.heading);
     this.pdf.setTextColor(this.config.colors.text);
+    this.pdf.setFont(undefined, 'normal');
     this.pdf.text('SERVICE REPORT', this.pageWidth - this.marginRight, this.currentY, { align: 'right' });
     
     this.currentY += 10;
@@ -171,8 +197,10 @@ export class ReportPDFService {
     // Section header
     this.pdf.setFontSize(this.config.fontSize.subheading);
     this.pdf.setTextColor(this.config.colors.primary);
+    this.pdf.setFont(undefined, 'bold');
     this.pdf.text('CUSTOMER INFORMATION', this.marginLeft, this.currentY);
     this.currentY += 8;
+    this.pdf.setFont(undefined, 'normal');
     
     // Customer details
     this.pdf.setFontSize(this.config.fontSize.body);
@@ -222,8 +250,10 @@ export class ReportPDFService {
     // Section header
     this.pdf.setFontSize(this.config.fontSize.subheading);
     this.pdf.setTextColor(this.config.colors.primary);
+    this.pdf.setFont(undefined, 'bold');
     this.pdf.text('DEVICE INFORMATION', this.marginLeft, this.currentY);
     this.currentY += 8;
+    this.pdf.setFont(undefined, 'normal');
     
     // Device details
     this.pdf.setFontSize(this.config.fontSize.body);
@@ -263,7 +293,7 @@ export class ReportPDFService {
       
       this.pdf.setFont(undefined, 'normal');
       ticket.repair_issues.forEach((issue: string) => {
-        this.pdf.text(`• ${issue}`, this.marginLeft + 5, this.currentY);
+        this.pdf.text(`• ${this.formatRepairIssue(issue)}`, this.marginLeft + 5, this.currentY);
         this.currentY += 5;
       });
     }
@@ -274,15 +304,23 @@ export class ReportPDFService {
   private addServicesPerformed(ticket: OrderDetail): void {
     this.checkPageBreak();
     
+    // Debug logging
+    console.log('[Report PDF] Adding services, count:', ticket.ticket_services?.length || 0);
+    if (ticket.ticket_services && ticket.ticket_services.length > 0) {
+      console.log('[Report PDF] First service:', ticket.ticket_services[0]);
+    }
+    
     // Section header
     this.pdf.setFontSize(this.config.fontSize.subheading);
     this.pdf.setTextColor(this.config.colors.primary);
+    this.pdf.setFont(undefined, 'bold');
     this.pdf.text('SERVICES PERFORMED', this.marginLeft, this.currentY);
     this.currentY += 8;
     
     if (!ticket.ticket_services || ticket.ticket_services.length === 0) {
       this.pdf.setFontSize(this.config.fontSize.body);
       this.pdf.setTextColor(this.config.colors.lightText);
+      this.pdf.setFont(undefined, 'normal');
       this.pdf.text('No services recorded', this.marginLeft, this.currentY);
       this.currentY += 10;
       return;
@@ -305,7 +343,8 @@ export class ReportPDFService {
     this.currentY += 5;
     
     // Draw line under header
-    this.pdf.setDrawColor(this.config.colors.border);
+    this.pdf.setDrawColor(200, 200, 200);
+    this.pdf.setLineWidth(0.5);
     this.pdf.line(this.marginLeft, this.currentY, this.pageWidth - this.marginRight, this.currentY);
     this.currentY += 5;
     
@@ -314,10 +353,22 @@ export class ReportPDFService {
     let total = 0;
     
     ticket.ticket_services.forEach((ts: any) => {
-      const serviceName = ts.service?.name || ts.services?.name || 'Service';
+      // Get service name and handle both 'service' and 'services' property names
+      const serviceData = ts.service || ts.services;
+      const serviceName = serviceData?.name || 'Service';
+      
+      // Get quantity
       const quantity = ts.quantity || 1;
-      const price = ts.price || ts.service?.base_price || ts.services?.base_price || 0;
-      const lineTotal = price * quantity;
+      
+      // Get price - check unit_price first, then fallback to service base_price
+      let unitPrice = 0;
+      if (ts.unit_price !== undefined && ts.unit_price !== null) {
+        unitPrice = typeof ts.unit_price === 'string' ? parseFloat(ts.unit_price) : Number(ts.unit_price);
+      } else if (serviceData?.base_price !== undefined && serviceData?.base_price !== null) {
+        unitPrice = typeof serviceData.base_price === 'string' ? parseFloat(serviceData.base_price) : Number(serviceData.base_price);
+      }
+      
+      const lineTotal = unitPrice * quantity;
       total += lineTotal;
       
       this.pdf.text(serviceName, colX.service, this.currentY);
@@ -346,8 +397,10 @@ export class ReportPDFService {
     // Section header
     this.pdf.setFontSize(this.config.fontSize.subheading);
     this.pdf.setTextColor(this.config.colors.primary);
+    this.pdf.setFont(undefined, 'bold');
     this.pdf.text('TIME TRACKING', this.marginLeft, this.currentY);
     this.currentY += 8;
+    this.pdf.setFont(undefined, 'normal');
     
     // Table header
     const colX = {
@@ -418,8 +471,10 @@ export class ReportPDFService {
     // Section header
     this.pdf.setFontSize(this.config.fontSize.subheading);
     this.pdf.setTextColor(this.config.colors.primary);
+    this.pdf.setFont(undefined, 'bold');
     this.pdf.text('SERVICE NOTES', this.marginLeft, this.currentY);
     this.currentY += 8;
+    this.pdf.setFont(undefined, 'normal');
     
     this.pdf.setFontSize(this.config.fontSize.body);
     this.pdf.setTextColor(this.config.colors.text);
@@ -453,8 +508,10 @@ export class ReportPDFService {
     // Section header
     this.pdf.setFontSize(this.config.fontSize.subheading);
     this.pdf.setTextColor(this.config.colors.primary);
+    this.pdf.setFont(undefined, 'bold');
     this.pdf.text('SIGNATURES', this.marginLeft, this.currentY);
     this.currentY += 10;
+    this.pdf.setFont(undefined, 'normal');
     
     const boxWidth = (this.pageWidth - this.marginLeft - this.marginRight - 10) / 2;
     const leftBoxX = this.marginLeft;

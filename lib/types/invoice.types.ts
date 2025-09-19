@@ -235,16 +235,42 @@ export function orderDetailToInvoiceData(
       storage: order.customer_device?.storage_size || undefined
     } : undefined,
     
-    services: order.ticket_services?.map(service => {
-      const unitPrice = typeof service.unit_price === 'string' ? parseFloat(service.unit_price) : (service.unit_price || 0);
-      const totalPrice = typeof service.total_price === 'string' ? parseFloat(service.total_price) : service.total_price;
+    services: order.ticket_services?.map(ts => {
+      // Handle both service and services property names
+      const serviceData = ts.service || ts.services;
+      
+      // Get price - handle number, string, or fallback to service base_price
+      let unitPrice = 0;
+      if (ts.unit_price !== undefined && ts.unit_price !== null) {
+        unitPrice = typeof ts.unit_price === 'string' ? parseFloat(ts.unit_price) : Number(ts.unit_price);
+      } else if (serviceData?.base_price !== undefined && serviceData?.base_price !== null) {
+        unitPrice = typeof serviceData.base_price === 'string' ? parseFloat(serviceData.base_price) : Number(serviceData.base_price);
+      }
+      
+      const quantity = ts.quantity || 1;
+      
+      // Use total_price if available, otherwise calculate
+      let total = quantity * unitPrice;
+      if (ts.total_price !== undefined && ts.total_price !== null) {
+        total = typeof ts.total_price === 'string' ? parseFloat(ts.total_price) : Number(ts.total_price);
+      }
+      
+      console.log('[Invoice Type Conversion] Service:', {
+        name: serviceData?.name,
+        unitPrice,
+        quantity,
+        total,
+        original_unit_price: ts.unit_price,
+        original_total_price: ts.total_price
+      });
+      
       return {
-        id: service.id,
-        description: service.service?.name || 'Service',
-        quantity: service.quantity || 1,
+        id: ts.id,
+        description: serviceData?.name || 'Service',
+        quantity: quantity,
         unitPrice: unitPrice,
-        total: totalPrice || (service.quantity || 1) * unitPrice,
-        notes: service.technician_notes || undefined
+        total: total,
+        notes: ts.technician_notes || undefined
       };
     }) || [],
     

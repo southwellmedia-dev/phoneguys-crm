@@ -3,7 +3,13 @@
 import * as React from "react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useTicket, useUpdateTicketStatus, useStartTimer, useStopTimer, useClearTimer } from "@/lib/hooks/use-tickets";
+import {
+  useTicket,
+  useUpdateTicketStatus,
+  useStartTimer,
+  useStopTimer,
+  useClearTimer,
+} from "@/lib/hooks/use-tickets";
 import { useTimer } from "@/lib/contexts/timer-context";
 import { useRealtime } from "@/lib/hooks/use-realtime";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,7 +28,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ButtonPremium } from "@/components/premium/ui/buttons/button-premium";
 import { cn } from "@/lib/utils";
-import { 
+import {
   ArrowLeft,
   Edit,
   Mail,
@@ -34,7 +40,8 @@ import {
   Pause,
   MoreHorizontal,
   Wrench,
-  RotateCcw
+  RotateCcw,
+  FileText,
 } from "lucide-react";
 import { format } from "date-fns";
 import { RepairTicketWithRelations } from "@/lib/types/repair-ticket";
@@ -57,8 +64,8 @@ interface TicketDetailPremiumProps {
   }>;
 }
 
-export function TicketDetailPremium({ 
-  order: initialOrder, 
+export function TicketDetailPremium({
+  order: initialOrder,
   orderId,
   totalTimeMinutes: initialTotalTimeMinutes,
   isAdmin = false,
@@ -66,69 +73,119 @@ export function TicketDetailPremium({
   matchingCustomerDevice,
   addDeviceToProfile,
   appointmentData,
-  technicians = []
+  technicians = [],
 }: TicketDetailPremiumProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: order = initialOrder, showSkeleton: ticketSkeleton } = useTicket(orderId, initialOrder);
+  const { data: order = initialOrder, showSkeleton: ticketSkeleton } =
+    useTicket(orderId, initialOrder);
   const updateStatusMutation = useUpdateTicketStatus();
   const clearTimerMutation = useClearTimer();
-  
+
   // Set up real-time subscriptions
-  useRealtime(['tickets']);
-  
+  useRealtime(["tickets"]);
+
+  // Lock body scroll when ticket is completed
+  useEffect(() => {
+    if (order.status === "completed") {
+      // Lock body scroll
+      const originalStyle = {
+        overflow: document.body.style.overflow,
+        position: document.body.style.position,
+        top: document.body.style.top,
+        width: document.body.style.width,
+      };
+
+      // Apply scroll lock
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "relative";
+
+      // Cleanup function to restore scroll
+      return () => {
+        document.body.style.overflow = originalStyle.overflow;
+        document.body.style.position = originalStyle.position;
+        document.body.style.top = originalStyle.top;
+        document.body.style.width = originalStyle.width;
+      };
+    }
+  }, [order.status]);
+
   // Calculate total time from order data (real-time updates will keep this current)
-  const totalTimeMinutes = order?.time_entries?.reduce(
-    (acc: number, entry: any) => acc + (entry.duration_minutes || 0),
-    0
-  ) || order?.timer_total_minutes || order?.total_time_minutes || initialTotalTimeMinutes || 0;
-  
+  const totalTimeMinutes =
+    order?.time_entries?.reduce(
+      (acc: number, entry: any) => acc + (entry.duration_minutes || 0),
+      0
+    ) ||
+    order?.timer_total_minutes ||
+    order?.total_time_minutes ||
+    initialTotalTimeMinutes ||
+    0;
+
   // Use proper hydration strategy skeleton
   const showSkeleton = ticketSkeleton;
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
   const [showAddDeviceDialog, setShowAddDeviceDialog] = useState(false);
-  const [assignedTechId, setAssignedTechId] = useState(order.assigned_to || 'unassigned');
+  const [assignedTechId, setAssignedTechId] = useState(
+    order.assigned_to || "unassigned"
+  );
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
-  
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
   // Timer context
   const { startTimer } = useTimer();
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return '';
+    if (!dateString) return "";
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) return '';
+      if (isNaN(date.getTime())) return "";
       return date.toLocaleString();
     } catch {
-      return '';
+      return "";
     }
   };
 
   const handleDownloadInvoice = async () => {
-    console.log('Download invoice clicked - premium version');
+    console.log("Download invoice clicked - premium version");
+    console.log("Order ID:", orderId);
+    console.log("Order ticket_services:", order.ticket_services);
+    console.log("Order ticket_services count:", order.ticket_services?.length || 0);
+    if (order.ticket_services && order.ticket_services.length > 0) {
+      console.log("First service:", order.ticket_services[0]);
+    }
     setIsGeneratingInvoice(true);
     try {
-      const response = await fetch(`/api/tickets/${orderId}/invoice?format=download`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/pdf',
-        },
-      });
+      const response = await fetch(
+        `/api/tickets/${orderId}/invoice?format=download`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/pdf",
+          },
+        }
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Invoice generation failed:', errorText);
-        throw new Error('Failed to generate invoice');
+        console.error("Invoice generation failed:", errorText);
+        
+        // Try to parse error details
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.details || errorJson.error || "Failed to generate invoice");
+        } catch {
+          throw new Error("Failed to generate invoice");
+        }
       }
 
       // Get the blob from the response
       const blob = await response.blob();
-      
+
       // Create a download link
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
       link.download = `invoice-${order.ticket_number}.pdf`;
       document.body.appendChild(link);
@@ -136,12 +193,50 @@ export function TicketDetailPremium({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast.success('Invoice downloaded successfully');
+      toast.success("Invoice downloaded successfully");
     } catch (error) {
-      console.error('Error downloading invoice:', error);
-      toast.error('Failed to download invoice');
+      console.error("Error downloading invoice:", error);
+      toast.error("Failed to download invoice");
     } finally {
       setIsGeneratingInvoice(false);
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    console.log("Generate report clicked");
+    setIsGeneratingReport(true);
+    try {
+      const response = await fetch(
+        `/api/tickets/${orderId}/report?format=download`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/pdf",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to generate report");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `report-${order.ticket_number}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success("Report downloaded successfully");
+    } catch (error) {
+      console.error("Error generating report:", error);
+      toast.error("Failed to generate report. Please try again.");
+    } finally {
+      setIsGeneratingReport(false);
     }
   };
 
@@ -166,20 +261,28 @@ export function TicketDetailPremium({
       }
 
       toast.success("Order reopened successfully");
-      
+
       // Update ticket in cache directly
-      queryClient.setQueryData(['ticket', orderId], (old: any) => {
+      queryClient.setQueryData(["ticket", orderId], (old: any) => {
         if (!old) return old;
-        return { ...old, status: 'in_progress', updated_at: new Date().toISOString() };
+        return {
+          ...old,
+          status: "in_progress",
+          updated_at: new Date().toISOString(),
+        };
       });
-      
+
       // Update ticket lists
       queryClient.setQueriesData(
-        { queryKey: ['tickets'], exact: false },
+        { queryKey: ["tickets"], exact: false },
         (old: any[] = []) => {
-          return old.map(ticket => 
-            ticket.id === orderId 
-              ? { ...ticket, status: 'in_progress', updated_at: new Date().toISOString() }
+          return old.map((ticket) =>
+            ticket.id === orderId
+              ? {
+                  ...ticket,
+                  status: "in_progress",
+                  updated_at: new Date().toISOString(),
+                }
               : ticket
           );
         }
@@ -200,16 +303,19 @@ export function TicketDetailPremium({
 
       if (!response.ok) throw new Error("Failed to update assignment");
 
-      setAssignedTechId(technicianId || 'unassigned');
-      
+      setAssignedTechId(technicianId || "unassigned");
+
       // Update cache
-      queryClient.setQueryData(['ticket', orderId], (old: any) => {
+      queryClient.setQueryData(["ticket", orderId], (old: any) => {
         if (!old) return old;
         return { ...old, assigned_to: technicianId || null };
       });
 
-      const techName = technicians.find(t => t.id === technicianId)?.name || 'Unassigned';
-      toast.success(`Ticket ${technicianId ? `assigned to ${techName}` : 'unassigned'}`);
+      const techName =
+        technicians.find((t) => t.id === technicianId)?.name || "Unassigned";
+      toast.success(
+        `Ticket ${technicianId ? `assigned to ${techName}` : "unassigned"}`
+      );
     } catch (error) {
       toast.error("Failed to update assignment");
       console.error(error);
@@ -228,21 +334,21 @@ export function TicketDetailPremium({
   const handleStartTimer = async () => {
     try {
       const success = await startTimer(
-        orderId, 
+        orderId,
         order.ticket_number,
-        order.customer?.name || 'Unknown Customer'
+        order.customer?.name || "Unknown Customer"
       );
-      
+
       if (success) {
         // Update ticket status to in_progress
-        updateStatusMutation.mutate({ id: orderId, status: 'in_progress' });
+        updateStatusMutation.mutate({ id: orderId, status: "in_progress" });
         toast.success("Timer started and ticket moved to In Progress");
       } else {
         toast.error("Failed to start timer");
       }
     } catch (error) {
       toast.error("Failed to start timer");
-      console.error('Timer start error:', error);
+      console.error("Timer start error:", error);
     }
   };
 
@@ -250,16 +356,19 @@ export function TicketDetailPremium({
     setShowCompleteDialog(true);
   };
 
-  const handleCompleteTicketConfirm = async (newStatus: any, reason?: string) => {
+  const handleCompleteTicketConfirm = async (
+    newStatus: any,
+    reason?: string
+  ) => {
     try {
-      if (newStatus === 'completed') {
+      if (newStatus === "completed") {
         // Update status to completed
-        updateStatusMutation.mutate({ id: orderId, status: 'completed' });
+        updateStatusMutation.mutate({ id: orderId, status: "completed" });
         toast.success("Ticket completed successfully");
       }
     } catch (error) {
       toast.error("Failed to complete ticket");
-      console.error('Complete ticket error:', error);
+      console.error("Complete ticket error:", error);
     }
   };
 
@@ -350,382 +459,499 @@ export function TicketDetailPremium({
       actions={headerActions}
     >
       <div className="relative">
-        {/* Completion overlay for completed tickets */}
-        {order.status === "completed" && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-md">
-            <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 p-8 max-w-md mx-4 text-center">
-              <div className="mb-4 flex justify-center">
-                <div className="p-4 bg-green-100 dark:bg-green-900/30 rounded-full">
-                  <CheckCircle2 className="h-16 w-16 text-green-600 dark:text-green-400" />
+        {/* Status Notification Banner - Converted from Appointment - NOW FIRST */}
+        {appointmentData && appointmentData.id && (
+          <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                  <Calendar className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-green-900 dark:text-green-100">
+                    Converted from Appointment
+                  </p>
+                  <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
+                    Appointment #{appointmentData.appointment_number} •
+                    Scheduled for{" "}
+                    {appointmentData.scheduled_date
+                      ? new Date(
+                          appointmentData.scheduled_date
+                        ).toLocaleDateString()
+                      : "N/A"}
+                  </p>
                 </div>
               </div>
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
-                Ticket Completed
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                This ticket has been marked as complete and is ready for customer pickup.
-              </p>
-              <div className="space-y-3">
-                <Button
-                  onClick={handleDownloadInvoice}
-                  disabled={isGeneratingInvoice}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isGeneratingInvoice ? (
-                    <>
-                      <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      Generating Invoice...
-                    </>
-                  ) : (
-                    <>
-                      <Printer className="h-4 w-4 mr-2" />
-                      Print Invoice
-                    </>
-                  )}
-                </Button>
-                <Button
-                  onClick={handleReopen}
-                  variant="outline"
-                  className="w-full"
-                  size="lg"
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Re-open Ticket
-                </Button>
+              <ButtonPremium
+                onClick={() =>
+                  router.push(`/appointments/${appointmentData.id}`)
+                }
+                variant="default"
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+              >
+                <Calendar className="h-4 w-4 mr-1.5" />
+                View Appointment
+              </ButtonPremium>
+            </div>
+          </div>
+        )}
+
+        {/* Ticket Status Flow - Matching appointments page style - NOW SECOND */}
+        <div className="mb-6">
+          <Card className="border border-gray-200 dark:border-gray-700">
+            <CardContent className="pt-6 pb-4">
+              <div className="relative">
+                {/* Progress line with gradient colors */}
+                <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700">
+                  <div
+                    className="h-full transition-all duration-500"
+                    style={{
+                      width:
+                        order.status === "cancelled"
+                          ? "0%"
+                          : order.status === "new"
+                          ? "0%"
+                          : order.status === "in_progress"
+                          ? "50%"
+                          : order.status === "completed"
+                          ? "100%"
+                          : "0%",
+                      background:
+                        order.status === "completed"
+                          ? "linear-gradient(to right, #06b6d4, #f97316, #22c55e)"
+                          : order.status === "in_progress"
+                          ? "linear-gradient(to right, #06b6d4, #f97316)"
+                          : "#06b6d4",
+                    }}
+                  />
+                </div>
+
+                {/* Steps - matching appointments style */}
+                <div className="relative flex justify-between">
+                  {[
+                    {
+                      key: "new",
+                      label: "New",
+                      icon: Clock,
+                      description: "Ticket created",
+                    },
+                    {
+                      key: "in_progress",
+                      label: "In Progress",
+                      icon: Wrench,
+                      description: "Being repaired",
+                    },
+                    {
+                      key: "completed",
+                      label: "Completed",
+                      icon: CheckCircle2,
+                      description: "Ready for pickup",
+                    },
+                  ].map((step, index) => {
+                    const isActive = order.status === step.key;
+                    const isPast =
+                      ["new", "in_progress", "completed"].indexOf(
+                        order.status
+                      ) > ["new", "in_progress", "completed"].indexOf(step.key);
+                    const isCompleted =
+                      isPast ||
+                      (order.status === "completed" &&
+                        step.key === "completed");
+                    const Icon = step.icon;
+
+                    // Define colors for each step
+                    const getStepColors = () => {
+                      if (!isCompleted && !isActive) {
+                        return {
+                          border: "border-gray-300 dark:border-gray-600",
+                          bg: "bg-white dark:bg-gray-800",
+                          text: "text-gray-400 dark:text-gray-500",
+                          ring: "",
+                        };
+                      }
+
+                      switch (step.key) {
+                        case "new":
+                          return {
+                            border: "border-cyan-500",
+                            bg: "bg-cyan-500",
+                            text: "text-white",
+                            ring: isActive
+                              ? "ring-4 ring-cyan-100 dark:ring-cyan-900/50 scale-110"
+                              : "",
+                          };
+                        case "in_progress":
+                          return {
+                            border: "border-orange-500",
+                            bg: "bg-orange-500",
+                            text: "text-white",
+                            ring: isActive
+                              ? "ring-4 ring-orange-100 dark:ring-orange-900/50 scale-110"
+                              : "",
+                          };
+                        case "completed":
+                          return {
+                            border: "border-green-500",
+                            bg: "bg-green-500",
+                            text: "text-white",
+                            ring: isActive
+                              ? "ring-4 ring-green-100 dark:ring-green-900/50 scale-110"
+                              : "",
+                          };
+                        default:
+                          return {
+                            border: "border-cyan-500",
+                            bg: "bg-cyan-500",
+                            text: "text-white",
+                            ring: isActive
+                              ? "ring-4 ring-cyan-100 dark:ring-cyan-900/50 scale-110"
+                              : "",
+                          };
+                      }
+                    };
+
+                    const colors = getStepColors();
+
+                    return (
+                      <div
+                        key={step.key}
+                        className="flex flex-col items-center"
+                      >
+                        {/* Step circle with individual colors */}
+                        <div
+                          className={cn(
+                            "relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-300",
+                            colors.border,
+                            colors.bg,
+                            colors.text,
+                            colors.ring
+                          )}
+                        >
+                          <Icon className="h-5 w-5" />
+                        </div>
+
+                        {/* Step label - matching appointments style */}
+                        <div className="mt-2 text-center">
+                          <p
+                            className={cn(
+                              "text-sm font-medium",
+                              isCompleted || isActive
+                                ? "text-gray-900 dark:text-gray-100"
+                                : "text-gray-500 dark:text-gray-400"
+                            )}
+                          >
+                            {step.label}
+                          </p>
+                          {step.description && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                              {step.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Edge case indicator for cancelled status */}
+                {order.status === "cancelled" && (
+                  <div className="mt-4 p-3 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    <p className="text-sm text-center text-gray-600 dark:text-gray-400">
+                      ❌ This ticket was cancelled
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Enhanced Stat Cards with Progress Indicators */}
+        <TicketStatCards
+          actualMinutes={totalTimeMinutes}
+          estimatedMinutes={
+            order.ticket_services?.reduce((sum: number, ts: any) => {
+              const service = ts.service || ts.services;
+              return (
+                sum +
+                (service?.estimated_duration_minutes ||
+                  ts.duration_minutes ||
+                  0)
+              );
+            }, 0) || 0
+          }
+          serviceCount={order.ticket_services?.length || 0}
+          services={order.ticket_services || []}
+          totalCost={(() => {
+            if (order.ticket_services && order.ticket_services.length > 0) {
+              const calculatedTotal = order.ticket_services.reduce(
+                (sum: number, ts: any) => {
+                  const service = ts.service || ts.services;
+                  const price = service?.base_price || ts.price || 0;
+                  return sum + price;
+                },
+                0
+              );
+              return calculatedTotal || order.total_cost || 0;
+            }
+            return order.total_cost || 0;
+          })()}
+          priority={order.priority || "medium"}
+          createdAt={order.created_at}
+          status={order.status}
+          onStartTimer={handleStartTimer}
+          onCompleteTicket={handleCompleteTicket}
+          className="mb-6"
+        />
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Left Sidebar (Time Tracking & Ticket Details) */}
+          <div className="space-y-6">
+            {/* Enhanced Time Tracking Component */}
+            <TimeTrackingEnhanced
+              ticketId={orderId}
+              ticketNumber={order.ticket_number}
+              customerName={order.customer_name || order.customers?.name}
+              entries={order.time_entries || []}
+              estimatedMinutes={
+                order.ticket_services?.reduce((sum: number, ts: any) => {
+                  const service = ts.service || ts.services;
+                  return (
+                    sum +
+                    (service?.estimated_duration_minutes ||
+                      ts.duration_minutes ||
+                      0)
+                  );
+                }, 0) || 0
+              }
+              actualMinutes={totalTimeMinutes}
+              isDisabled={
+                order.status === "completed" || order.status === "cancelled"
+              }
+              disabledReason={
+                order.status === "completed"
+                  ? "Ticket is completed"
+                  : order.status === "cancelled"
+                  ? "Ticket is cancelled"
+                  : undefined
+              }
+              isAdmin={isAdmin}
+            />
+
+            {/* Ticket Details Tabs */}
+            <TicketDetailsTabs
+              services={order.ticket_services || []}
+              totalCost={(() => {
+                if (order.ticket_services && order.ticket_services.length > 0) {
+                  const calculatedTotal = order.ticket_services.reduce(
+                    (sum: number, ts: any) => {
+                      const service = ts.service || ts.services;
+                      const price = service?.base_price || ts.price || 0;
+                      return sum + price;
+                    },
+                    0
+                  );
+                  return calculatedTotal || order.total_cost || 0;
+                }
+                return order.total_cost || 0;
+              })()}
+              estimatedMinutes={
+                order.ticket_services?.reduce((sum: number, ts: any) => {
+                  const service = ts.service || ts.services;
+                  return (
+                    sum +
+                    (service?.estimated_duration_minutes ||
+                      ts.duration_minutes ||
+                      0)
+                  );
+                }, 0) || 0
+              }
+              assignedTo={order.assigned_to}
+              technicians={technicians}
+              ticketId={orderId}
+              isAdmin={isAdmin}
+              isLocked={
+                order.status === "completed" || order.status === "cancelled"
+              }
+              onAssignmentChange={handleAssignmentChange}
+            />
+          </div>
+
+          {/* Main Content - Right Side (Customer Info & Comments) */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Combined Customer & Device Card */}
+            <CustomerDeviceCard
+              customer={{
+                id: order.customer_id || "",
+                name: order.customer_name || order.customers?.name || "Unknown",
+                email: order.customers?.email || "",
+                phone: order.customer_phone || order.customers?.phone || "",
+                previousAppointments:
+                  order.customerStats?.totalAppointments ||
+                  order.customers?.total_appointments ||
+                  0,
+                totalRepairs:
+                  order.customerStats?.totalRepairs ||
+                  order.customers?.total_orders ||
+                  1,
+                memberSince: order.customers?.created_at || "",
+                notificationPreference: "email",
+                currentTicket: {
+                  number: order.ticket_number,
+                  status: order.status,
+                  device: `${order.device_brand} ${order.device_model}`,
+                },
+              }}
+              device={{
+                id: order.device?.id || "",
+                modelName:
+                  order.device?.model_name ||
+                  `${order.device_brand} ${order.device_model}`,
+                manufacturer:
+                  order.device?.manufacturer?.name || order.device_brand,
+                imageUrl: order.device?.image_url,
+                thumbnailUrl: order.device?.thumbnail_url,
+                serialNumber:
+                  order.serial_number ||
+                  matchingCustomerDevice?.serial_number ||
+                  "",
+                imei: order.imei || matchingCustomerDevice?.imei || "",
+                color: matchingCustomerDevice?.color || "",
+                storageSize: matchingCustomerDevice?.storage_size || "",
+                condition: matchingCustomerDevice?.condition || "good",
+                issues: order.repair_issues || [],
+                nickname: matchingCustomerDevice?.nickname,
+              }}
+              isInProfile={!!matchingCustomerDevice}
+              showAddToProfile={
+                !matchingCustomerDevice && (order.imei || order.serial_number)
+              }
+              onAddToProfile={() => setShowAddDeviceDialog(true)}
+              isLocked={
+                order.status === "completed" || order.status === "cancelled"
+              }
+            />
+
+            {/* Comments Section */}
+            <CommentThread
+              entityType="ticket"
+              entityId={orderId}
+              currentUserId={currentUserId}
+              allowCustomerComments={true}
+              className="border border-gray-200 dark:border-gray-700"
+            />
+          </div>
+        </div>
+
+        {/* Status Change Dialog */}
+        <StatusChangeDialog
+          isOpen={showStatusDialog}
+          onClose={() => setShowStatusDialog(false)}
+          currentStatus={order.status as RepairStatus}
+          onConfirm={handleStatusChange}
+          ticketId={orderId}
+          ticketNumber={order.ticket_number}
+          customerName={order.customer_name || order.customers?.name}
+        />
+
+        {/* Complete Ticket Dialog */}
+        <StatusChangeDialog
+          isOpen={showCompleteDialog}
+          onClose={() => setShowCompleteDialog(false)}
+          currentStatus={order.status as RepairStatus}
+          onConfirm={handleCompleteTicketConfirm}
+          ticketId={orderId}
+          ticketNumber={order.ticket_number}
+          customerName={order.customer_name || order.customers?.name}
+        />
+
+        {/* Add Device to Profile Dialog */}
+        {addDeviceToProfile && (
+          <AddDeviceToProfileDialog
+            open={showAddDeviceDialog}
+            onOpenChange={setShowAddDeviceDialog}
+            deviceName={`${
+              order.device?.manufacturer?.name || order.device_brand
+            } ${order.device?.model_name || order.device_model}`}
+            currentSerial={order.serial_number}
+            currentImei={order.imei}
+            addDeviceToProfile={addDeviceToProfile}
+            onSuccess={() => {
+              toast.success("Device added to customer profile");
+              router.refresh();
+            }}
+          />
+        )}
+
+        {/* Completion Overlay - Shows when ticket is completed */}
+        {order.status === "completed" && (
+          <div className="absolute inset-0 z-50 flex items-start justify-center pt-20 overflow-hidden">
+            {/* Semi-transparent overlay with blur effect */}
+            <div className="absolute inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm" />
+
+            {/* Completion modal - positioned higher with pt-20 */}
+            <div
+              className="relative bg-white dark:bg-gray-800 rounded-lg shadow-2xl 
+            border border-gray-200 dark:border-gray-700 p-8 max-w-md mx-4 transform transition-all"
+            >
+              <div className="text-center">
+                {/* Success icon */}
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20 mb-4">
+                  <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
+                </div>
+
+                {/* Title */}
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                  Ticket Completed Successfully
+                </h3>
+
+                {/* Description */}
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                  This repair ticket has been marked as complete.
+                </p>
+
+                {/* Actions */}
+                <div className="flex flex-col gap-2">
+                  <Button
+                    onClick={handleDownloadInvoice}
+                    disabled={isGeneratingInvoice}
+                    className="w-full"
+                    variant="default"
+                  >
+                    <Printer className="mr-2 h-4 w-4" />
+                    {isGeneratingInvoice ? "Generating..." : "Print Invoice"}
+                  </Button>
+
+                  <Button
+                    onClick={handleGenerateReport}
+                    disabled={isGeneratingReport}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    {isGeneratingReport ? "Generating..." : "Generate Report"}
+                  </Button>
+
+                  <Button
+                    onClick={() => router.push("/orders")}
+                    className="w-full"
+                    variant="ghost"
+                  >
+                    Back to Orders
+                  </Button>
+                </div>
+
+                {/* Completion details */}
+                {order.completed_at && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-4">
+                    Completed on {format(new Date(order.completed_at), "PPp")}
+                  </p>
+                )}
               </div>
             </div>
           </div>
         )}
-        
-        {/* Main content - will be faded when completed */}
-        <div className={cn(
-          "transition-all duration-300",
-          order.status === "completed" && "opacity-20 pointer-events-none select-none saturate-0"
-        )}>
-          {/* Status Notification Banner - Converted from Appointment - NOW FIRST */}
-          {appointmentData && appointmentData.id && (
-        <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                <Calendar className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-green-900 dark:text-green-100">Converted from Appointment</p>
-                <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
-                  Appointment #{appointmentData.appointment_number} • 
-                  Scheduled for {appointmentData.scheduled_date ? new Date(appointmentData.scheduled_date).toLocaleDateString() : 'N/A'}
-                </p>
-              </div>
-            </div>
-            <ButtonPremium
-              onClick={() => router.push(`/appointments/${appointmentData.id}`)}
-              variant="default"
-              size="sm"
-              className="bg-green-600 hover:bg-green-700 text-white border-green-600"
-            >
-              <Calendar className="h-4 w-4 mr-1.5" />
-              View Appointment
-            </ButtonPremium>
-          </div>
-        </div>
-      )}
-
-      {/* Ticket Status Flow - Matching appointments page style - NOW SECOND */}
-      <div className="mb-6">
-        <Card className="border border-gray-200 dark:border-gray-700">
-          <CardContent className="pt-6 pb-4">
-            <div className="relative">
-              {/* Progress line with gradient colors */}
-              <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700">
-                <div 
-                  className="h-full transition-all duration-500"
-                  style={{
-                    width: order.status === 'cancelled' ? '0%' : 
-                           order.status === 'new' ? '0%' :
-                           order.status === 'in_progress' ? '50%' :
-                           order.status === 'completed' ? '100%' : '0%',
-                    background: order.status === 'completed' ? 
-                      'linear-gradient(to right, #06b6d4, #f97316, #22c55e)' :
-                      order.status === 'in_progress' ? 
-                      'linear-gradient(to right, #06b6d4, #f97316)' :
-                      '#06b6d4'
-                  }}
-                />
-              </div>
-
-              {/* Steps - matching appointments style */}
-              <div className="relative flex justify-between">
-                {[
-                  { key: 'new', label: 'New', icon: Clock, description: 'Ticket created' },
-                  { key: 'in_progress', label: 'In Progress', icon: Wrench, description: 'Being repaired' },
-                  { key: 'completed', label: 'Completed', icon: CheckCircle2, description: 'Ready for pickup' }
-                ].map((step, index) => {
-                  const isActive = order.status === step.key;
-                  const isPast = ['new', 'in_progress', 'completed'].indexOf(order.status) > 
-                                ['new', 'in_progress', 'completed'].indexOf(step.key);
-                  const isCompleted = isPast || (order.status === 'completed' && step.key === 'completed');
-                  const Icon = step.icon;
-                  
-                  // Define colors for each step
-                  const getStepColors = () => {
-                    if (!isCompleted && !isActive) {
-                      return {
-                        border: "border-gray-300 dark:border-gray-600",
-                        bg: "bg-white dark:bg-gray-800",
-                        text: "text-gray-400 dark:text-gray-500",
-                        ring: ""
-                      };
-                    }
-                    
-                    switch (step.key) {
-                      case 'new':
-                        return {
-                          border: "border-cyan-500",
-                          bg: "bg-cyan-500",
-                          text: "text-white",
-                          ring: isActive ? "ring-4 ring-cyan-100 dark:ring-cyan-900/50 scale-110" : ""
-                        };
-                      case 'in_progress':
-                        return {
-                          border: "border-orange-500",
-                          bg: "bg-orange-500",
-                          text: "text-white",
-                          ring: isActive ? "ring-4 ring-orange-100 dark:ring-orange-900/50 scale-110" : ""
-                        };
-                      case 'completed':
-                        return {
-                          border: "border-green-500",
-                          bg: "bg-green-500",
-                          text: "text-white",
-                          ring: isActive ? "ring-4 ring-green-100 dark:ring-green-900/50 scale-110" : ""
-                        };
-                      default:
-                        return {
-                          border: "border-cyan-500",
-                          bg: "bg-cyan-500",
-                          text: "text-white",
-                          ring: isActive ? "ring-4 ring-cyan-100 dark:ring-cyan-900/50 scale-110" : ""
-                        };
-                    }
-                  };
-                  
-                  const colors = getStepColors();
-                  
-                  return (
-                    <div key={step.key} className="flex flex-col items-center">
-                      {/* Step circle with individual colors */}
-                      <div className={cn(
-                        "relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-300",
-                        colors.border,
-                        colors.bg,
-                        colors.text,
-                        colors.ring
-                      )}>
-                        <Icon className="h-5 w-5" />
-                      </div>
-
-                      {/* Step label - matching appointments style */}
-                      <div className="mt-2 text-center">
-                        <p className={cn(
-                          "text-sm font-medium",
-                          isCompleted || isActive ? "text-gray-900 dark:text-gray-100" : "text-gray-500 dark:text-gray-400"
-                        )}>
-                          {step.label}
-                        </p>
-                        {step.description && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                            {step.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Edge case indicator for cancelled status */}
-              {order.status === 'cancelled' && (
-                <div className="mt-4 p-3 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                  <p className="text-sm text-center text-gray-600 dark:text-gray-400">
-                    ❌ This ticket was cancelled
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Enhanced Stat Cards with Progress Indicators */}
-      <TicketStatCards
-        actualMinutes={totalTimeMinutes}
-        estimatedMinutes={order.ticket_services?.reduce((sum: number, ts: any) => {
-          const service = ts.service || ts.services;
-          return sum + (service?.estimated_duration_minutes || ts.duration_minutes || 0);
-        }, 0) || 0}
-        serviceCount={order.ticket_services?.length || 0}
-        services={order.ticket_services || []}
-        totalCost={(() => {
-          if (order.ticket_services && order.ticket_services.length > 0) {
-            const calculatedTotal = order.ticket_services.reduce((sum: number, ts: any) => {
-              const service = ts.service || ts.services;
-              const price = service?.base_price || ts.price || 0;
-              return sum + price;
-            }, 0);
-            return calculatedTotal || order.total_cost || 0;
-          }
-          return order.total_cost || 0;
-        })()}
-        priority={order.priority || 'medium'}
-        createdAt={order.created_at}
-        status={order.status}
-        onStartTimer={handleStartTimer}
-        onCompleteTicket={handleCompleteTicket}
-        className="mb-6"
-      />
-
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left Sidebar (Time Tracking & Ticket Details) */}
-        <div className="space-y-6">
-          {/* Enhanced Time Tracking Component */}
-          <TimeTrackingEnhanced
-            ticketId={orderId}
-            ticketNumber={order.ticket_number}
-            customerName={order.customer_name || order.customers?.name}
-            entries={order.time_entries || []}
-            estimatedMinutes={order.ticket_services?.reduce((sum: number, ts: any) => {
-              const service = ts.service || ts.services;
-              return sum + (service?.estimated_duration_minutes || ts.duration_minutes || 0);
-            }, 0) || 0}
-            actualMinutes={totalTimeMinutes}
-            isDisabled={order.status === "completed" || order.status === "cancelled"}
-            disabledReason={
-              order.status === "completed" ? "Ticket is completed" :
-              order.status === "cancelled" ? "Ticket is cancelled" : undefined
-            }
-            isAdmin={isAdmin}
-          />
-
-          {/* Ticket Details Tabs */}
-          <TicketDetailsTabs
-            services={order.ticket_services || []}
-            totalCost={(() => {
-              if (order.ticket_services && order.ticket_services.length > 0) {
-                const calculatedTotal = order.ticket_services.reduce((sum: number, ts: any) => {
-                  const service = ts.service || ts.services;
-                  const price = service?.base_price || ts.price || 0;
-                  return sum + price;
-                }, 0);
-                return calculatedTotal || order.total_cost || 0;
-              }
-              return order.total_cost || 0;
-            })()}
-            estimatedMinutes={order.ticket_services?.reduce((sum: number, ts: any) => {
-              const service = ts.service || ts.services;
-              return sum + (service?.estimated_duration_minutes || ts.duration_minutes || 0);
-            }, 0) || 0}
-            assignedTo={order.assigned_to}
-            technicians={technicians}
-            ticketId={orderId}
-            isAdmin={isAdmin}
-            isLocked={order.status === 'completed' || order.status === 'cancelled'}
-            onAssignmentChange={handleAssignmentChange}
-          />
-        </div>
-
-        {/* Main Content - Right Side (Customer Info & Comments) */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Combined Customer & Device Card */}
-          <CustomerDeviceCard
-            customer={{
-              id: order.customer_id || '',
-              name: order.customer_name || order.customers?.name || 'Unknown',
-              email: order.customers?.email || '',
-              phone: order.customer_phone || order.customers?.phone || '',
-              previousAppointments: order.customerStats?.totalAppointments || order.customers?.total_appointments || 0,
-              totalRepairs: order.customerStats?.totalRepairs || order.customers?.total_orders || 1,
-              memberSince: order.customers?.created_at || '',
-              notificationPreference: 'email',
-              currentTicket: {
-                number: order.ticket_number,
-                status: order.status,
-                device: `${order.device_brand} ${order.device_model}`
-              }
-            }}
-            device={{
-              id: order.device?.id || '',
-              modelName: order.device?.model_name || `${order.device_brand} ${order.device_model}`,
-              manufacturer: order.device?.manufacturer?.name || order.device_brand,
-              imageUrl: order.device?.image_url,
-              thumbnailUrl: order.device?.thumbnail_url,
-              serialNumber: order.serial_number || matchingCustomerDevice?.serial_number || '',
-              imei: order.imei || matchingCustomerDevice?.imei || '',
-              color: matchingCustomerDevice?.color || '',
-              storageSize: matchingCustomerDevice?.storage_size || '',
-              condition: matchingCustomerDevice?.condition || 'good',
-              issues: order.repair_issues || [],
-              nickname: matchingCustomerDevice?.nickname
-            }}
-            isInProfile={!!matchingCustomerDevice}
-            showAddToProfile={!matchingCustomerDevice && (order.imei || order.serial_number)}
-            onAddToProfile={() => setShowAddDeviceDialog(true)}
-            isLocked={order.status === 'completed' || order.status === 'cancelled'}
-          />
-
-          {/* Comments Section */}
-          <CommentThread
-            entityType="ticket"
-            entityId={orderId}
-            currentUserId={currentUserId}
-            allowCustomerComments={true}
-            className="border border-gray-200 dark:border-gray-700"
-          />
-        </div>
-      </div>
-
-      {/* Status Change Dialog */}
-      <StatusChangeDialog
-        isOpen={showStatusDialog}
-        onClose={() => setShowStatusDialog(false)}
-        currentStatus={order.status as RepairStatus}
-        onConfirm={handleStatusChange}
-        ticketId={orderId}
-        ticketNumber={order.ticket_number}
-        customerName={order.customer_name || order.customers?.name}
-      />
-
-      {/* Complete Ticket Dialog */}
-      <StatusChangeDialog
-        isOpen={showCompleteDialog}
-        onClose={() => setShowCompleteDialog(false)}
-        currentStatus={order.status as RepairStatus}
-        onConfirm={handleCompleteTicketConfirm}
-        ticketId={orderId}
-        ticketNumber={order.ticket_number}
-        customerName={order.customer_name || order.customers?.name}
-      />
-
-      {/* Add Device to Profile Dialog */}
-      {addDeviceToProfile && (
-        <AddDeviceToProfileDialog
-          open={showAddDeviceDialog}
-          onOpenChange={setShowAddDeviceDialog}
-          deviceName={`${
-            order.device?.manufacturer?.name || order.device_brand
-          } ${order.device?.model_name || order.device_model}`}
-          currentSerial={order.serial_number}
-          currentImei={order.imei}
-          addDeviceToProfile={addDeviceToProfile}
-          onSuccess={() => {
-            toast.success('Device added to customer profile');
-            router.refresh();
-          }}
-        />
-      )}
-        </div>
       </div>
     </PageContainer>
   );

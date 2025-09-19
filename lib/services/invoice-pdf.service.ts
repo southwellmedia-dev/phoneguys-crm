@@ -29,9 +29,21 @@ export class InvoicePDFService {
   public generateInvoice(data: InvoiceData): Blob {
     this.currentY = 20;
     
+    // Debug - Add a text note about services
+    console.log('[PDF Generation] Starting invoice generation');
+    console.log('[PDF Generation] Services count:', data.services?.length || 0);
+    
     // Add content
     this.addHeader(data); // Header now includes invoice details
     this.addCustomerAndDevice(data);
+    
+    // Debug - Add visible text to PDF if no services
+    if (!data.services || data.services.length === 0) {
+      this.pdf.setFontSize(12);
+      this.pdf.setTextColor('#FF0000');
+      this.pdf.text('DEBUG: No services found in invoice data', this.marginLeft, this.currentY);
+      this.currentY += 10;
+    }
     
     // Services are the main content - always show them
     this.addServices(data);
@@ -244,7 +256,13 @@ export class InvoicePDFService {
   }
 
   private addServices(data: InvoiceData): void {
-    if (data.services.length === 0) return;
+    console.log('[InvoicePDF] Adding services, count:', data.services?.length || 0);
+    console.log('[InvoicePDF] Services data:', data.services);
+    
+    if (!data.services || data.services.length === 0) {
+      console.log('[InvoicePDF] No services to add, returning early');
+      return;
+    }
     
     // Services header
     this.pdf.setFontSize(this.config.fontSize.heading);

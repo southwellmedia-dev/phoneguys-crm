@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getRepository } from '@/lib/repositories/repository-manager';
+import { RepairTicketRepository } from '@/lib/repositories/repair-ticket.repository';
 import { InvoicePDFService } from '@/lib/services/invoice-pdf.service';
 import { orderDetailToInvoiceData, InvoiceConfig } from '@/lib/types/invoice.types';
 import type { OrderDetail } from '@/lib/types/order-detail.types';
@@ -24,73 +24,17 @@ export async function GET(request: NextRequest, { params }: Params) {
       );
     }
 
-    // Fetch complete ticket details
-    const ticketRepo = getRepository.tickets();
-    const ticket = await ticketRepo.findById(id);
-    
-    if (!ticket) {
-      return NextResponse.json(
-        { error: 'Ticket not found' },
-        { status: 404 }
-      );
-    }
-
-    // Fetch related data to build complete OrderDetail
-    const customerRepo = getRepository.customers();
-    const deviceRepo = getRepository.devices();
-    const userRepo = getRepository.users();
-    
-    // Build OrderDetail object with all relations
-    const orderDetail: OrderDetail = {
-      ...ticket,
-      customers: ticket.customer_id ? await customerRepo.findById(ticket.customer_id) : undefined,
-      device: ticket.device_id ? await deviceRepo.findById(ticket.device_id) : undefined,
-      assigned_user: ticket.assigned_to ? await userRepo.findById(ticket.assigned_to) : undefined,
-      customer_device: ticket.customer_device_id ? await supabase
-        .from('customer_devices')
-        .select(`
-          *,
-          device:devices (
-            *,
-            manufacturer:manufacturers (*)
-          )
-        `)
-        .eq('id', ticket.customer_device_id)
-        .single()
-        .then(res => res.data) : undefined,
-      ticket_services: await supabase
-        .from('ticket_services')
-        .select(`
-          *,
-          service:services (*)
-        `)
-        .eq('ticket_id', id)
-        .then(res => res.data || []),
-      time_entries: await supabase
-        .from('time_entries')
-        .select(`
-          *,
-          user:users (id, full_name, email, role)
-        `)
-        .eq('ticket_id', id)
-        .order('created_at', { ascending: false })
-        .then(res => res.data || []),
-      notes: await supabase
-        .from('ticket_notes')
-        .select(`
-          *,
-          user:users (id, full_name, email)
-        `)
-        .eq('ticket_id', id)
-        .order('created_at', { ascending: false })
-        .then(res => res.data || []),
-      appointment: ticket.appointment_id ? await supabase
-        .from('appointments')
-        .select('*')
-        .eq('id', ticket.appointment_id)
-        .single()
-        .then(res => res.data) : undefined
-    };
+    try {
+      // Use service-role ticket repo to get full details
+      const ticketRepo = new RepairTicketRepository(true);
+      const orderDetail = await ticketRepo.getTicketWithDetails(id);
+      
+      if (!orderDetail) {
+        return NextResponse.json(
+          { error: 'Ticket not found' },
+          { status: 404 }
+        );
+      }
 
     // Fetch company settings from database
     const { data: storeSettings } = await supabase
@@ -123,8 +67,28 @@ export async function GET(request: NextRequest, { params }: Params) {
       ...(taxRate !== undefined && { defaultTaxRate: taxRate })
     };
 
+    // Debug logging for services
+    console.log('[Invoice API] Ticket ID:', id);
+    console.log('[Invoice API] Ticket Number:', orderDetail.ticket_number);
+    console.log('[Invoice API] OrderDetail ticket_services count:', orderDetail.ticket_services?.length || 0);
+    
+    if (orderDetail.ticket_services && orderDetail.ticket_services.length > 0) {
+      console.log('[Invoice API] First ticket_service raw data:', {
+        id: orderDetail.ticket_services[0].id,
+        service_id: orderDetail.ticket_services[0].service_id,
+        quantity: orderDetail.ticket_services[0].quantity,
+        unit_price: orderDetail.ticket_services[0].unit_price,
+        total_price: orderDetail.ticket_services[0].total_price,
+        service: orderDetail.ticket_services[0].service
+      });
+    }
+    
     // Convert OrderDetail to InvoiceData
     const invoiceData = orderDetailToInvoiceData(orderDetail, configOverrides);
+    
+    // Debug converted invoice data
+    console.log('[Invoice API] Converted invoice services:', invoiceData.services);
+    console.log('[Invoice API] Invoice total:', invoiceData.summary?.total);
 
     // Generate PDF
     const pdfService = new InvoicePDFService(configOverrides);
@@ -142,12 +106,12 @@ export async function GET(request: NextRequest, { params }: Params) {
     if (format === 'download') {
       headers.set(
         'Content-Disposition',
-        `attachment; filename="invoice-${ticket.ticket_number}.pdf"`
+        `attachment; filename="invoice-${orderDetail.ticket_number}.pdf"`
       );
     } else {
       headers.set(
         'Content-Disposition',
-        `inline; filename="invoice-${ticket.ticket_number}.pdf"`
+        `inline; filename="invoice-${orderDetail.ticket_number}.pdf"`
       );
     }
 
@@ -156,10 +120,15 @@ export async function GET(request: NextRequest, { params }: Params) {
       headers
     });
 
+    } catch (innerError) {
+      console.error('Error in invoice generation logic:', innerError);
+      throw innerError;
+    }
+
   } catch (error) {
     console.error('Error generating invoice:', error);
     return NextResponse.json(
-      { error: 'Failed to generate invoice' },
+      { error: 'Failed to generate invoice', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

@@ -460,7 +460,7 @@ export function AppointmentDetailPremium({
     if (appointment.status === 'confirmed' && !isLocked) {
       actions.push({
         label: "Check In Customer",
-        variant: "default" as const,
+        variant: "success" as const,
         onClick: () => setShowCheckInModal(true),
         icon: <User className="h-4 w-4" />,
         disabled: actionLoading.arrived,

@@ -133,9 +133,9 @@ const getActivityDisplay = (activity: any): { title: string; description: string
       // Highlight if it's a new appointment request (scheduled status)
       const isNewRequest = details?.status === 'scheduled' || details?.source === 'website';
       return {
-        title: isNewRequest ? `⚡ New Appointment Request` : `Appointment scheduled`,
+        title: isNewRequest ? `New Appointment Request` : `Appointment scheduled`,
         description: details?.appointment_number ? 
-          `${isNewRequest ? '🔔 ' : ''}${details.appointment_number} - ${details?.appointment_date ? new Date(details.appointment_date).toLocaleDateString() : ''}${details?.customer_name ? ` - ${details.customer_name}` : ''}` : 
+          `${details.appointment_number} - ${details?.appointment_date ? new Date(details.appointment_date).toLocaleDateString() : ''}${details?.customer_name ? ` - ${details.customer_name}` : ''}` : 
           (details?.appointment_date ? `Scheduled for ${new Date(details.appointment_date).toLocaleDateString()}${details?.customer_name ? ` - ${details.customer_name}` : ''}` : 'New appointment'),
         icon: 'calendar',
         color: isNewRequest ? 'yellow' : 'purple'
@@ -143,7 +143,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
     
     case 'appointment_confirmed':
       return {
-        title: `✅ Appointment Confirmed`,
+        title: `Appointment Confirmed`,
         description: `${details?.appointment_number || 'Appointment'} - ${details?.customer_name || 'Customer'} confirmed for ${details?.appointment_date ? new Date(details.appointment_date).toLocaleDateString() : 'scheduled date'}`,
         icon: 'check-circle',
         color: 'green'
@@ -151,27 +151,16 @@ const getActivityDisplay = (activity: any): { title: string; description: string
     
     case 'appointment_checked_in':
       return {
-        title: `📍 Customer Checked In`,
+        title: `Customer Checked In`,
         description: `${details?.appointment_number || 'Appointment'} - ${details?.customer_name || 'Customer'} has arrived`,
         icon: 'user-check',
         color: 'blue'
       };
     
     case 'appointment_status_changed':
-      const statusEmoji = {
-        'scheduled': '📅',
-        'confirmed': '✅',
-        'checked_in': '📍',
-        'in_progress': '🔧',
-        'completed': '✨',
-        'cancelled': '❌',
-        'no_show': '👻',
-        'converted': '🔄'
-      };
-      const emoji = statusEmoji[details?.new_status as keyof typeof statusEmoji] || '📋';
       return {
         title: `Appointment Status Updated`,
-        description: `${emoji} ${details?.appointment_number || 'Appointment'} - ${details?.old_status ? `${details.old_status} → ` : ''}${details?.new_status || 'status changed'}`,
+        description: `${details?.appointment_number || 'Appointment'} - ${details?.old_status ? `${details.old_status} → ` : ''}${details?.new_status || 'status changed'}`,
         icon: 'refresh',
         color: details?.new_status === 'cancelled' || details?.new_status === 'no_show' ? 'red' : 
                details?.new_status === 'confirmed' || details?.new_status === 'completed' ? 'green' :
@@ -180,7 +169,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
       
     case 'appointment_converted':
       return {
-        title: `🔄 Appointment Converted to Ticket`,
+        title: `Appointment Converted to Ticket`,
         description: `${details?.appointment_number || 'Appointment'} converted to ticket${details?.ticket_number ? ` #${details.ticket_number}` : ''}`,
         icon: 'arrow-right',
         color: 'green'
@@ -188,7 +177,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
     
     case 'appointment_cancelled':
       return {
-        title: `❌ Appointment Cancelled`,
+        title: `Appointment Cancelled`,
         description: `${details?.appointment_number || 'Appointment'} - ${details?.customer_name || 'Customer'}${details?.reason ? ` - Reason: ${details.reason}` : ''}`,
         icon: 'alert-triangle',
         color: 'red'
@@ -196,7 +185,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
     
     case 'appointment_no_show':
       return {
-        title: `👻 Appointment No Show`,
+        title: `Appointment No Show`,
         description: `${details?.appointment_number || 'Appointment'} - ${details?.customer_name || 'Customer'} did not arrive`,
         icon: 'alert-triangle',
         color: 'orange'

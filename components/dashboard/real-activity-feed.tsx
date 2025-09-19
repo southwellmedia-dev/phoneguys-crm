@@ -246,7 +246,14 @@ export function RealActivityFeed({
                     // Highlight new appointment requests
                     activity.activity_type === 'appointment_created' && 
                     activity.details?.status === 'scheduled' && 
-                    "bg-amber-50/50 dark:bg-amber-900/10 border-l-4 border-amber-500"
+                    "bg-amber-50/50 dark:bg-amber-900/10 border-l-4 border-amber-500",
+                    // Highlight appointment conversions (sales!)
+                    activity.activity_type === 'appointment_converted' && 
+                    "bg-green-50/50 dark:bg-green-900/10 border-l-4 border-green-500",
+                    // Highlight ticket assigned from conversion
+                    activity.activity_type === 'ticket_assigned' && 
+                    (activity.details?.from_appointment || activity.details?.appointment_number) && 
+                    "bg-green-50/50 dark:bg-green-900/10 border-l-4 border-green-500"
                   )}>
                     <div className={cn(
                       "rounded-full p-2",
@@ -254,6 +261,11 @@ export function RealActivityFeed({
                       // Pulse animation for new appointment requests
                       activity.activity_type === 'appointment_created' && 
                       activity.details?.status === 'scheduled' && 
+                      "animate-pulse",
+                      // Pulse animation for conversions (sales!)
+                      (activity.activity_type === 'appointment_converted' || 
+                       (activity.activity_type === 'ticket_assigned' && 
+                        (activity.details?.from_appointment || activity.details?.appointment_number))) && 
                       "animate-pulse"
                     )}>
                       {iconMap[activity.icon || 'activity']}

@@ -263,10 +263,63 @@ export async function updateAppointmentDetails(appointmentId: string, details: a
 
 export async function convertAppointmentToTicket(appointmentId: string, additionalData?: any) {
   try {
+    console.log('🚀 Starting appointment to ticket conversion:', { appointmentId, additionalData });
+    
     const appointmentService = new AppointmentService(true);
     
     // Pass the additional data (device details, services, notes) to the service
     const result = await appointmentService.convertToTicket(appointmentId, additionalData);
+    
+    console.log('✅ Conversion successful:', { 
+      ticketId: result.ticket.id,
+      ticketNumber: result.ticket.ticket_number,
+      assignedTo: result.ticket.assigned_to
+    });
+    
+    // Also log the activity using audit service for redundancy
+    try {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Import and use audit service
+      const { auditLog } = await import('@/lib/services/audit.service');
+      
+      // Get assignee name if assigned
+      let assigneeName = null;
+      if (result.ticket.assigned_to) {
+        const { data: assignee } = await supabase
+          .from('users')
+          .select('full_name')
+          .eq('id', result.ticket.assigned_to)
+          .single();
+        assigneeName = assignee?.full_name;
+      }
+      
+      // Get appointment details
+      const { data: appointmentData } = await supabase
+        .from('appointments')
+        .select('appointment_number, customers(name)')
+        .eq('id', appointmentId)
+        .single();
+      
+      // Create appointment converted activity
+      await auditLog.appointmentConverted(
+        user?.id || '11111111-1111-1111-1111-111111111111',
+        appointmentId,
+        {
+          appointment_number: appointmentData?.appointment_number,
+          ticket_number: result.ticket.ticket_number,
+          ticket_id: result.ticket.id,
+          customer_name: appointmentData?.customers?.name,
+          assigned_to: result.ticket.assigned_to,
+          assigned_to_name: assigneeName
+        }
+      );
+      
+      console.log('✅ Activity logged successfully');
+    } catch (auditError) {
+      console.error('⚠️ Failed to create audit log (non-fatal):', auditError);
+    }
     
     revalidatePath('/appointments');
     revalidatePath(`/appointments/${appointmentId}`);
@@ -278,7 +331,7 @@ export async function convertAppointmentToTicket(appointmentId: string, addition
       ticketNumber: result.ticket.ticket_number
     };
   } catch (error) {
-    console.error('Error converting appointment:', error);
+    console.error('❌ Error converting appointment:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to convert appointment'

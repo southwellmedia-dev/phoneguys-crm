@@ -493,6 +493,16 @@ export const auditLog = {
       details: { changes }
     }),
 
+  // Appointment operations
+  appointmentConverted: (userId: string, appointmentId: string, details?: any) =>
+    AuditService.getInstance().logUserActivity({
+      userId,
+      activityType: 'appointment_converted',
+      entityType: 'appointment',
+      entityId: appointmentId,
+      details
+    }),
+
   // Security events
   loginAttempt: (ipAddress: string, email?: string) =>
     AuditService.getInstance().logSecurityEvent({

@@ -463,11 +463,23 @@ export class AppointmentService {
     // Update appointment as converted
     const updatedAppointment = await this.appointmentRepo.convertToTicket(appointmentId, ticket.id);
     
-    // Log activity for appointment conversion
+    // Log activity for appointment conversion with better error handling
     try {
       const { getRepository } = await import('../repositories/repository-manager');
       const activityRepo = getRepository.activityLogs(true);
       
+      // Get assignee name if ticket is assigned
+      let assigneeName = null;
+      if (ticket.assigned_to) {
+        const { data: assigneeData } = await supabase
+          .from('users')
+          .select('full_name')
+          .eq('id', ticket.assigned_to)
+          .single();
+        assigneeName = assigneeData?.full_name || null;
+      }
+      
+      // Log the appointment conversion
       await activityRepo.create({
         user_id: ticket.assigned_to || '11111111-1111-1111-1111-111111111111', // Use assigned tech or system user
         activity_type: 'appointment_converted',
@@ -478,11 +490,36 @@ export class AppointmentService {
           customer_name: fullAppointment?.customers?.name || 'Unknown Customer',
           ticket_number: ticket.ticket_number,
           ticket_id: ticket.id,
+          assigned_to_name: assigneeName,
           converted_by: appointment.created_by || ticket.assigned_to
         }
       });
+      
+      // Also create a better ticket_assigned activity if the ticket is assigned
+      if (ticket.assigned_to) {
+        await activityRepo.create({
+          user_id: ticket.assigned_to,
+          activity_type: 'ticket_assigned',
+          entity_type: 'repair_ticket',
+          entity_id: ticket.id,
+          details: {
+            ticket_number: ticket.ticket_number,
+            assigned_to_name: assigneeName,
+            appointment_number: appointment.appointment_number,
+            from_appointment: true,
+            customer_name: fullAppointment?.customers?.name || 'Unknown Customer'
+          }
+        });
+      }
+      
+      console.log('✅ Successfully logged appointment conversion activities');
     } catch (logError) {
-      console.error('Failed to log appointment conversion activity:', logError);
+      console.error('❌ Failed to log appointment conversion activity:', logError);
+      console.error('Error details:', {
+        message: logError instanceof Error ? logError.message : 'Unknown error',
+        appointmentId,
+        ticketId: ticket?.id
+      });
       // Don't fail the conversion if activity logging fails
     }
 

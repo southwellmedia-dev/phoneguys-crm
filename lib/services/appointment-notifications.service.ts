@@ -3,6 +3,7 @@ import { SendGridService } from './email/sendgrid.service';
 import { TwilioService } from './sms/twilio.service';
 import { appointmentConfirmationTemplate } from '@/lib/email-templates/appointment-confirmation';
 import { SMS_TEMPLATES, processSMSTemplate } from '@/lib/templates/sms-templates';
+import { StoreSettingsService } from './store-settings.service';
 
 interface AppointmentNotificationData {
   appointment: any;
@@ -17,12 +18,14 @@ export class AppointmentNotificationService {
   private emailService: SendGridService;
   private smsService: TwilioService;
   private supabase: any;
+  private storeSettingsService: StoreSettingsService;
 
   constructor() {
     console.log('🔄 Initializing AppointmentNotificationService...');
     this.emailService = SendGridService.getInstance();
     this.smsService = TwilioService.getInstance();
     this.supabase = createServiceClient();
+    this.storeSettingsService = new StoreSettingsService();
     console.log('✅ AppointmentNotificationService initialized');
   }
 
@@ -62,6 +65,9 @@ export class AppointmentNotificationService {
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
+    // Get store settings for email templates
+    const storeSettings = await this.storeSettingsService.getSettings();
+
     // 1. Send customer email notification
     if (data.consentEmail !== false && data.customer.email) {
       try {
@@ -78,7 +84,8 @@ export class AppointmentNotificationService {
           estimatedCost: data.appointment.estimated_cost ? parseFloat(data.appointment.estimated_cost) : undefined,
           notes: data.appointment.description || data.appointment.notes,
           confirmationUrl: `https://status.phoneguysrepair.com?appointment=${data.appointment.appointment_number}`,
-          isInitialRequest: true // This is the initial appointment request
+          isInitialRequest: true, // This is the initial appointment request
+          storeSettings
         });
 
         const emailResult = await this.emailService.sendEmail({
@@ -134,8 +141,8 @@ export class AppointmentNotificationService {
           appointmentTime: formatTime(data.appointment.scheduled_time),
           deviceBrand: data.device?.brand || 'Your',
           deviceModel: data.device?.model_name || 'Device',
-          businessName: 'Phone Guys',
-          businessPhone: process.env.BUSINESS_PHONE || '(844) 511-0454',
+          businessName: storeSettings.store_name || 'The Phone Guys',
+          businessPhone: storeSettings.store_phone || '(469) 608-1050',
           statusUrl: statusUrl
         });
 

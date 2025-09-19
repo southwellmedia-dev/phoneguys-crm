@@ -139,8 +139,8 @@ export function processSMSTemplate(
     deviceModel: variables.deviceModel || '',
     status: variables.status || 'unknown',
     businessName: variables.businessName || 'The Phone Guys',
-    businessPhone: variables.businessPhone || '(555) 123-4567',
-    businessHours: variables.businessHours || '9AM-6PM Mon-Sat',
+    businessPhone: variables.businessPhone || '(469) 608-1050',
+    businessHours: variables.businessHours || '9AM-7PM Mon-Fri, 10AM-6PM Sat, 11AM-5PM Sun',
     estimatedDate: variables.estimatedDate || '',
     totalCost: variables.totalCost || '0.00',
     holdReason: variables.holdReason || 'awaiting parts',
@@ -196,11 +196,16 @@ export function previewAllTemplates(): Array<{
     deviceModel: '14 Pro',
     status: 'completed',
     businessName: 'The Phone Guys',
-    businessPhone: '(555) 123-4567',
-    businessHours: '9AM-6PM Mon-Sat',
+    businessPhone: '(469) 608-1050',
+    businessHours: '9AM-7PM Mon-Fri, 10AM-6PM Sat, 11AM-5PM Sun',
     estimatedDate: 'tomorrow',
     totalCost: '149.99',
-    holdReason: 'waiting for part delivery'
+    holdReason: 'waiting for part delivery',
+    appointmentNumber: 'APT001234',
+    appointmentDate: 'Dec 15',
+    appointmentTime: '2:00 PM',
+    trackingUrl: '',
+    statusUrl: 'https://status.phoneguysrepair.com'
   };
 
   return Object.entries(SMS_TEMPLATES).map(([key, template]) => {

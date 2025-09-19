@@ -15,17 +15,27 @@ export async function GET(request: NextRequest) {
     // Use repository pattern as per guidelines
     const ticketRepo = new RepairTicketRepository(true); // Use service role for API
     
-    // Get weekly trend data using repository method
-    const trendData = await ticketRepo.getWeeklyTrend();
+    // Get weekly comparison data using repository method
+    const comparisonData = await ticketRepo.getWeeklyComparison();
     
-    // Calculate total tickets for the week
-    const total = trendData.reduce((sum, day) => sum + day.tickets, 0);
+    // Transform data for backward compatibility and add totals
+    const trendData = comparisonData.map(day => ({
+      ...day,
+      tickets: day.created // For backward compatibility
+    }));
+    
+    // Calculate totals
+    const totalCreated = comparisonData.reduce((sum, day) => sum + day.created, 0);
+    const totalCompleted = comparisonData.reduce((sum, day) => sum + day.completed, 0);
 
     return NextResponse.json({
       trend: trendData,
-      total,
-      startDate: trendData[0]?.date,
-      endDate: trendData[trendData.length - 1]?.date
+      comparison: comparisonData,
+      total: totalCreated,
+      totalCreated,
+      totalCompleted,
+      startDate: comparisonData[0]?.date,
+      endDate: comparisonData[comparisonData.length - 1]?.date
     });
 
   } catch (error) {

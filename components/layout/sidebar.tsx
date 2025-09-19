@@ -54,14 +54,13 @@ const adminNavigation = [
   { name: "Devices", href: "/admin/devices", icon: Smartphone },
   { name: "Services", href: "/admin/services", icon: Wrench },
   { name: "Media Gallery", href: "/admin/media", icon: Image },
-  { name: "Active Timers", href: "/admin/active-timers", icon: Timer },
 ];
 
 const extrasNavigation = [
+  { name: "Reports", href: "/reports", icon: FileText },
+  { name: "Active Timers", href: "/admin/active-timers", icon: Timer },
   { name: "Integration", href: "/admin/website-integration", icon: Globe },
   { name: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText },
-  { name: "Notification Test", href: "/admin/notifications-test", icon: Bell },
-  { name: "Reports", href: "/reports", icon: FileText, disabled: true },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 

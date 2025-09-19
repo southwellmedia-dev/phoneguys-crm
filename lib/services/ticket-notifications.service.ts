@@ -2,7 +2,8 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { SendGridService } from './email/sendgrid.service';
 import { TwilioService } from './sms/twilio.service';
 import { ticketStatusUpdateTemplate } from '@/lib/email-templates/ticket-status-update';
-import { SMS_TEMPLATES, processSMSTemplate } from '@/lib/templates/sms-templates';
+import { SMS_TEMPLATES, processSMSTemplate, type SMSTemplateVariables } from '@/lib/templates/sms-templates';
+import { StoreSettingsService } from './store-settings.service';
 
 interface TicketNotificationData {
   ticket: any;
@@ -21,12 +22,14 @@ export class TicketNotificationService {
   private emailService: SendGridService;
   private smsService: TwilioService;
   private supabase: any;
+  private storeSettingsService: StoreSettingsService;
 
   constructor() {
     console.log('🔄 Initializing TicketNotificationService...');
     this.emailService = SendGridService.getInstance();
     this.smsService = TwilioService.getInstance();
     this.supabase = createServiceClient();
+    this.storeSettingsService = new StoreSettingsService();
     console.log('✅ TicketNotificationService initialized');
   }
 
@@ -60,6 +63,9 @@ export class TicketNotificationService {
       return results;
     }
 
+    // Get store settings for email templates
+    const storeSettings = await this.storeSettingsService.getSettings();
+
     // 1. Send customer email notification
     if (consentEmail && data.customer.email) {
       try {
@@ -77,7 +83,8 @@ export class TicketNotificationService {
           statusUrl: `https://status.phoneguysrepair.com?ticket=${data.ticket.ticket_number}`,
           completionNotes: data.completionNotes,
           holdReason: data.holdReason,
-          cancellationReason: data.cancellationReason
+          cancellationReason: data.cancellationReason,
+          storeSettings
         });
 
         const emailResult = await this.emailService.sendEmail({
@@ -121,55 +128,69 @@ export class TicketNotificationService {
       try {
         console.log(`📱 Sending ${data.newStatus} status SMS to:`, data.customer.phone);
         
-        let smsMessage = '';
         const statusDomain = process.env.NEXT_PUBLIC_STATUS_URL || 'https://status.phoneguysrepair.com';
         
+        // Get SMS template based on status
+        let templateKey: keyof typeof SMS_TEMPLATES | null = null;
         switch (data.newStatus) {
           case 'in_progress':
-            smsMessage = `Good news! We've started working on your ${data.device?.brand || data.ticket.device_brand} ${data.device?.model_name || data.ticket.device_model}. Ticket: ${data.ticket.ticket_number}. Track progress: ${statusDomain} - Phone Guys`;
+            templateKey = 'status_in_progress';
             break;
-          
           case 'completed':
-            smsMessage = `Your device is ready! ${data.device?.brand || data.ticket.device_brand} ${data.device?.model_name || data.ticket.device_model} repair completed. Ticket: ${data.ticket.ticket_number}${data.totalCost ? ` Total: $${data.totalCost.toFixed(2)}` : ''}. Pick up at your convenience. - Phone Guys`;
+            templateKey = 'status_completed';
             break;
-          
           case 'on_hold':
-            smsMessage = `Your repair (${data.ticket.ticket_number}) is on hold. ${data.holdReason ? `Reason: ${data.holdReason.substring(0, 50)}` : 'We need parts or info'}. We'll update you soon. Call (844) 511-0454 for info. - Phone Guys`;
+            templateKey = 'status_on_hold';
             break;
-          
           case 'cancelled':
-            smsMessage = `Your repair (${data.ticket.ticket_number}) has been cancelled. ${data.cancellationReason ? `Reason: ${data.cancellationReason.substring(0, 40)}` : 'Contact us if you have questions'}. - Phone Guys`;
+            templateKey = 'status_cancelled';
             break;
         }
 
-        if (smsMessage) {
-          // TEMPORARY: Send to Virtual Phone for testing
-          const testPhoneNumber = '+18777804236';
-          console.log('📱 TEST MODE: Sending SMS to Virtual Phone instead of:', data.customer.phone);
-
-          const smsResult = await this.smsService.sendSMS({
-            to: testPhoneNumber,
-            body: smsMessage
+        if (templateKey) {
+          const smsTemplate = processSMSTemplate(templateKey, {
+            customerName: data.customer.name,
+            ticketNumber: data.ticket.ticket_number,
+            deviceBrand: data.device?.brand || data.ticket.device_brand || 'Device',
+            deviceModel: data.device?.model_name || data.ticket.device_model || '',
+            businessName: storeSettings.store_name || 'The Phone Guys',
+            businessPhone: storeSettings.store_phone || '(469) 608-1050',
+            totalCost: data.totalCost?.toFixed(2),
+            holdReason: data.holdReason?.substring(0, 50) || 'awaiting parts or information',
+            statusUrl: statusDomain
           });
 
-          if (smsResult.success) {
-            console.log('✅ Customer status SMS sent successfully');
-            results.customerSMS = true;
+          const smsMessage = smsTemplate.message;
 
-            // Log SMS notification in database
-            await this.supabase.from('sms_messages').insert({
-              to_number: data.customer.phone, // Store original phone for record
-              from_number: process.env.TWILIO_PHONE_NUMBER,
-              message_body: smsMessage,
-              status: 'sent',
-              direction: 'outbound',
-              ticket_id: data.ticket.id,
-              customer_id: data.customer.id,
-              message_sid: smsResult.messageId,
-              created_at: new Date().toISOString()
+          if (smsMessage) {
+            // TEMPORARY: Send to Virtual Phone for testing
+            const testPhoneNumber = '+18777804236';
+            console.log('📱 TEST MODE: Sending SMS to Virtual Phone instead of:', data.customer.phone);
+
+            const smsResult = await this.smsService.sendSMS({
+              to: testPhoneNumber,
+              body: smsMessage
             });
-          } else {
-            throw new Error(smsResult.error || 'SMS send failed');
+
+            if (smsResult.success) {
+              console.log('✅ Customer status SMS sent successfully');
+              results.customerSMS = true;
+
+              // Log SMS notification in database
+              await this.supabase.from('sms_messages').insert({
+                to_number: data.customer.phone, // Store original phone for record
+                from_number: process.env.TWILIO_PHONE_NUMBER,
+                message_body: smsMessage,
+                status: 'sent',
+                direction: 'outbound',
+                ticket_id: data.ticket.id,
+                customer_id: data.customer.id,
+                message_sid: smsResult.messageId,
+                created_at: new Date().toISOString()
+              });
+            } else {
+              throw new Error(smsResult.error || 'SMS send failed');
+            }
           }
         }
       } catch (error) {

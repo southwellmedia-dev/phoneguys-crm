@@ -1,4 +1,5 @@
 import { baseEmailTemplate, EmailTemplateData } from './base-template';
+import { StoreSettings } from '@/lib/types/database.types';
 
 export interface AppointmentConfirmationData {
   customerName: string;
@@ -12,6 +13,7 @@ export interface AppointmentConfirmationData {
   notes?: string;
   confirmationUrl?: string;
   isInitialRequest?: boolean; // true for initial submission, false for staff confirmation
+  storeSettings?: StoreSettings;
 }
 
 export function appointmentConfirmationTemplate(data: AppointmentConfirmationData): {
@@ -29,8 +31,17 @@ export function appointmentConfirmationTemplate(data: AppointmentConfirmationDat
     issues,
     estimatedCost,
     notes,
-    confirmationUrl
+    confirmationUrl,
+    storeSettings
   } = data;
+
+  // Use store settings or defaults
+  const storeName = storeSettings?.store_name || 'The Phone Guys';
+  const storePhone = storeSettings?.store_phone || '(469) 608-1050';
+  const storeEmail = storeSettings?.store_email || 'info@phoneguys.com';
+  const storeAddress = storeSettings ? 
+    `${storeSettings.store_address}, ${storeSettings.store_city}, ${storeSettings.store_state} ${storeSettings.store_zip}` :
+    '5619 E Grand Ave #110, Dallas, TX 75223';
 
   const deviceInfo = deviceBrand && deviceModel ? `${deviceBrand} ${deviceModel}` : 'Your device';
 
@@ -47,8 +58,8 @@ export function appointmentConfirmationTemplate(data: AppointmentConfirmationDat
     
     <p style="margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 24px;">
       ${isRequest 
-        ? 'Thank you for requesting an appointment with The Phone Guys. We have received your appointment request and will contact you within 24 hours to confirm your appointment time and provide any additional details.'
-        : 'Great news! Your appointment with The Phone Guys has been confirmed by our team.'
+        ? `Thank you for requesting an appointment with ${storeName}. We have received your appointment request and will contact you within 24 hours to confirm your appointment time and provide any additional details.`
+        : `Great news! Your appointment with ${storeName} has been confirmed by our team.`
       }
     </p>
     
@@ -136,7 +147,7 @@ export function appointmentConfirmationTemplate(data: AppointmentConfirmationDat
       Need to Reschedule?
     </h3>
     <p style="margin: 0 0 20px 0; color: #666666; font-size: 14px; line-height: 22px;">
-      If you need to reschedule or cancel your appointment, please call us at <strong>(555) 123-4567</strong> as soon as possible.
+      If you need to reschedule or cancel your appointment, please call us at <strong>${storePhone}</strong> as soon as possible.
     </p>
     
     ${isRequest ? `
@@ -164,7 +175,8 @@ export function appointmentConfirmationTemplate(data: AppointmentConfirmationDat
       text: isRequest ? 'Check Appointment Status' : 'View Appointment Details',
       url: confirmationUrl
     } : undefined,
-    footer: 'Thank you for choosing The Phone Guys for your device repair needs!'
+    footer: `Thank you for choosing ${storeName} for your device repair needs!`,
+    storeSettings
   };
 
   const html = baseEmailTemplate(templateData);
@@ -175,8 +187,8 @@ ${isRequest ? 'Appointment Request Received' : 'Appointment Confirmation'}
 Dear ${customerName},
 
 ${isRequest 
-  ? 'Thank you for requesting an appointment with The Phone Guys. We have received your appointment request and will contact you within 24 hours to confirm your appointment time and provide any additional details.'
-  : 'Great news! Your appointment with The Phone Guys has been confirmed by our team.'}
+  ? `Thank you for requesting an appointment with ${storeName}. We have received your appointment request and will contact you within 24 hours to confirm your appointment time and provide any additional details.`
+  : `Great news! Your appointment with ${storeName} has been confirmed by our team.`}
 
 APPOINTMENT DETAILS
 -------------------
@@ -198,23 +210,23 @@ WHAT TO BRING
 
 NEED TO RESCHEDULE?
 ------------------
-If you need to reschedule or cancel your appointment, please call us at (555) 123-4567 as soon as possible.
+If you need to reschedule or cancel your appointment, please call us at ${storePhone} as soon as possible.
 
 ${isRequest 
   ? 'IMPORTANT: This is an appointment request. We will call you within 24 hours to confirm your appointment time and availability. Your appointment is not confirmed until you speak with our team.'
   : 'CONFIRMED: Your appointment has been confirmed. We look forward to seeing you!'}
 
-Thank you for choosing The Phone Guys for your device repair needs!
+Thank you for choosing ${storeName} for your device repair needs!
 
-The Phone Guys
-123 Main Street, Your City, State 12345
-Phone: (555) 123-4567 | Email: support@phoneguys.com
+${storeName}
+${storeAddress}
+Phone: ${storePhone} | Email: ${storeEmail}
   `.trim();
 
   return {
     subject: isRequest 
-      ? `Appointment Request Received - ${appointmentDate} at ${appointmentTime} | The Phone Guys`
-      : `Appointment Confirmed - ${appointmentDate} at ${appointmentTime} | The Phone Guys`,
+      ? `Appointment Request Received - ${appointmentDate} at ${appointmentTime} | ${storeName}`
+      : `Appointment Confirmed - ${appointmentDate} at ${appointmentTime} | ${storeName}`,
     html,
     text
   };

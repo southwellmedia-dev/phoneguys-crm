@@ -1,3 +1,5 @@
+import { StoreSettings } from '@/lib/types/database.types';
+
 export interface EmailTemplateData {
   title: string;
   preheader?: string;
@@ -8,6 +10,7 @@ export interface EmailTemplateData {
   };
   footer?: string;
   unsubscribeUrl?: string;
+  storeSettings?: StoreSettings;
 }
 
 export function baseEmailTemplate(data: EmailTemplateData): string {
@@ -17,8 +20,17 @@ export function baseEmailTemplate(data: EmailTemplateData): string {
     content,
     ctaButton,
     footer,
-    unsubscribeUrl
+    unsubscribeUrl,
+    storeSettings
   } = data;
+
+  // Use store settings or defaults
+  const storeName = storeSettings?.store_name || 'The Phone Guys';
+  const storePhone = storeSettings?.store_phone || '(469) 608-1050';
+  const storeEmail = storeSettings?.store_email || 'info@phoneguys.com';
+  const storeAddress = storeSettings ? 
+    `${storeSettings.store_address}, ${storeSettings.store_city}, ${storeSettings.store_state} ${storeSettings.store_zip}` :
+    '5619 E Grand Ave #110, Dallas, TX 75223';
 
   return `
 <!DOCTYPE html>
@@ -72,7 +84,7 @@ export function baseEmailTemplate(data: EmailTemplateData): string {
           <tr>
             <td style="background: linear-gradient(135deg, #0094CA 0%, #00B4D8 100%); border-radius: 8px 8px 0 0; padding: 30px; text-align: center;">
               <img src="https://egotypldqzdzjclikmeg.supabase.co/storage/v1/object/public/device-images/phoneguys-logo.png" 
-                   alt="The Phone Guys" 
+                   alt="${storeName}" 
                    style="max-width: 200px; height: auto; margin-bottom: 10px;" />
               <p style="margin: 5px 0 0 0; color: #ffffff; font-size: 14px; opacity: 0.9;">
                 Professional Mobile Device Repair
@@ -110,14 +122,14 @@ export function baseEmailTemplate(data: EmailTemplateData): string {
               ` : ''}
               
               <p style="margin: 0 0 10px 0; color: #999999; font-size: 12px;">
-                The Phone Guys<br>
-                123 Main Street, Your City, State 12345<br>
-                Phone: (555) 123-4567 | Email: support@phoneguys.com
+                ${storeName}<br>
+                ${storeAddress}<br>
+                Phone: ${storePhone} | Email: ${storeEmail}
               </p>
               
               <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
                 <p style="margin: 0; color: #999999; font-size: 11px;">
-                  This email was sent to you because you have an account or inquiry with The Phone Guys.
+                  This email was sent to you because you have an account or inquiry with ${storeName}.
                   ${unsubscribeUrl ? `
                     <br>
                     <a href="${unsubscribeUrl}" style="color: #0094CA; text-decoration: none;">Unsubscribe</a> from these emails.

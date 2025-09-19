@@ -7,12 +7,14 @@ import {
   Bar,
   LineChart,
   Line,
+  ComposedChart,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell
+  Cell,
+  Legend
 } from 'recharts';
 import { 
   Clock,
@@ -80,6 +82,7 @@ export function RealDataInsights({ className, metrics }: RealDataInsightsProps) 
   });
   
   const weeklyTrend = trendResponse?.trend;
+  const weeklyComparison = trendResponse?.comparison;
 
   // Calculate active timers from activity data
   const activeTimers = activityData?.activities?.filter((a: any) => 
@@ -208,46 +211,81 @@ export function RealDataInsights({ className, metrics }: RealDataInsightsProps) 
           </div>
         </div>
 
-        {/* Trend Line - Week Overview with REAL DATA */}
+        {/* Combination Chart - New (bars) vs Completed (line) */}
         <div className="space-y-2 pt-3 border-t">
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            7-Day New Tickets Trend
+            7-Day New vs Completed Tickets
           </h4>
-          <div className="h-16">
+          <div className="h-32">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart 
-                data={weeklyTrend || [
-                  { day: 'Mon', tickets: 0 },
-                  { day: 'Tue', tickets: 0 },
-                  { day: 'Wed', tickets: 0 },
-                  { day: 'Thu', tickets: 0 },
-                  { day: 'Fri', tickets: 0 },
-                  { day: 'Sat', tickets: 0 },
-                  { day: 'Today', tickets: newTickets }
+              <ComposedChart 
+                data={weeklyComparison || weeklyTrend?.map(d => ({
+                  ...d,
+                  created: d.tickets,
+                  completed: 0
+                })) || [
+                  { day: 'Mon', created: 0, completed: 0 },
+                  { day: 'Tue', created: 0, completed: 0 },
+                  { day: 'Wed', created: 0, completed: 0 },
+                  { day: 'Thu', created: 0, completed: 0 },
+                  { day: 'Fri', created: 0, completed: 0 },
+                  { day: 'Sat', created: 0, completed: 0 },
+                  { day: 'Today', created: newTickets, completed: completedToday }
                 ]}
+                margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
               >
-                <Line 
-                  type="monotone" 
-                  dataKey="tickets" 
-                  stroke="#06b6d4" 
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted opacity-20" />
                 <XAxis 
                   dataKey="day" 
-                  tick={{ fontSize: 9 }}
+                  tick={{ fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis 
+                  tick={{ fontSize: 10 }}
+                  width={25}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip 
-                  contentStyle={{ fontSize: 10, padding: 4 }}
+                  contentStyle={{ 
+                    fontSize: 11, 
+                    padding: '4px 8px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '4px'
+                  }}
+                  labelStyle={{ fontWeight: 600 }}
                 />
-              </LineChart>
+                <Bar 
+                  dataKey="created" 
+                  fill="#06b6d4" 
+                  radius={[4, 4, 0, 0]}
+                  name="New"
+                  opacity={0.8}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="completed" 
+                  stroke="#10b981" 
+                  strokeWidth={2.5}
+                  dot={{ fill: '#10b981', r: 4 }}
+                  activeDot={{ r: 5 }}
+                  name="Completed"
+                />
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
-          <p className="text-xs text-muted-foreground text-center">
-            New tickets created each day this week
-          </p>
+          <div className="flex justify-center gap-4 text-xs">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 bg-cyan-500 rounded-sm opacity-80" />
+              <span className="text-muted-foreground">New</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-[2.5px] bg-green-500 rounded-full" />
+              <span className="text-muted-foreground">Completed</span>
+            </div>
+          </div>
         </div>
 
         {/* Quick Actions Based on Data */}

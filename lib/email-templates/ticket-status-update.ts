@@ -1,4 +1,5 @@
 import { baseEmailTemplate, EmailTemplateData } from './base-template';
+import { StoreSettings } from '@/lib/types/database.types';
 
 export interface TicketStatusUpdateData {
   customerName: string;
@@ -13,6 +14,7 @@ export interface TicketStatusUpdateData {
   completionNotes?: string;
   holdReason?: string;
   cancellationReason?: string;
+  storeSettings?: StoreSettings;
 }
 
 export function ticketStatusUpdateTemplate(data: TicketStatusUpdateData): {
@@ -32,8 +34,14 @@ export function ticketStatusUpdateTemplate(data: TicketStatusUpdateData): {
     statusUrl,
     completionNotes,
     holdReason,
-    cancellationReason
+    cancellationReason,
+    storeSettings
   } = data;
+
+  // Use store settings or defaults
+  const storeName = storeSettings?.store_name || 'The Phone Guys';
+  const storePhone = storeSettings?.store_phone || '(469) 608-1050';
+  const storeEmail = storeSettings?.store_email || 'info@phoneguys.com';
 
   const deviceInfo = deviceBrand && deviceModel ? `${deviceBrand} ${deviceModel}` : 'Your device';
   
@@ -135,7 +143,7 @@ export function ticketStatusUpdateTemplate(data: TicketStatusUpdateData): {
         </div>
         
         <p style="margin: 20px 0; color: #666666; font-size: 14px;">
-          If you have any questions or would like to reschedule, please contact us at <strong>(555) 123-4567</strong>.
+          If you have any questions or would like to reschedule, please contact us at <strong>${storePhone}</strong>.
         </p>
       `;
       break;
@@ -204,7 +212,7 @@ export function ticketStatusUpdateTemplate(data: TicketStatusUpdateData): {
       Contact Us
     </h3>
     <p style="margin: 0 0 20px 0; color: #666666; font-size: 14px; line-height: 22px;">
-      If you have any questions about your repair, please don't hesitate to contact us at <strong>(555) 123-4567</strong> or reply to this email.
+      If you have any questions about your repair, please don't hesitate to contact us at <strong>${storePhone}</strong> or reply to this email.
     </p>
   `;
 
@@ -217,8 +225,9 @@ export function ticketStatusUpdateTemplate(data: TicketStatusUpdateData): {
       url: statusUrl
     } : undefined,
     footer: status === 'completed' 
-      ? 'Thank you for choosing The Phone Guys for your device repair needs!'
-      : 'We appreciate your patience while we work on your device.'
+      ? `Thank you for choosing ${storeName} for your device repair needs!`
+      : 'We appreciate your patience while we work on your device.',
+    storeSettings
   };
 
   const html = baseEmailTemplate(templateData);

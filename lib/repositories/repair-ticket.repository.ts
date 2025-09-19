@@ -587,4 +587,70 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
 
     return trendData;
   }
+
+  async getWeeklyComparison(): Promise<{ day: string; date: string; created: number; completed: number }[]> {
+    const client = await this.getClient();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    // Fetch tickets created in last 7 days
+    const { data: createdTickets, error: createdError } = await client
+      .from(this.tableName)
+      .select('created_at')
+      .gte('created_at', sevenDaysAgo.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (createdError) {
+      throw new Error(`Failed to fetch created tickets: ${createdError.message}`);
+    }
+
+    // Fetch tickets completed in last 7 days
+    // Note: Using updated_at since completed_at is not being populated
+    const { data: completedTickets, error: completedError } = await client
+      .from(this.tableName)
+      .select('updated_at, status')
+      .eq('status', 'completed')
+      .gte('updated_at', sevenDaysAgo.toISOString())
+      .order('updated_at', { ascending: true });
+
+    if (completedError) {
+      throw new Error(`Failed to fetch completed tickets: ${completedError.message}`);
+    }
+
+    // Group by day
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const comparisonData = [];
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+      nextDate.setHours(0, 0, 0, 0);
+      
+      // Count created tickets for this day
+      const dayCreated = (createdTickets || []).filter(ticket => {
+        const ticketDate = new Date(ticket.created_at);
+        return ticketDate >= date && ticketDate < nextDate;
+      }).length;
+
+      // Count completed tickets for this day (using updated_at)
+      const dayCompleted = (completedTickets || []).filter(ticket => {
+        const ticketDate = new Date(ticket.updated_at);
+        return ticketDate >= date && ticketDate < nextDate;
+      }).length;
+      
+      comparisonData.push({
+        day: i === 0 ? 'Today' : dayNames[date.getDay()],
+        date: date.toISOString().split('T')[0],
+        created: dayCreated,
+        completed: dayCompleted
+      });
+    }
+
+    return comparisonData;
+  }
 }

@@ -40,6 +40,7 @@ interface Ticket {
   created_at: string;
   updated_at: string;
   timer_total_minutes: number;
+  estimated_minutes: number;
   assigned_to: string | null;
   assigned_user?: {
     id: string;
@@ -81,15 +82,17 @@ async function fetchTickets(): Promise<Ticket[]> {
     .from('repair_tickets')
     .select(`
       *,
-      customers!repair_tickets_customer_id_fkey (
+      customers!inner (
         id,
         name,
         phone
       ),
-      assigned_user:users!repair_tickets_assigned_to_fkey (
+      time_entries (
+        duration_minutes
+      ),
+      ticket_services (
         id,
-        full_name,
-        email
+        service_id
       )
     `)
     .order('created_at', { ascending: false });
@@ -97,6 +100,42 @@ async function fetchTickets(): Promise<Ticket[]> {
   if (error) {
     console.error('Error fetching tickets:', error);
     return [];
+  }
+
+  // Fetch users separately for assigned_to mapping
+  const assignedUserIds = [...new Set(data?.filter(t => t.assigned_to).map(t => t.assigned_to) || [])];
+  
+  let usersMap = new Map();
+  if (assignedUserIds.length > 0) {
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, full_name, email')
+      .in('id', assignedUserIds);
+    
+    if (users) {
+      users.forEach(user => {
+        usersMap.set(user.id, user);
+      });
+    }
+  }
+
+  // Fetch services for estimated duration
+  const serviceIds = [...new Set(
+    data?.flatMap(t => t.ticket_services?.map((ts: any) => ts.service_id) || []) || []
+  )].filter(Boolean);
+  
+  let servicesMap = new Map();
+  if (serviceIds.length > 0) {
+    const { data: services } = await supabase
+      .from('services')
+      .select('id, estimated_duration_minutes')
+      .in('id', serviceIds);
+    
+    if (services) {
+      services.forEach(service => {
+        servicesMap.set(service.id, service.estimated_duration_minutes || 0);
+      });
+    }
   }
 
   // Fetch comment counts for all tickets
@@ -115,24 +154,39 @@ async function fetchTickets(): Promise<Ticket[]> {
     commentCountMap.set(comment.entity_id, count + 1);
   });
 
-  return (data || []).map(ticket => ({
-    id: ticket.id,
-    ticket_number: ticket.ticket_number,
-    customer_id: ticket.customer_id,
-    customer_name: ticket.customers?.name || 'Unknown Customer',
-    customer_phone: ticket.customers?.phone || '',
-    device_brand: ticket.device_brand || '',
-    device_model: ticket.device_model || '',
-    repair_issues: ticket.repair_issues || [],
-    status: ticket.status,
-    priority: ticket.priority,
-    created_at: ticket.created_at,
-    updated_at: ticket.updated_at,
-    timer_total_minutes: ticket.total_time_minutes || 0,
-    assigned_to: ticket.assigned_to,
-    assigned_user: ticket.assigned_user || undefined,
-    comment_count: commentCountMap.get(ticket.id) || 0,
-  }));
+  const mappedData = (data || []).map(ticket => {
+    // Calculate total tracked time from time_entries
+    const totalMinutes = ticket.time_entries?.reduce((sum: number, entry: any) => 
+      sum + (entry.duration_minutes || 0), 0) || ticket.total_time_minutes || 0;
+    
+    // Calculate estimated time from ticket_services using the services map
+    const estimatedMinutes = ticket.ticket_services?.reduce((sum: number, ts: any) => {
+      const duration = servicesMap.get(ts.service_id) || 0;
+      return sum + duration;
+    }, 0) || 0;
+    
+    return {
+      id: ticket.id,
+      ticket_number: ticket.ticket_number,
+      customer_id: ticket.customer_id,
+      customer_name: ticket.customers?.name || 'Unknown Customer',
+      customer_phone: ticket.customers?.phone || '',
+      device_brand: ticket.device_brand || '',
+      device_model: ticket.device_model || '',
+      repair_issues: ticket.repair_issues || [],
+      status: ticket.status,
+      priority: ticket.priority,
+      created_at: ticket.created_at,
+      updated_at: ticket.updated_at,
+      timer_total_minutes: totalMinutes,
+      estimated_minutes: estimatedMinutes,
+      assigned_to: ticket.assigned_to,
+      assigned_user: ticket.assigned_to ? usersMap.get(ticket.assigned_to) : undefined,
+      comment_count: commentCountMap.get(ticket.id) || 0,
+    };
+  });
+
+  return mappedData;
 }
 
 async function updateTicketStatus(id: string, status: string) {
@@ -190,7 +244,7 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
     setIsMounted(true);
   }, []);
 
-  const { data: tickets = initialData, isLoading, isFetching, isSuccess, error } = useQuery({
+  const { data: tickets = initialData, isLoading, isFetching, isSuccess, error, refetch } = useQuery({
     queryKey: ['tickets-table'],
     queryFn: fetchTickets,
     enabled: isMounted,
@@ -199,6 +253,7 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
     placeholderData: initialData,
     initialData: initialData.length > 0 ? initialData : undefined
   });
+
 
   // Track when we've successfully loaded data at least once
   React.useEffect(() => {
@@ -319,6 +374,36 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
       return `${hours}h ${mins}m`;
     }
     return `${mins}m`;
+  };
+
+  // Format tracked vs estimated time with color coding
+  const formatTrackedVsEstimated = (trackedMinutes: number, estimatedMinutes: number) => {
+    const tracked = formatTime(trackedMinutes);
+    
+    // If no estimated time or invalid, just show tracked time
+    if (!estimatedMinutes || estimatedMinutes === 0 || isNaN(estimatedMinutes)) {
+      return { display: tracked === '-' ? '-' : tracked, color: '' };
+    }
+    
+    const estimated = formatTime(estimatedMinutes);
+    
+    // Calculate percentage of time used
+    const percentage = (trackedMinutes / estimatedMinutes) * 100;
+    
+    // Determine color based on percentage
+    let color = '';
+    if (percentage <= 75) {
+      color = 'text-green-600 dark:text-green-400'; // Good - under 75%
+    } else if (percentage <= 100) {
+      color = 'text-amber-600 dark:text-amber-400'; // Getting close - 75-100%
+    } else {
+      color = 'text-red-600 dark:text-red-400'; // Over - more than 100%
+    }
+    
+    return { 
+      display: `${tracked} / ${estimated}`,
+      color
+    };
   };
 
   // Show skeleton until we have a definitive answer (following hydration strategy)
@@ -457,9 +542,24 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
                 <TablePremiumCell>
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-sm font-medium">
-                      {formatTime(ticket.timer_total_minutes)}
-                    </span>
+                    {(() => {
+                      const timeData = formatTrackedVsEstimated(ticket.timer_total_minutes, ticket.estimated_minutes);
+                      const parts = timeData.display.split(' / ');
+                      
+                      if (parts.length === 1) {
+                        // No estimated time, just show tracked time
+                        return <span className="text-sm font-medium">{timeData.display}</span>;
+                      }
+                      
+                      // Show tracked time normally, estimated time with color
+                      return (
+                        <span className="text-sm font-medium">
+                          <span>{parts[0]}</span>
+                          <span className="text-muted-foreground"> / </span>
+                          <span className={timeData.color}>{parts[1]}</span>
+                        </span>
+                      );
+                    })()}
                   </div>
                 </TablePremiumCell>
                 <TablePremiumCell className="w-10">

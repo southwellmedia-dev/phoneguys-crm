@@ -83,23 +83,18 @@ async function fetchAppointments(): Promise<Appointment[]> {
     .from('appointments')
     .select(`
       *,
-      customers!appointments_customer_id_fkey (
+      customers (
         id,
         name,
         email,
         phone
       ),
-      devices!appointments_device_id_fkey (
+      devices (
         id,
         model_name,
         manufacturers (
           name
         )
-      ),
-      assigned_user:users!appointments_assigned_to_fkey (
-        id,
-        full_name,
-        email
       )
     `)
     .order('scheduled_date', { ascending: true })
@@ -108,6 +103,23 @@ async function fetchAppointments(): Promise<Appointment[]> {
   if (error) {
     console.error('Error fetching appointments:', error);
     return [];
+  }
+
+  // Fetch users separately for assigned_to mapping
+  const assignedUserIds = [...new Set(data?.filter(a => a.assigned_to).map(a => a.assigned_to) || [])];
+  
+  let usersMap = new Map();
+  if (assignedUserIds.length > 0) {
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, full_name, email')
+      .in('id', assignedUserIds);
+    
+    if (users) {
+      users.forEach(user => {
+        usersMap.set(user.id, user);
+      });
+    }
   }
 
   return (data || []).map(apt => ({
@@ -128,7 +140,7 @@ async function fetchAppointments(): Promise<Appointment[]> {
     created_at: apt.created_at,
     converted_to_ticket_id: apt.converted_to_ticket_id,
     assigned_to: apt.assigned_to,
-    assigned_user: apt.assigned_user || undefined,
+    assigned_user: apt.assigned_to ? usersMap.get(apt.assigned_to) : undefined,
   }));
 }
 

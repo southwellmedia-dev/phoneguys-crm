@@ -116,7 +116,7 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
       .from(this.tableName)
       .select(`
         *,
-        customers:customers!customer_id (
+        customers (
           id,
           name,
           email,
@@ -129,7 +129,7 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
             name
           )
         ),
-        assigned_user:users!repair_tickets_assigned_to_fkey (
+        assigned_user:users!assigned_to (
           id,
           full_name,
           email

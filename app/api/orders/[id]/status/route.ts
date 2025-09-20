@@ -70,14 +70,26 @@ async function updateStatus(request: NextRequest, context: RouteParams) {
       authResult.userId
     );
 
-    // Audit the status change
+    // Audit the status change with ticket number
     if (previousStatus && previousStatus !== status) {
-      await auditLog.ticketStatusChanged(
-        authResult.userId,
-        ticketId,
-        previousStatus,
-        status
-      );
+      // Get ticket number for audit log
+      const { data: ticketData } = await supabase
+        .from('repair_tickets')
+        .select('ticket_number')
+        .eq('id', ticketId)
+        .single();
+      
+      await auditLog.logUserActivity({
+        userId: authResult.userId,
+        activityType: 'ticket_status_changed',
+        entityType: 'repair_ticket',
+        entityId: ticketId,
+        details: { 
+          old_status: previousStatus, 
+          new_status: status,
+          ticket_number: ticketData?.ticket_number
+        }
+      });
     }
 
     // Get updated ticket with full relationships for logging

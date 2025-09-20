@@ -289,11 +289,6 @@ export function RealActivityFeed({
                                 {activity.details.new_status && (
                                   <StatusBadge status={activity.details.new_status} size="xs" />
                                 )}
-                                {activity.details.ticket_number && (
-                                  <span className="text-xs text-muted-foreground ml-1">
-                                    #{activity.details.ticket_number}
-                                  </span>
-                                )}
                               </div>
                             )}
                             {/* Show regular description if not a status change */}
@@ -315,9 +310,22 @@ export function RealActivityFeed({
                             </span>
                           </div>
                         </div>
-                        {link && (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                        )}
+                        <div className="flex items-center gap-2">
+                          {/* Show ticket/appointment number badge */}
+                          {(activity.details?.ticket_number || activity.details?.appointment_number) && (
+                            <Badge variant="secondary" className="text-xs font-mono">
+                              {activity.details?.ticket_number 
+                                ? `#${activity.details.ticket_number}`
+                                : activity.details?.appointment_number 
+                                ? `${activity.details.appointment_number}`
+                                : null
+                              }
+                            </Badge>
+                          )}
+                          {link && (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

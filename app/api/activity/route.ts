@@ -28,7 +28,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
     case 'ticket_created':
       return {
         title: `New ticket created`,
-        description: details?.ticket_number ? `Ticket #${details.ticket_number}` : 'New repair ticket',
+        description: 'New repair ticket',
         icon: 'package',
         color: 'blue'
       };
@@ -50,7 +50,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
       
       return {
         title: `Ticket status changed`,
-        description: `${oldStatus ? `${oldStatus} → ` : ''}${status}${details?.ticket_number ? ` (#${details.ticket_number})` : ''}`,
+        description: `${oldStatus ? `${oldStatus} → ` : ''}${status}`,
         icon: 'refresh',
         color: status === 'completed' ? 'green' : status === 'in_progress' ? 'yellow' : status === 'on_hold' ? 'orange' : 'blue'
       };
@@ -64,8 +64,8 @@ const getActivityDisplay = (activity: any): { title: string; description: string
       const isFromConversion = details?.from_appointment || details?.appointment_number;
       return {
         title: `Ticket assigned`,
-        description: details?.ticket_number ? 
-          `Ticket #${details.ticket_number}${details?.assigned_to_name ? ` assigned to ${details.assigned_to_name}` : ' assigned'}${isFromConversion && details?.appointment_number ? ` (from ${details.appointment_number})` : ''}` : 
+        description: details?.assigned_to_name ? 
+          `Assigned to ${details.assigned_to_name}${isFromConversion && details?.appointment_number ? ` (from appointment)` : ''}` : 
           'Technician assigned',
         icon: 'user-check',
         color: isFromConversion ? 'green' : 'purple'
@@ -74,7 +74,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
     case 'ticket_completed':
       return {
         title: `Ticket completed`,
-        description: details?.ticket_number ? `Ticket #${details.ticket_number} completed` : 'Repair completed',
+        description: 'Repair completed',
         icon: 'check-circle',
         color: 'green'
       };
@@ -83,8 +83,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
     case 'timer_start':
       return {
         title: `Timer started`,
-        description: details?.ticket_number ? `Working on ticket #${details.ticket_number}` : 
-                     entity_id ? `Working on ticket` : 'Work started',
+        description: 'Work started',
         icon: 'play',
         color: 'blue'
       };
@@ -97,7 +96,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
         'Time';
       return {
         title: activity_type === 'timer_admin_stop' ? `Timer stopped by admin` : `Timer stopped`,
-        description: `${formattedDuration} recorded${details?.ticket_number ? ` on #${details.ticket_number}` : ''}`,
+        description: `${formattedDuration} recorded`,
         icon: 'pause',
         color: 'orange'
       };
@@ -125,23 +124,8 @@ const getActivityDisplay = (activity: any): { title: string; description: string
       
       let description = preview;
       
-      // Use provided details first, then fall back to entity lookups
-      if (entity_type === 'repair_ticket') {
-        const ticketNumber = details?.ticket_number || details?.ticketNumber;
-        if (ticketNumber) {
-          description = `on Ticket #${ticketNumber}: ${preview}`;
-        } else if (entity_id) {
-          // We'll fetch this later if needed
-          description = `on ticket: ${preview}`;
-        }
-      } else if (entity_type === 'appointment') {
-        const appointmentNumber = details?.appointment_number || details?.appointmentNumber;
-        if (appointmentNumber) {
-          description = `on ${appointmentNumber}: ${preview}`;
-        } else if (entity_id) {
-          description = `on appointment: ${preview}`;
-        }
-      } else if (entity_type === 'customer') {
+      // For customer profiles, still show the name since we don't have a badge for those
+      if (entity_type === 'customer') {
         const customerName = details?.customer_name || details?.customerName;
         if (customerName) {
           description = `on ${customerName}'s profile: ${preview}`;
@@ -190,9 +174,9 @@ const getActivityDisplay = (activity: any): { title: string; description: string
       
       return {
         title,
-        description: details?.appointment_number ? 
-          `${details.appointment_number} - ${details?.appointment_date ? new Date(details.appointment_date).toLocaleDateString() : ''}${details?.customer_name ? ` - ${details.customer_name}` : ''}` : 
-          (details?.appointment_date ? `Scheduled for ${new Date(details.appointment_date).toLocaleDateString()}${details?.customer_name ? ` - ${details.customer_name}` : ''}` : 'New appointment'),
+        description: details?.appointment_date ? 
+          `${new Date(details.appointment_date).toLocaleDateString()}${details?.customer_name ? ` - ${details.customer_name}` : ''}` : 
+          (details?.customer_name ? `${details.customer_name}` : 'New appointment'),
         icon: isWalkIn ? 'user-check' : 'calendar',
         color: isWalkIn ? 'blue' : (isNewRequest ? 'yellow' : 'purple')
       };
@@ -200,7 +184,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
     case 'appointment_confirmed':
       return {
         title: `Appointment Confirmed`,
-        description: `${details?.appointment_number || 'Appointment'} - ${details?.customer_name || 'Customer'} confirmed for ${details?.appointment_date ? new Date(details.appointment_date).toLocaleDateString() : 'scheduled date'}`,
+        description: `${details?.customer_name || 'Customer'} confirmed for ${details?.appointment_date ? new Date(details.appointment_date).toLocaleDateString() : 'scheduled date'}`,
         icon: 'check-circle',
         color: 'green'
       };
@@ -208,7 +192,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
     case 'appointment_checked_in':
       return {
         title: `Customer Checked In`,
-        description: `${details?.appointment_number || 'Appointment'} - ${details?.customer_name || 'Customer'} has arrived`,
+        description: `${details?.customer_name || 'Customer'} has arrived`,
         icon: 'user-check',
         color: 'blue'
       };
@@ -216,7 +200,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
     case 'appointment_status_changed':
       return {
         title: `Appointment Status Updated`,
-        description: `${details?.appointment_number || 'Appointment'} - ${details?.old_status ? `${details.old_status} → ` : ''}${details?.new_status || 'status changed'}`,
+        description: `${details?.old_status ? `${details.old_status} → ` : ''}${details?.new_status || 'status changed'}`,
         icon: 'refresh',
         color: details?.new_status === 'cancelled' || details?.new_status === 'no_show' ? 'red' : 
                details?.new_status === 'confirmed' || details?.new_status === 'completed' ? 'green' :
@@ -226,7 +210,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
     case 'appointment_converted':
       return {
         title: `Appointment converted to ticket`,
-        description: `${details?.appointment_number || 'Appointment'} → Ticket #${details?.ticket_number || 'New'}${details?.customer_name ? ` for ${details.customer_name}` : ''}`,
+        description: `Converted${details?.customer_name ? ` for ${details.customer_name}` : ''}`,
         icon: 'arrow-right',
         color: 'green'
       };
@@ -343,8 +327,9 @@ export async function GET(request: NextRequest) {
     // Get ticket numbers for timer and comment activities
     const needsTicketInfo = (activities || []).filter(a => 
       ((a.activity_type === 'timer_start' || a.activity_type === 'timer_stop' || a.activity_type === 'timer_admin_stop' ||
+        a.activity_type === 'timer_pause' || a.activity_type === 'timer_resume' ||
         a.activity_type === 'comment_created' || a.activity_type === 'comment_reply') &&
-      a.entity_id && a.entity_type === 'repair_ticket')
+      a.entity_id && (a.entity_type === 'repair_ticket' || a.entity_type === 'ticket'))
     );
     
     let ticketNumbers: Record<string, string> = {};
@@ -390,8 +375,10 @@ export async function GET(request: NextRequest) {
       .map(activity => {
         // Add ticket number to details for timer and comment activities
         if ((activity.activity_type === 'timer_start' || activity.activity_type === 'timer_stop' || activity.activity_type === 'timer_admin_stop' ||
+             activity.activity_type === 'timer_pause' || activity.activity_type === 'timer_resume' ||
              activity.activity_type === 'comment_created' || activity.activity_type === 'comment_reply') 
-            && activity.entity_type === 'repair_ticket' && activity.entity_id && ticketNumbers[activity.entity_id]) {
+            && (activity.entity_type === 'repair_ticket' || activity.entity_type === 'ticket') 
+            && activity.entity_id && ticketNumbers[activity.entity_id]) {
           activity.details = {
             ...activity.details,
             ticket_number: ticketNumbers[activity.entity_id]

@@ -73,6 +73,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Log the timer action using auth user ID for RLS compliance
     if (authUserId) {
       try {
+        // Get ticket number for the audit log
+        const { data: ticketData } = await supabase
+          .from('repair_tickets')
+          .select('ticket_number')
+          .eq('id', ticketId)
+          .single();
+        
         await auditLog.ticketTimerAction(
           authUserId, // Use auth user ID for RLS policy
           ticketId,
@@ -83,7 +90,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             timer_id: result.timer?.id,
             duration: action === 'stop' ? result.duration : null,
             elapsed_seconds: result.timer?.elapsed_seconds,
-            app_user_id: appUserId // Include app user ID in details
+            app_user_id: appUserId, // Include app user ID in details
+            ticket_number: ticketData?.ticket_number // Include ticket number
           }
         );
       } catch (auditError) {

@@ -69,15 +69,42 @@ async function handleAssignment(request: NextRequest, { params }: Params) {
       );
     }
 
-    // Audit the assignment change
+    // Audit the assignment change with ticket number
     const previousAssignee = ticket.assigned_to;
     if (previousAssignee !== assigned_to) {
       if (assigned_to) {
+        // Get assignee name for better logging
+        const { data: assigneeData } = await serviceClient
+          .from('users')
+          .select('full_name, email')
+          .eq('id', assigned_to)
+          .single();
+        
         // Assignment or reassignment
-        await auditLog.ticketAssigned(user.id, id, assigned_to);
+        await auditLog.logUserActivity({
+          userId: user.id,
+          activityType: 'ticket_assigned',
+          entityType: 'repair_ticket',
+          entityId: id,
+          details: { 
+            assigned_to,
+            assigned_to_name: assigneeData?.full_name || assigneeData?.email?.split('@')[0],
+            ticket_number: ticket.ticket_number,
+            from_appointment: false
+          }
+        });
       } else {
         // Unassignment
-        await auditLog.ticketStatusChanged(user.id, id, 'assigned', 'unassigned');
+        await auditLog.logUserActivity({
+          userId: user.id,
+          activityType: 'ticket_unassigned',
+          entityType: 'repair_ticket',
+          entityId: id,
+          details: {
+            ticket_number: ticket.ticket_number,
+            previous_assignee: previousAssignee
+          }
+        });
       }
     }
 

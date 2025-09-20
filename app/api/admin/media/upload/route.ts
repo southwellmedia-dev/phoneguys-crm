@@ -20,10 +20,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type (allow images and SVG)
-    if (!file.type.startsWith('image/') && file.type !== 'image/svg+xml') {
+    // Validate file type (allow images including SVG)
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'File must be an image or SVG' },
+        { error: 'File must be PNG, JPEG, WebP, or SVG format.' },
         { status: 400 }
       );
     }

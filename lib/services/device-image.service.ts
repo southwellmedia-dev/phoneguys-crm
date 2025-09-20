@@ -18,7 +18,7 @@ export class DeviceImageService {
       const { error } = await supabase.storage.createBucket(this.bucketName, {
         public: true, // Makes images publicly accessible
         fileSizeLimit: 5242880, // 5MB limit
-        allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
+        allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml']
       });
       
       if (error) throw error;

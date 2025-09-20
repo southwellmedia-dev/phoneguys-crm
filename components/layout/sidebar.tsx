@@ -136,18 +136,25 @@ export function Sidebar({ user }: SidebarProps) {
   };
 
   return (
-    <aside className="w-64 dark:bg-card/95 bg-gradient-to-br from-primary via-primary to-primary/90 backdrop-blur-sm border-r border-primary/20 dark:border-border/50 h-screen flex-shrink-0 relative">
+    <aside className="w-64 h-screen flex-shrink-0 relative border-r bg-gradient-to-br from-primary via-primary to-primary/90 border-primary/20 dark:bg-gradient-to-br dark:from-card dark:via-card dark:to-card dark:border-border/50">
       {/* Enhanced gradient overlay for depth */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/20 pointer-events-none dark:from-primary/5 dark:via-transparent dark:to-accent/5" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/20 dark:from-transparent dark:via-transparent dark:to-black/10 pointer-events-none" />
       
       <div className="relative flex flex-col h-full overflow-hidden">
         {/* Logo Section - Full width */}
-        <div className="px-6 py-6 border-b border-white/10 dark:border-border/50 bg-gradient-to-r from-transparent via-white/5 to-transparent dark:from-transparent dark:via-muted/20 dark:to-transparent">
+        <div className="px-6 py-6 border-b border-white/10 dark:border-border/50 bg-gradient-to-r from-transparent via-white/5 to-transparent dark:from-transparent dark:via-muted/5 dark:to-transparent">
           <Link href="/" className="group block">
+            {/* Light mode logo */}
             <img
               src="https://egotypldqzdzjclikmeg.supabase.co/storage/v1/object/public/device-images/phoneguys-logo.png"
               alt="The Phone Guys"
-              className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-105"
+              className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-105 dark:hidden"
+            />
+            {/* Dark mode logo */}
+            <img
+              src="https://egotypldqzdzjclikmeg.supabase.co/storage/v1/object/public/device-images/phoneguys-darkmode-logo.svg"
+              alt="The Phone Guys"
+              className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-105 hidden dark:block"
             />
           </Link>
         </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ThemeSwitcher } from "@/components/theme-switcher";
 import { LogoutButton } from "@/components/logout-button";
 import { Menu } from "lucide-react";
 
@@ -20,7 +19,6 @@ export function Header({ title = "Repair Management System" }: HeaderProps) {
           <h2 className="text-lg font-semibold">{title}</h2>
         </div>
         <div className="flex items-center space-x-4">
-          <ThemeSwitcher />
           <LogoutButton />
         </div>
       </div>

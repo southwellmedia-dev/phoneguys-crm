@@ -206,8 +206,8 @@ export function SystemStatus({ className }: SystemStatusProps) {
                   </div>
                   <p className="text-xs text-muted-foreground truncate">
                     {service.message}
-                    {service.responseTime && service.responseTime > 0 && 
-                      ` (${service.responseTime}ms)`
+                    {service.responseTime && service.responseTime > 0 ? 
+                      ` (${service.responseTime}ms)` : ''
                     }
                   </p>
                 </div>

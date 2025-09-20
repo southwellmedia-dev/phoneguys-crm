@@ -84,6 +84,47 @@ export async function POST(request: NextRequest) {
       email: user.email
     });
 
+    // Fetch entity details for activity logging
+    let entityDetails: any = {};
+    try {
+      if (entityType === 'ticket') {
+        const { data: ticket } = await supabase
+          .from('repair_tickets')
+          .select('ticket_number, customers!inner(full_name, name)')
+          .eq('id', entityId)
+          .single();
+        
+        if (ticket) {
+          entityDetails.ticketNumber = ticket.ticket_number;
+          entityDetails.customerName = ticket.customers?.full_name || ticket.customers?.name;
+        }
+      } else if (entityType === 'appointment') {
+        const { data: appointment } = await supabase
+          .from('appointments')
+          .select('appointment_number, customers!inner(full_name, name)')
+          .eq('id', entityId)
+          .single();
+        
+        if (appointment) {
+          entityDetails.appointmentNumber = appointment.appointment_number;
+          entityDetails.customerName = appointment.customers?.full_name || appointment.customers?.name;
+        }
+      } else if (entityType === 'customer') {
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('full_name, name')
+          .eq('id', entityId)
+          .single();
+        
+        if (customer) {
+          entityDetails.customerName = customer.full_name || customer.name;
+        }
+      }
+    } catch (detailError) {
+      // Don't fail if we can't get entity details
+      console.error('Failed to fetch entity details:', detailError);
+    }
+
     // Create service with notification support
     // Note: We use service role (true) for notifications because users need to create
     // notifications for OTHER users when mentioning them, which RLS doesn't allow
@@ -102,7 +143,8 @@ export async function POST(request: NextRequest) {
         authUserId: user.id, // Pass auth ID for RLS checks
         visibility,
         parentCommentId,
-        attachments
+        attachments,
+        entityDetails // Pass entity details for activity logging
       }
     );
 

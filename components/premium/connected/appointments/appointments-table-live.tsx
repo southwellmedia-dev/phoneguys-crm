@@ -10,7 +10,8 @@ import { ButtonPremium } from '@/components/premium/ui/buttons/button-premium';
 import { SkeletonPremium } from '@/components/premium/ui/feedback/skeleton-premium';
 import { cn } from '@/lib/utils';
 import { format, isToday, isTomorrow, isPast, isFuture } from 'date-fns';
-import { Eye, FileText, MoreHorizontal, CheckCheck, User, X, Edit } from 'lucide-react';
+import { Eye, FileText, MoreHorizontal, CheckCheck, User, X, Edit, UserCheck } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -320,6 +321,7 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
           <TablePremiumHead>Customer</TablePremiumHead>
           <TablePremiumHead>Device</TablePremiumHead>
           <TablePremiumHead>Status</TablePremiumHead>
+          <TablePremiumHead className="w-10"></TablePremiumHead>
           <TablePremiumHead className="text-right">Actions</TablePremiumHead>
         </TablePremiumRow>
       </TablePremiumHeader>
@@ -349,6 +351,9 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
               <TablePremiumCell>
                 <SkeletonPremium className="h-6 w-20 rounded-full" />
               </TablePremiumCell>
+              <TablePremiumCell className="w-10">
+                <SkeletonPremium className="h-8 w-8 rounded-full" />
+              </TablePremiumCell>
               <TablePremiumCell>
                 <div className="flex justify-end gap-1">
                   <SkeletonPremium className="h-8 w-8 rounded" />
@@ -359,7 +364,7 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
           ))
         ) : filteredAppointments.length === 0 ? (
           <TablePremiumRow>
-            <TablePremiumCell colSpan={6} className="text-center py-8 text-muted-foreground">
+            <TablePremiumCell colSpan={7} className="text-center py-8 text-muted-foreground">
               No appointments found
             </TablePremiumCell>
           </TablePremiumRow>
@@ -374,7 +379,11 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
             return (
               <TablePremiumRow 
                 key={apt.id}
-                className="cursor-pointer hover:bg-muted/50"
+                className={cn(
+                  "cursor-pointer hover:bg-muted/50",
+                  apt.status === 'arrived' && 
+                    "bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500"
+                )}
                 onClick={() => router.push(`/appointments/${apt.id}`)}
               >
                 <TablePremiumCell className="font-medium text-sm">
@@ -412,6 +421,24 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
                     variant="soft"
                     size="xs"
                   />
+                </TablePremiumCell>
+                <TablePremiumCell className="w-10">
+                  {apt.status === 'arrived' && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center justify-center animate-pulse">
+                            <div className="p-1.5 rounded-full bg-green-100 dark:bg-green-900/30">
+                              <UserCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            </div>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Customer has arrived</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </TablePremiumCell>
                 <TablePremiumCell className="text-right" onClick={(e) => e.stopPropagation()}>
                   {apt.status === 'converted' ? (

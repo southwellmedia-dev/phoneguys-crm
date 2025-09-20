@@ -11,7 +11,7 @@ export interface ActivityLogData {
 
 export class ActivityLogRepository extends BaseRepository {
   constructor(serviceRole = false) {
-    super(serviceRole ? true : false, 'user_activity_logs');
+    super('user_activity_logs', serviceRole);
   }
 
   async create(data: ActivityLogData) {

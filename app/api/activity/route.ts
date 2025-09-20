@@ -115,6 +115,48 @@ const getActivityDisplay = (activity: any): { title: string; description: string
         color: 'blue'
       };
       
+    // Comment/Discussion events
+    case 'comment_created':
+    case 'comment_reply':
+      const isReply = activity_type === 'comment_reply';
+      const preview = details?.content_preview ? 
+        `"${details.content_preview}"` : 
+        (isReply ? 'Reply added' : 'New comment');
+      
+      let description = preview;
+      
+      // Use provided details first, then fall back to entity lookups
+      if (entity_type === 'repair_ticket') {
+        const ticketNumber = details?.ticket_number || details?.ticketNumber;
+        if (ticketNumber) {
+          description = `on Ticket #${ticketNumber}: ${preview}`;
+        } else if (entity_id) {
+          // We'll fetch this later if needed
+          description = `on ticket: ${preview}`;
+        }
+      } else if (entity_type === 'appointment') {
+        const appointmentNumber = details?.appointment_number || details?.appointmentNumber;
+        if (appointmentNumber) {
+          description = `on ${appointmentNumber}: ${preview}`;
+        } else if (entity_id) {
+          description = `on appointment: ${preview}`;
+        }
+      } else if (entity_type === 'customer') {
+        const customerName = details?.customer_name || details?.customerName;
+        if (customerName) {
+          description = `on ${customerName}'s profile: ${preview}`;
+        } else if (entity_id) {
+          description = `on customer profile: ${preview}`;
+        }
+      }
+      
+      return {
+        title: isReply ? `Reply added` : `Comment added`,
+        description: description,
+        icon: 'message-circle',
+        color: isReply ? 'purple' : 'blue'
+      };
+      
     // Customer events
     case 'customer_created':
       return {
@@ -298,15 +340,16 @@ export async function GET(request: NextRequest) {
       throw error;
     }
 
-    // Get ticket numbers for timer activities
-    const timerActivities = (activities || []).filter(a => 
-      (a.activity_type === 'timer_start' || a.activity_type === 'timer_stop' || a.activity_type === 'timer_admin_stop') &&
-      a.entity_id && a.entity_type === 'ticket'
+    // Get ticket numbers for timer and comment activities
+    const needsTicketInfo = (activities || []).filter(a => 
+      ((a.activity_type === 'timer_start' || a.activity_type === 'timer_stop' || a.activity_type === 'timer_admin_stop' ||
+        a.activity_type === 'comment_created' || a.activity_type === 'comment_reply') &&
+      a.entity_id && a.entity_type === 'repair_ticket')
     );
     
     let ticketNumbers: Record<string, string> = {};
-    if (timerActivities.length > 0) {
-      const ticketIds = [...new Set(timerActivities.map(a => a.entity_id).filter(Boolean))];
+    if (needsTicketInfo.length > 0) {
+      const ticketIds = [...new Set(needsTicketInfo.map(a => a.entity_id).filter(Boolean))];
       const { data: tickets } = await serviceClient
         .from('repair_tickets')
         .select('id, ticket_number')
@@ -319,16 +362,48 @@ export async function GET(request: NextRequest) {
         }, {} as Record<string, string>);
       }
     }
+    
+    // Get appointment numbers for comment activities
+    const needsAppointmentInfo = (activities || []).filter(a => 
+      ((a.activity_type === 'comment_created' || a.activity_type === 'comment_reply') &&
+      a.entity_id && a.entity_type === 'appointment')
+    );
+    
+    let appointmentNumbers: Record<string, string> = {};
+    if (needsAppointmentInfo.length > 0) {
+      const appointmentIds = [...new Set(needsAppointmentInfo.map(a => a.entity_id).filter(Boolean))];
+      const { data: appointments } = await serviceClient
+        .from('appointments')
+        .select('id, appointment_number')
+        .in('id', appointmentIds);
+      
+      if (appointments) {
+        appointmentNumbers = appointments.reduce((acc, a) => {
+          acc[a.id] = a.appointment_number;
+          return acc;
+        }, {} as Record<string, string>);
+      }
+    }
 
     // Format activities for display and filter out phantom activities
     const formattedActivities: ActivityLogItem[] = (activities || [])
       .map(activity => {
-        // Add ticket number to details for timer activities
-        if ((activity.activity_type === 'timer_start' || activity.activity_type === 'timer_stop' || activity.activity_type === 'timer_admin_stop') 
-            && activity.entity_id && ticketNumbers[activity.entity_id]) {
+        // Add ticket number to details for timer and comment activities
+        if ((activity.activity_type === 'timer_start' || activity.activity_type === 'timer_stop' || activity.activity_type === 'timer_admin_stop' ||
+             activity.activity_type === 'comment_created' || activity.activity_type === 'comment_reply') 
+            && activity.entity_type === 'repair_ticket' && activity.entity_id && ticketNumbers[activity.entity_id]) {
           activity.details = {
             ...activity.details,
             ticket_number: ticketNumbers[activity.entity_id]
+          };
+        }
+        
+        // Add appointment number to details for comment activities
+        if ((activity.activity_type === 'comment_created' || activity.activity_type === 'comment_reply')
+            && activity.entity_type === 'appointment' && activity.entity_id && appointmentNumbers[activity.entity_id]) {
+          activity.details = {
+            ...activity.details,
+            appointment_number: appointmentNumbers[activity.entity_id]
           };
         }
         

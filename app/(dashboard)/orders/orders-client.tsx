@@ -26,6 +26,8 @@ import { useShowSkeleton } from "@/lib/hooks/use-navigation-loading";
 import { SkeletonOrders } from "@/components/ui/skeleton-orders";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUserInfo } from "@/lib/utils/user-mapping";
+import { useTimer } from "@/lib/contexts/timer-context";
+import { cn } from "@/lib/utils";
 
 interface OrdersClientProps {
   orders: Order[];
@@ -35,6 +37,16 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
   const [showMyTickets, setShowMyTickets] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const { activeTimer } = useTimer();
+  
+  // Debug logging for timer
+  useEffect(() => {
+    console.log('Active timer in OrdersClient:', activeTimer);
+    if (activeTimer) {
+      console.log('Active timer ticket ID:', activeTimer.ticketId);
+      console.log('Active timer ticket number:', activeTimer.ticketNumber);
+    }
+  }, [activeTimer]);
   
   // Get current user info
   useEffect(() => {
@@ -216,6 +228,24 @@ export function OrdersClient({ orders: initialOrders }: OrdersClientProps) {
               data={safeOrders} 
               searchKey="ticket_number"
               initialSorting={[{ id: "updated_at", desc: true }]}
+              getRowClassName={(row: Order) => {
+                // Debug: Log the comparison
+                if (row.ticket_number === 'TPG0011') {
+                  console.log('TPG0011 row ID:', row.id);
+                  console.log('Active timer ticket ID:', activeTimer?.ticketId);
+                  console.log('Do they match?', activeTimer?.ticketId === row.id);
+                }
+                
+                // Highlight the row if this ticket has an active timer
+                if (activeTimer && activeTimer.ticketId === row.id) {
+                  console.log('Applying green highlight to ticket:', row.ticket_number);
+                  return "bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500";
+                }
+                return "";
+              }}
+              meta={{
+                activeTimerId: activeTimer?.ticketId
+              }}
               toolbarActions={
                 <Button
                   variant={showMyTickets ? "default" : "outline"}

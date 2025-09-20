@@ -12,10 +12,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Eye, Edit, Clock, CheckCircle, Package } from "lucide-react";
+import { MoreHorizontal, Eye, Edit, Clock, CheckCircle, Package, Timer } from "lucide-react";
 import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowUpDown } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface Order {
   id: string;
@@ -313,6 +314,37 @@ const columnDefinitions = {
     },
   } as ColumnDef<Order>,
   
+  timer_indicator: {
+    id: "timer_indicator",
+    header: () => <span className="sr-only">Timer</span>,
+    cell: ({ row, table }) => {
+      // Get the active timer ID from table meta
+      const activeTimerId = (table.options.meta as any)?.activeTimerId;
+      const isActive = activeTimerId === row.original.id;
+      
+      if (!isActive) return null;
+      
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center justify-center animate-pulse">
+                <div className="p-1.5 rounded-full bg-green-100 dark:bg-green-900/30">
+                  <Timer className="h-4 w-4 text-green-600 dark:text-green-400" />
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Timer is running</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    },
+    enableSorting: false,
+    enableHiding: false,
+  } as ColumnDef<Order>,
+  
   actions: {
     id: "actions",
     cell: ({ row }) => {
@@ -386,6 +418,7 @@ export const columns: ColumnDef<Order>[] = [
   columnDefinitions.created_at,
   columnDefinitions.updated_at,
   columnDefinitions.timer_total_minutes,
+  columnDefinitions.timer_indicator,
   columnDefinitions.actions,
 ];
 

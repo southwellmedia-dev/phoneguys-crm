@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Home,
   Package,
@@ -140,268 +141,353 @@ export function Sidebar({ user }: SidebarProps) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/20 pointer-events-none dark:from-primary/5 dark:via-transparent dark:to-accent/5" />
       
       <div className="relative flex flex-col h-full overflow-hidden">
-        {/* Logo Section - Enhanced - Matching header height (h-20) */}
-        <div className="h-20 px-4 py-3 flex items-center border-b border-white/10 dark:border-border/50 bg-gradient-to-r from-transparent via-white/5 to-transparent dark:from-transparent dark:via-muted/20 dark:to-transparent">
-          <Link href="/" className="group w-full h-full">
+        {/* Logo Section - Full width */}
+        <div className="px-6 py-6 border-b border-white/10 dark:border-border/50 bg-gradient-to-r from-transparent via-white/5 to-transparent dark:from-transparent dark:via-muted/20 dark:to-transparent">
+          <Link href="/" className="group block">
             <img
               src="https://egotypldqzdzjclikmeg.supabase.co/storage/v1/object/public/device-images/phoneguys-logo.png"
               alt="The Phone Guys"
-              className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
+              className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-105"
             />
           </Link>
         </div>
 
         {/* Navigation Links - Scrollable if needed */}
-        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href || 
-              (item.href !== "/" && pathname.startsWith(item.href));
-            
-            if (item.disabled) {
+        <nav className="flex-1 px-3 py-4 overflow-y-auto">
+          <div className="space-y-1">
+            {navigation.map((item) => {
+              const isActive = pathname === item.href || 
+                (item.href !== "/" && pathname.startsWith(item.href));
+              
+              if (item.disabled) {
+                return (
+                  <div
+                    key={item.name}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm opacity-40 cursor-not-allowed"
+                  >
+                    <item.icon className="h-5 w-5 text-white/40 dark:text-muted-foreground flex-shrink-0" />
+                    <span className="text-white/40 dark:text-muted-foreground">{item.name}</span>
+                  </div>
+                );
+              }
+              
               return (
-                <div
+                <motion.div
                   key={item.name}
-                  className="relative flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium opacity-50 cursor-not-allowed"
+                  whileHover={{ scale: 1.02, x: 4 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 >
-                  <div className="p-2 rounded-lg bg-white/10 dark:bg-muted/30">
-                    <item.icon className="h-4 w-4 text-white/50 dark:text-muted-foreground" />
-                  </div>
-                  <span className="text-white/50 dark:text-muted-foreground">{item.name}</span>
-                </div>
-              );
-            }
-            
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  "relative flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group",
-                  isActive
-                    ? "bg-white/20 dark:bg-gradient-primary text-white dark:text-primary-foreground shadow-lg backdrop-blur-sm"
-                    : "text-white/80 dark:text-foreground hover:bg-white/10 dark:hover:bg-muted/50 hover:translate-x-1"
-                )}
-              >
-                <div className={cn(
-                  "p-2 rounded-lg transition-colors",
-                  isActive 
-                    ? "bg-white/20 dark:bg-white/20" 
-                    : "bg-white/10 dark:bg-muted/50 group-hover:bg-white/20 dark:group-hover:bg-primary/10"
-                )}>
-                  <item.icon className={cn(
-                    "h-4 w-4",
-                    isActive 
-                      ? "text-white dark:text-primary-foreground" 
-                      : "text-white/80 dark:text-muted-foreground group-hover:text-white dark:group-hover:text-primary"
-                  )} />
-                </div>
-                <span className={cn(
-                  "font-medium",
-                  !isActive && "group-hover:text-white dark:group-hover:text-foreground"
-                )}>{item.name}</span>
-              </Link>
-            );
-          })}
-
-          {/* Admin Section - Only visible for admin users */}
-          {user.role === 'admin' && (
-            <>
-              <div className="pt-4 mt-4 border-t border-white/20 dark:border-border/50">
-                <div className="px-4 pb-3 flex items-center space-x-2">
-                  <div className="p-1.5 rounded-lg bg-white/20 dark:bg-gradient-to-br dark:from-accent/20 dark:to-accent/10">
-                    <Shield className="h-3.5 w-3.5 text-white dark:text-accent" />
-                  </div>
-                  <span className="text-xs font-bold text-white/80 dark:text-muted-foreground uppercase tracking-wider">
-                    Admin Zone
-                  </span>
-                </div>
-                <div className="space-y-1.5">
-                  {adminNavigation.map((item) => {
-                  const isActive = pathname === item.href || 
-                    (item.href !== "/" && pathname.startsWith(item.href));
-                  
-                  if (item.disabled) {
-                    return (
-                      <div
-                        key={item.name}
-                        className="relative flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium opacity-50 cursor-not-allowed"
-                      >
-                        <div className="p-2 rounded-lg bg-white/10 dark:bg-muted/30">
-                          <item.icon className="h-4 w-4 text-white/50 dark:text-muted-foreground" />
-                        </div>
-                        <span className="text-white/50 dark:text-muted-foreground">{item.name}</span>
-                      </div>
-                    );
-                  }
-                  
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={cn(
-                        "relative flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group",
-                        isActive
-                          ? "bg-white/20 dark:bg-gradient-to-r dark:from-accent dark:to-accent/80 text-white shadow-lg backdrop-blur-sm"
-                          : "text-white/80 dark:text-foreground hover:bg-white/10 dark:hover:bg-muted/50 hover:translate-x-1"
-                      )}
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "relative flex items-center gap-3 px-3 py-2.5 rounded-lg group",
+                      isActive
+                        ? "bg-white/20 dark:bg-primary/10 backdrop-blur-sm"
+                        : ""
+                    )}
+                  >
+                    {/* Hover background effect */}
+                    <motion.div
+                      className="absolute inset-0 rounded-lg bg-white/10 dark:bg-muted/10"
+                      initial={{ opacity: 0 }}
+                      whileHover={{ opacity: isActive ? 0 : 1 }}
+                      transition={{ duration: 0.2 }}
+                    />
+                    
+                    {/* Animated icon */}
+                    <motion.div
+                      whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                      transition={{ duration: 0.5 }}
+                      className="relative z-10"
                     >
-                      <div className={cn(
-                        "p-2 rounded-lg transition-colors",
+                      <item.icon className={cn(
+                        "h-5 w-5 flex-shrink-0 transition-colors",
                         isActive 
-                          ? "bg-white/20" 
-                          : "bg-white/10 dark:bg-muted/50 group-hover:bg-white/20 dark:group-hover:bg-accent/10"
-                      )}>
-                        <item.icon className={cn(
-                          "h-4 w-4",
-                          isActive 
-                            ? "text-white" 
-                            : "text-white/80 dark:text-muted-foreground group-hover:text-white dark:group-hover:text-accent"
-                        )} />
-                      </div>
-                      <span className={cn(
-                        "font-medium",
-                        !isActive && "group-hover:text-white dark:group-hover:text-foreground"
-                      )}>{item.name}</span>
-                    </Link>
-                  );
+                          ? "text-white dark:text-primary" 
+                          : "text-white/70 dark:text-muted-foreground group-hover:text-white dark:group-hover:text-foreground"
+                      )} />
+                    </motion.div>
+                    
+                    {/* Text label */}
+                    <span className={cn(
+                      "text-sm transition-colors relative z-10",
+                      isActive 
+                        ? "text-white dark:text-foreground font-semibold" 
+                        : "text-white/80 dark:text-muted-foreground font-medium group-hover:text-white dark:group-hover:text-foreground"
+                    )}>
+                      {item.name}
+                    </span>
+                    
+                    {/* Animated active indicator */}
+                    <AnimatePresence>
+                      {isActive && (
+                        <motion.div 
+                          className="absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white dark:bg-primary rounded-full"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        />
+                      )}
+                    </AnimatePresence>
+                  </Link>
+                </motion.div>
+              );
+            })}
+
+            {/* Admin Section - Only visible for admin users */}
+            {user.role === 'admin' && (
+              <>
+                <div className="mt-6 pt-6 border-t border-white/10 dark:border-border/20">
+                  {/* Section header */}
+                  <div className="px-3 mb-2">
+                    <span className="text-xs font-semibold text-white/40 dark:text-muted-foreground uppercase tracking-wider">
+                      Admin
+                    </span>
+                  </div>
+                  
+                  {/* Admin navigation items */}
+                  <div className="space-y-1">
+                    {adminNavigation.map((item) => {
+                    const isActive = pathname === item.href || 
+                      (item.href !== "/" && pathname.startsWith(item.href));
+                    
+                    if (item.disabled) {
+                      return (
+                        <div
+                          key={item.name}
+                          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm opacity-40 cursor-not-allowed"
+                        >
+                          <item.icon className="h-4 w-4 text-white/40 dark:text-muted-foreground flex-shrink-0" />
+                          <span className="text-white/40 dark:text-muted-foreground text-sm">{item.name}</span>
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <motion.div
+                        key={item.name}
+                        whileHover={{ scale: 1.02, x: 3 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                      >
+                        <Link
+                          href={item.href}
+                          className={cn(
+                            "relative flex items-center gap-3 px-3 py-2 rounded-lg group",
+                            isActive
+                              ? "bg-white/15 dark:bg-accent/10"
+                              : ""
+                          )}
+                        >
+                          {/* Hover background */}
+                          <motion.div
+                            className="absolute inset-0 rounded-lg bg-white/10 dark:bg-muted/10"
+                            initial={{ opacity: 0 }}
+                            whileHover={{ opacity: isActive ? 0 : 1 }}
+                            transition={{ duration: 0.2 }}
+                          />
+                          
+                          {/* Animated icon */}
+                          <motion.div
+                            whileHover={{ scale: 1.2 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                            className="relative z-10"
+                          >
+                            <item.icon className={cn(
+                              "h-4 w-4 flex-shrink-0 transition-colors",
+                              isActive 
+                                ? "text-white dark:text-accent" 
+                                : "text-white/60 dark:text-muted-foreground group-hover:text-white/80 dark:group-hover:text-foreground"
+                            )} />
+                          </motion.div>
+                          
+                          <span className={cn(
+                            "text-sm transition-colors relative z-10",
+                            isActive 
+                              ? "text-white dark:text-accent font-semibold" 
+                              : "text-white/70 dark:text-muted-foreground font-medium group-hover:text-white/90 dark:group-hover:text-foreground"
+                          )}>
+                            {item.name}
+                          </span>
+                          
+                          <AnimatePresence>
+                            {isActive && (
+                              <motion.div 
+                                className="absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white dark:bg-accent rounded-full"
+                                initial={{ scale: 0, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0, opacity: 0 }}
+                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                              />
+                            )}
+                          </AnimatePresence>
+                        </Link>
+                      </motion.div>
+                    );
                   })}
 
-                  {/* Extras Section */}
-                  <div>
+                  {/* Extras Section - Collapsible */}
+                  <div className="mt-4">
                     <button
                       onClick={() => setIsExtrasExpanded(!isExtrasExpanded)}
-                      className="w-full relative flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group text-white/80 dark:text-foreground hover:bg-white/10 dark:hover:bg-muted/50 hover:translate-x-1"
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-white/5 dark:hover:bg-muted/10 transition-colors group"
                     >
-                      <div className="p-2 rounded-lg transition-colors bg-white/10 dark:bg-muted/50 group-hover:bg-white/20 dark:group-hover:bg-accent/10">
-                        <MoreHorizontal className="h-4 w-4 text-white/80 dark:text-muted-foreground group-hover:text-white dark:group-hover:text-accent" />
-                      </div>
-                      <span className="font-medium group-hover:text-white dark:group-hover:text-foreground flex-1 text-left">Extras</span>
-                      {isExtrasExpanded ? (
-                        <ChevronUp className="h-4 w-4 text-white/60 dark:text-muted-foreground transition-transform" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-white/60 dark:text-muted-foreground transition-transform" />
-                      )}
+                      <span className="text-xs font-semibold text-white/40 dark:text-muted-foreground uppercase tracking-wider group-hover:text-white/60">
+                        More
+                      </span>
+                      <ChevronDown className={cn(
+                        "h-3.5 w-3.5 text-white/30 dark:text-muted-foreground transition-transform duration-200",
+                        isExtrasExpanded && "rotate-180"
+                      )} />
                     </button>
                     
-                    {isExtrasExpanded && (
-                      <div className="mt-1 space-y-1 pl-4">
-                        {extrasNavigation.map((item) => {
-                          const isActive = pathname === item.href || 
-                            (item.href !== "/" && pathname.startsWith(item.href));
-                          
-                          if (item.disabled) {
-                            return (
-                              <div
-                                key={item.name}
-                                className="relative flex items-center space-x-3 px-4 py-2 rounded-xl text-sm font-medium opacity-50 cursor-not-allowed"
-                              >
-                                <div className="p-1.5 rounded-lg bg-white/10 dark:bg-muted/30">
-                                  <item.icon className="h-3.5 w-3.5 text-white/50 dark:text-muted-foreground" />
-                                </div>
-                                <span className="text-white/50 dark:text-muted-foreground text-sm">{item.name}</span>
-                              </div>
-                            );
-                          }
-                          
-                          return (
-                            <Link
-                              key={item.name}
-                              href={item.href}
-                              className={cn(
-                                "relative flex items-center space-x-3 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 group",
-                                isActive
-                                  ? "bg-white/15 dark:bg-gradient-to-r dark:from-accent/70 dark:to-accent/50 text-white shadow-md backdrop-blur-sm"
-                                  : "text-white/70 dark:text-muted-foreground hover:bg-white/10 dark:hover:bg-muted/30 hover:translate-x-1"
-                              )}
-                            >
-                              <div className={cn(
-                                "p-1.5 rounded-lg transition-colors",
-                                isActive 
-                                  ? "bg-white/20" 
-                                  : "bg-white/10 dark:bg-muted/30 group-hover:bg-white/20 dark:group-hover:bg-accent/10"
-                              )}>
-                                <item.icon className={cn(
-                                  "h-3.5 w-3.5",
-                                  isActive 
-                                    ? "text-white" 
-                                    : "text-white/70 dark:text-muted-foreground group-hover:text-white dark:group-hover:text-accent"
-                                )} />
-                              </div>
-                              <span className={cn(
-                                "font-medium text-sm",
-                                !isActive && "group-hover:text-white dark:group-hover:text-foreground"
-                              )}>{item.name}</span>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
+                    {/* Expanded content with animation */}
+                    <AnimatePresence>
+                      {isExtrasExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3, ease: "easeInOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mt-2 space-y-1">
+                            {extrasNavigation.map((item, index) => {
+                              const isActive = pathname === item.href || 
+                                (item.href !== "/" && pathname.startsWith(item.href));
+                              
+                              return (
+                                <motion.div
+                                  key={item.name}
+                                  initial={{ opacity: 0, x: -20 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: index * 0.05 }}
+                                  whileHover={{ x: 3 }}
+                                  whileTap={{ scale: 0.98 }}
+                                >
+                                  <Link
+                                    href={item.href}
+                                    className={cn(
+                                      "relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm group",
+                                      isActive
+                                        ? "bg-white/15 dark:bg-primary/10"
+                                        : ""
+                                    )}
+                                  >
+                                    {/* Hover background */}
+                                    <motion.div
+                                      className="absolute inset-0 rounded-lg bg-white/10 dark:bg-muted/10"
+                                      initial={{ opacity: 0 }}
+                                      whileHover={{ opacity: isActive ? 0 : 1 }}
+                                      transition={{ duration: 0.2 }}
+                                    />
+                                    
+                                    <item.icon className={cn(
+                                      "h-4 w-4 flex-shrink-0 transition-colors relative z-10",
+                                      isActive 
+                                        ? "text-white dark:text-primary" 
+                                        : "text-white/60 dark:text-muted-foreground group-hover:text-white/80 dark:group-hover:text-foreground"
+                                    )} />
+                                    
+                                    <span className={cn(
+                                      "text-sm transition-colors relative z-10",
+                                      isActive 
+                                        ? "text-white dark:text-foreground font-semibold" 
+                                        : "text-white/70 dark:text-muted-foreground font-medium group-hover:text-white/90 dark:group-hover:text-foreground"
+                                    )}>
+                                      {item.name}
+                                    </span>
+                                    
+                                    <AnimatePresence>
+                                      {isActive && (
+                                        <motion.div 
+                                          className="absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white dark:bg-primary rounded-full"
+                                          initial={{ scale: 0 }}
+                                          animate={{ scale: 1 }}
+                                          exit={{ scale: 0 }}
+                                        />
+                                      )}
+                                    </AnimatePresence>
+                                  </Link>
+                                </motion.div>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                   </div>
                 </div>
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </nav>
 
         {/* Timer Section - Fixed at bottom */}
-        <div className="p-4 border-t border-white/20 dark:border-border flex-shrink-0">
+        <div className="p-3 border-t border-white/10 dark:border-border/20 flex-shrink-0">
           {!activeTimer ? (
-            /* Inactive state - minimal */
-            <div className="bg-white/10 dark:bg-muted/30 rounded-lg p-3">
+            /* Inactive state */
+            <div className="px-3 py-2.5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Timer className="h-4 w-4 text-white/60 dark:text-muted-foreground" />
-                  <span className="text-sm text-white/60 dark:text-muted-foreground">No active timer</span>
+                <div className="flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-white/40 dark:text-muted-foreground" />
+                  <span className="text-sm text-white/40 dark:text-muted-foreground">No active timer</span>
                 </div>
-                <Play className="h-3 w-3 text-white/60 dark:text-muted-foreground" />
               </div>
             </div>
           ) : (
-            /* Active state - expanded */
-            <div className="bg-white/20 dark:bg-gradient-to-br dark:from-primary/5 dark:to-primary/10 border border-white/30 dark:border-primary/20 rounded-lg p-4 transition-all shadow-sm backdrop-blur-sm">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-semibold text-white dark:text-primary">
-                  {activeTimer.isPaused ? 'Timer Paused' : 'Timer Running'}
+            /* Active state */
+            <div className="bg-white/10 dark:bg-primary/5 rounded-lg px-3 py-2.5">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-white/60 dark:text-muted-foreground uppercase tracking-wider">
+                  {activeTimer.isPaused ? 'Paused' : 'Timer Running'}
                 </span>
-                <div className="flex items-center space-x-1">
-                  {!activeTimer.isPaused && (
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white dark:bg-primary opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-white dark:bg-primary"></span>
-                    </span>
-                  )}
+                {!activeTimer.isPaused && (
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white dark:bg-primary opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-white dark:bg-primary"></span>
+                  </span>
+                )}
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xl font-mono text-white dark:text-foreground font-semibold">
+                    {formatTime(activeTimer.elapsedSeconds)}
+                  </p>
+                  <p className="text-xs text-white/60 dark:text-muted-foreground mt-0.5">
+                    {activeTimer.ticketNumber || `Ticket #${activeTimer.ticketId.slice(-8)}`}
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-1">
                   <button 
                     onClick={handlePauseTimer}
-                    className="p-1 hover:bg-white/20 dark:hover:bg-primary/10 rounded transition-colors"
-                    title={activeTimer.isPaused ? "Resume timer" : "Pause timer"}
+                    className="p-1.5 hover:bg-white/10 dark:hover:bg-primary/10 rounded transition-colors"
+                    title={activeTimer.isPaused ? "Resume" : "Pause"}
                   >
                     {activeTimer.isPaused ? (
-                      <Play className="h-3 w-3 text-white dark:text-primary" />
+                      <Play className="h-4 w-4 text-white dark:text-primary" />
                     ) : (
-                      <Pause className="h-3 w-3 text-white dark:text-primary" />
+                      <Pause className="h-4 w-4 text-white dark:text-primary" />
                     )}
                   </button>
                   <button 
                     onClick={handleStopTimer}
-                    className="p-1 hover:bg-white/20 dark:hover:bg-destructive/10 rounded transition-colors"
-                    title="Stop timer"
+                    className="p-1.5 hover:bg-white/10 dark:hover:bg-destructive/10 rounded transition-colors"
+                    title="Stop"
                   >
-                    <Timer className="h-3 w-3 text-white dark:text-destructive" />
+                    <Timer className="h-4 w-4 text-white dark:text-destructive" />
                   </button>
                 </div>
               </div>
-              <p className="text-2xl font-bold font-mono text-white dark:text-foreground">
-                {formatTime(activeTimer.elapsedSeconds)}
-              </p>
-              <p className="text-xs text-white/80 dark:text-muted-foreground mt-2">
-                {activeTimer.ticketNumber || `Ticket #${activeTimer.ticketId.slice(-8)}`}
-                {activeTimer.customerName && (
-                  <span className="block text-white/70 dark:text-muted-foreground">{activeTimer.customerName}</span>
-                )}
-              </p>
+              
               <Link 
                 href={`/orders/${activeTimer.ticketId}`}
-                className="inline-block mt-3 text-xs text-white dark:text-primary hover:text-white/80 dark:hover:text-primary/80 font-medium transition-colors"
+                className="inline-block mt-2 text-xs text-white/80 dark:text-primary hover:text-white dark:hover:text-primary/80 transition-colors"
               >
                 View Ticket →
               </Link>
@@ -410,26 +496,26 @@ export function Sidebar({ user }: SidebarProps) {
         </div>
 
         {/* User Section - Always visible at bottom */}
-        <div className="p-4 border-t border-white/20 dark:border-border flex-shrink-0">
+        <div className="p-3 border-t border-white/10 dark:border-border/20 flex-shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/10 dark:hover:bg-muted/30 transition-colors group h-auto">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-white/20 dark:bg-primary flex items-center justify-center backdrop-blur-sm">
+              <Button variant="ghost" className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/10 dark:hover:bg-muted/10 transition-colors h-auto">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-white/20 dark:bg-primary/20 flex items-center justify-center">
                     <span className="text-white dark:text-primary-foreground text-sm font-medium">
                       {user.full_name?.charAt(0)?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U"}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <p className="text-sm font-medium text-white dark:text-foreground truncate">
-                      Hi, {user.full_name || "User"}
+                      {user.full_name || "User"}
                     </p>
-                    <p className="text-xs text-white/70 dark:text-muted-foreground truncate">
+                    <p className="text-xs text-white/60 dark:text-muted-foreground truncate">
                       {user.email || "user@example.com"}
                     </p>
                   </div>
                 </div>
-                <ChevronUp className="h-4 w-4 text-white/60 dark:text-muted-foreground group-hover:text-white dark:group-hover:text-foreground transition-colors" />
+                <ChevronUp className="h-4 w-4 text-white/40 dark:text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" side="top" className="w-56">

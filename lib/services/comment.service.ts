@@ -1,6 +1,7 @@
 import { CommentRepository } from '@/lib/repositories/comment.repository';
 import { InternalNotificationService } from '@/lib/services/internal-notification.service';
 import { UserRepository } from '@/lib/repositories/user.repository';
+import { ActivityLogRepository } from '@/lib/repositories/activity-log.repository';
 import { 
   Comment, 
   CreateCommentDto,
@@ -45,6 +46,11 @@ export class CommentService {
       attachments?: CommentAttachment[];
       userId: string;
       authUserId?: string; // Auth user ID for RLS checks
+      entityDetails?: { // Optional details about the entity for activity logging
+        ticketNumber?: string;
+        appointmentNumber?: string;
+        customerName?: string;
+      };
     }
   ): Promise<CommentOperationResult> {
     try {
@@ -70,6 +76,40 @@ export class CommentService {
 
       // Use auth user ID for RLS checks in notifications
       const authUserId = options.authUserId || options.userId;
+      
+      // Log activity for the comment
+      try {
+        const activityRepo = new ActivityLogRepository(true);
+        
+        // Prepare activity details
+        const activityDetails: Record<string, any> = {
+          comment_id: comment.id,
+          visibility: comment.visibility,
+          content_preview: content.substring(0, 100) + (content.length > 100 ? '...' : ''),
+          has_attachments: (options.attachments?.length || 0) > 0,
+          mentions_count: allMentions.length,
+          is_reply: !!options.parentCommentId
+        };
+
+        // Add entity-specific details
+        if (options.entityDetails) {
+          Object.assign(activityDetails, options.entityDetails);
+        }
+
+        // Map entity type for activity logging
+        const activityEntityType = entityType === 'ticket' ? 'repair_ticket' : entityType;
+        
+        await activityRepo.create({
+          user_id: options.userId,
+          activity_type: options.parentCommentId ? 'comment_reply' : 'comment_created',
+          entity_type: activityEntityType,
+          entity_id: entityId,
+          details: activityDetails
+        });
+      } catch (activityError) {
+        // Don't fail the comment creation if activity logging fails
+        console.error('Failed to log comment activity:', activityError);
+      }
       
       // Send notifications for mentions
       if (allMentions.length > 0 && this.notificationService) {

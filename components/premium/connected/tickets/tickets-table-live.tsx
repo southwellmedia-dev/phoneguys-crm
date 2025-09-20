@@ -11,7 +11,7 @@ import { SkeletonPremium } from '@/components/premium/ui/feedback/skeleton-premi
 import { Pills } from '@/components/premium/ui/pills/pill';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
-import { Eye, Clock, MoreHorizontal, Play, Pause, CheckCircle, Package, User, MessageSquare } from 'lucide-react';
+import { Eye, Clock, MoreHorizontal, Play, Pause, CheckCircle, Package, User, MessageSquare, Timer } from 'lucide-react';
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -21,6 +21,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import { useTimer } from '@/lib/contexts/timer-context';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Ticket {
   id: string;
@@ -180,6 +182,7 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
   const queryClient = useQueryClient();
   const [isMounted, setIsMounted] = React.useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = React.useState(false);
+  const { activeTimer } = useTimer();
 
   React.useEffect(() => {
     setIsMounted(true);
@@ -337,6 +340,7 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
           <TablePremiumHead>Status</TablePremiumHead>
           <TablePremiumHead>Assigned</TablePremiumHead>
           <TablePremiumHead>Time</TablePremiumHead>
+          <TablePremiumHead className="w-10"></TablePremiumHead>
           <TablePremiumHead className="text-right">Actions</TablePremiumHead>
         </TablePremiumRow>
       </TablePremiumHeader>
@@ -366,6 +370,9 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
               <TablePremiumCell>
                 <SkeletonPremium className="h-4 w-12" />
               </TablePremiumCell>
+              <TablePremiumCell className="w-10">
+                <SkeletonPremium className="h-8 w-8 rounded-full" />
+              </TablePremiumCell>
               <TablePremiumCell>
                 <div className="flex justify-end gap-1">
                   <SkeletonPremium className="h-8 w-8 rounded" />
@@ -377,7 +384,7 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
           ))
         ) : filteredTickets.length === 0 ? (
           <TablePremiumRow>
-            <TablePremiumCell colSpan={7} className="text-center py-8 text-muted-foreground">
+            <TablePremiumCell colSpan={8} className="text-center py-8 text-muted-foreground">
               No tickets found
             </TablePremiumCell>
           </TablePremiumRow>
@@ -386,7 +393,11 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
             
               <TablePremiumRow 
                 key={ticket.id}
-                className="cursor-pointer hover:bg-muted/50"
+                className={cn(
+                  "cursor-pointer hover:bg-muted/50",
+                  activeTimer && activeTimer.ticketId === ticket.id && 
+                    "bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500"
+                )}
                 onClick={() => router.push(`/orders/${ticket.id}`)}
               >
                 <TablePremiumCell className="font-medium text-sm">
@@ -435,6 +446,24 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
                       {formatTime(ticket.timer_total_minutes)}
                     </span>
                   </div>
+                </TablePremiumCell>
+                <TablePremiumCell className="w-10">
+                  {activeTimer && activeTimer.ticketId === ticket.id && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center justify-center animate-pulse">
+                            <div className="p-1.5 rounded-full bg-green-100 dark:bg-green-900/30">
+                              <Timer className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            </div>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Timer is running</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </TablePremiumCell>
                 <TablePremiumCell className="text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-end gap-1">

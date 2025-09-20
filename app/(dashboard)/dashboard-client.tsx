@@ -7,6 +7,7 @@ import { RealActivityFeed } from "@/components/dashboard/real-activity-feed";
 import { SearchHintBanner } from "@/components/dashboard/search-hint-banner";
 import { RealDataInsights } from "@/components/dashboard/real-data-insights";
 import { DashboardStatCard } from "@/components/dashboard/dashboard-stat-card";
+import { SystemStatus } from "@/components/dashboard/system-status";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -199,56 +200,9 @@ export function DashboardClient({ metrics: initialMetrics }: DashboardClientProp
           </div>
         </div>
 
-        {/* System Status - Modern Glass Card */}
+        {/* System Status - Real-time Health Monitoring */}
         <div>
-          <Card className="relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-mesh opacity-30" />
-            <CardHeader className="relative pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="relative inline-flex h-3 w-3">
-                    <span className="absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-                    <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
-                  </div>
-                  <CardTitle className="text-lg">System Status</CardTitle>
-                </div>
-                <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">
-                  All Systems Operational
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent className="relative">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center space-x-3 p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-transparent">
-                  <div className="p-2 rounded-lg bg-green-500/20">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">API Status</p>
-                    <p className="text-xs text-muted-foreground">Operational</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3 p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-transparent">
-                  <div className="p-2 rounded-lg bg-green-500/20">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Database</p>
-                    <p className="text-xs text-muted-foreground">Connected</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3 p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-transparent">
-                  <div className="p-2 rounded-lg bg-green-500/20">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Email Service</p>
-                    <p className="text-xs text-muted-foreground">Active</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <SystemStatus />
         </div>
       </div>
       </PageContainer>

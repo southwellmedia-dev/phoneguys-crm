@@ -43,6 +43,8 @@ interface DataTableProps<TData, TValue> {
   showPagination?: boolean;
   showRowSelection?: boolean;
   toolbarActions?: React.ReactNode;
+  getRowClassName?: (row: TData) => string;
+  meta?: any;
 }
 
 export function DataTable<TData, TValue>({
@@ -54,6 +56,8 @@ export function DataTable<TData, TValue>({
   showPagination = true,
   showRowSelection = true,
   toolbarActions,
+  getRowClassName,
+  meta,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -77,6 +81,7 @@ export function DataTable<TData, TValue>({
       columnVisibility,
       rowSelection,
     },
+    meta,
   });
 
   return (
@@ -151,6 +156,7 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className={getRowClassName ? getRowClassName(row.original) : undefined}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

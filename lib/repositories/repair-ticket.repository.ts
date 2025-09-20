@@ -111,7 +111,7 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
   async findAllWithCustomers(): Promise<RepairTicketWithCustomer[]> {
     const client = await this.getClient();
     
-    // Fetch tickets with customers and assigned users in a single query
+    // Fetch tickets with customers, assigned users, time entries, and services in a single query
     const { data: tickets, error: ticketsError } = await client
       .from(this.tableName)
       .select(`
@@ -133,6 +133,16 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
           id,
           full_name,
           email
+        ),
+        time_entries (
+          duration_minutes
+        ),
+        ticket_services (
+          id,
+          service_id,
+          services (
+            estimated_duration_minutes
+          )
         )
       `)
       .order('updated_at', { ascending: false });

@@ -46,10 +46,18 @@ interface Ticket {
   device_model: string;
   repair_issues: string[];
   status: 'new' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
+  priority?: string;
   created_at: string;
   updated_at: string;
   timer_total_minutes: number;
+  estimated_minutes: number;
   assigned_to: string | null;
+  assigned_user?: {
+    id: string;
+    full_name: string | null;
+    email: string;
+  };
+  comment_count?: number;
 }
 
 export function TicketsClientPremium({ tickets: initialTickets }: { tickets: Ticket[] }) {

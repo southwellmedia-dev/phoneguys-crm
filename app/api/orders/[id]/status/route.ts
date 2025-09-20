@@ -79,17 +79,12 @@ async function updateStatus(request: NextRequest, context: RouteParams) {
         .eq('id', ticketId)
         .single();
       
-      await auditLog.logUserActivity({
-        userId: authResult.userId,
-        activityType: 'ticket_status_changed',
-        entityType: 'repair_ticket',
-        entityId: ticketId,
-        details: { 
-          old_status: previousStatus, 
-          new_status: status,
-          ticket_number: ticketData?.ticket_number
-        }
-      });
+      await auditLog.ticketStatusChanged(
+        authResult.userId,
+        ticketId,
+        previousStatus,
+        status
+      );
     }
 
     // Get updated ticket with full relationships for logging

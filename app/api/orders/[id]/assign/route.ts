@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { InternalNotificationService } from '@/lib/services/internal-notification.service';
 import { InternalNotificationPriority, InternalNotificationType } from '@/lib/types/internal-notification.types';
-import { auditLog } from '@/lib/services/audit.service';
+import { auditLog, AuditService } from '@/lib/services/audit.service';
 import { SecureAPI } from '@/lib/utils/api-helpers';
 
 interface Params {
@@ -81,21 +81,14 @@ async function handleAssignment(request: NextRequest, { params }: Params) {
           .single();
         
         // Assignment or reassignment
-        await auditLog.logUserActivity({
-          userId: user.id,
-          activityType: 'ticket_assigned',
-          entityType: 'repair_ticket',
-          entityId: id,
-          details: { 
-            assigned_to,
-            assigned_to_name: assigneeData?.full_name || assigneeData?.email?.split('@')[0],
-            ticket_number: ticket.ticket_number,
-            from_appointment: false
-          }
-        });
+        await auditLog.ticketAssigned(
+          user.id,
+          id,
+          assigned_to
+        );
       } else {
-        // Unassignment
-        await auditLog.logUserActivity({
+        // Unassignment - use AuditService directly since there's no convenience method for unassignment
+        await AuditService.getInstance().logUserActivity({
           userId: user.id,
           activityType: 'ticket_unassigned',
           entityType: 'repair_ticket',

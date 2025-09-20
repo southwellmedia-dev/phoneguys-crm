@@ -276,50 +276,8 @@ export async function convertAppointmentToTicket(appointmentId: string, addition
       assignedTo: result.ticket.assigned_to
     });
     
-    // Also log the activity using audit service for redundancy
-    try {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // Import and use audit service
-      const { auditLog } = await import('@/lib/services/audit.service');
-      
-      // Get assignee name if assigned
-      let assigneeName = null;
-      if (result.ticket.assigned_to) {
-        const { data: assignee } = await supabase
-          .from('users')
-          .select('full_name')
-          .eq('id', result.ticket.assigned_to)
-          .single();
-        assigneeName = assignee?.full_name;
-      }
-      
-      // Get appointment details
-      const { data: appointmentData } = await supabase
-        .from('appointments')
-        .select('appointment_number, customers(name)')
-        .eq('id', appointmentId)
-        .single();
-      
-      // Create appointment converted activity
-      await auditLog.appointmentConverted(
-        user?.id || '11111111-1111-1111-1111-111111111111',
-        appointmentId,
-        {
-          appointment_number: appointmentData?.appointment_number,
-          ticket_number: result.ticket.ticket_number,
-          ticket_id: result.ticket.id,
-          customer_name: appointmentData?.customers?.name,
-          assigned_to: result.ticket.assigned_to,
-          assigned_to_name: assigneeName
-        }
-      );
-      
-      console.log('✅ Activity logged successfully');
-    } catch (auditError) {
-      console.error('⚠️ Failed to create audit log (non-fatal):', auditError);
-    }
+    // Activity logging is already handled in AppointmentService.convertToTicket()
+    // No need to duplicate it here
     
     revalidatePath('/appointments');
     revalidatePath(`/appointments/${appointmentId}`);

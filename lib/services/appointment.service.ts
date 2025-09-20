@@ -523,7 +523,8 @@ export class AppointmentService {
         assigneeName = assigneeData?.full_name || null;
       }
       
-      // Log the appointment conversion
+      // Create a single consolidated activity for the conversion
+      // Include assignment info if the ticket was assigned
       await activityRepo.create({
         user_id: ticket.assigned_to || '11111111-1111-1111-1111-111111111111', // Use assigned tech or system user
         activity_type: 'appointment_converted',
@@ -534,27 +535,14 @@ export class AppointmentService {
           customer_name: fullAppointment?.customers?.name || 'Unknown Customer',
           ticket_number: ticket.ticket_number,
           ticket_id: ticket.id,
+          // Include assignment info if applicable
+          assigned_to: ticket.assigned_to || null,
           assigned_to_name: assigneeName,
+          // This single entry shows both conversion AND assignment (if any)
+          with_assignment: !!ticket.assigned_to,
           converted_by: appointment.created_by || ticket.assigned_to
         }
       });
-      
-      // Also create a better ticket_assigned activity if the ticket is assigned
-      if (ticket.assigned_to) {
-        await activityRepo.create({
-          user_id: ticket.assigned_to,
-          activity_type: 'ticket_assigned',
-          entity_type: 'repair_ticket',
-          entity_id: ticket.id,
-          details: {
-            ticket_number: ticket.ticket_number,
-            assigned_to_name: assigneeName,
-            appointment_number: appointment.appointment_number,
-            from_appointment: true,
-            customer_name: fullAppointment?.customers?.name || 'Unknown Customer'
-          }
-        });
-      }
       
       console.log('✅ Successfully logged appointment conversion activities');
     } catch (logError) {

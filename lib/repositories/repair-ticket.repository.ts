@@ -110,7 +110,9 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
 
   async findAllWithCustomers(): Promise<RepairTicketWithCustomer[]> {
     const client = await this.getClient();
-    const { data, error } = await client
+    
+    // Fetch tickets with customers and assigned users in a single query
+    const { data: tickets, error: ticketsError } = await client
       .from(this.tableName)
       .select(`
         *,
@@ -126,15 +128,20 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
           manufacturer:manufacturers (
             name
           )
+        ),
+        assigned_user:users!repair_tickets_assigned_to_fkey (
+          id,
+          full_name,
+          email
         )
       `)
       .order('updated_at', { ascending: false });
 
-    if (error) {
-      throw new Error(`Failed to fetch tickets with customers: ${error.message}`);
+    if (ticketsError) {
+      throw new Error(`Failed to fetch tickets with customers: ${ticketsError.message}`);
     }
 
-    return data as RepairTicketWithCustomer[];
+    return tickets as RepairTicketWithCustomer[];
   }
 
   async getTicketWithDetails(ticketId: string): Promise<RepairTicketWithDetails | null> {

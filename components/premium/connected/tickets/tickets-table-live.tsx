@@ -11,7 +11,7 @@ import { SkeletonPremium } from '@/components/premium/ui/feedback/skeleton-premi
 import { Pills } from '@/components/premium/ui/pills/pill';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
-import { Eye, Clock, MoreHorizontal, Play, Pause, CheckCircle, Package, User, MessageSquare, Timer } from 'lucide-react';
+import { Eye, Clock, MoreHorizontal, Play, Pause, CheckCircle, Package, User, MessageSquare, Timer, Shield } from 'lucide-react';
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -23,6 +23,8 @@ import {
 import { toast } from 'sonner';
 import { useTimer } from '@/lib/contexts/timer-context';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { UserTooltip } from '@/components/ui/user-tooltip';
+import { CustomerTooltip } from '@/components/ui/customer-tooltip';
 
 interface Ticket {
   id: string;
@@ -353,10 +355,7 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
                 <SkeletonPremium className="h-4 w-20" />
               </TablePremiumCell>
               <TablePremiumCell>
-                <div className="space-y-1">
-                  <SkeletonPremium className="h-4 w-32" />
-                  <SkeletonPremium className="h-3 w-24" />
-                </div>
+                <SkeletonPremium className="h-4 w-32" />
               </TablePremiumCell>
               <TablePremiumCell>
                 <SkeletonPremium className="h-4 w-28" />
@@ -404,12 +403,20 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
                   {ticket.ticket_number}
                 </TablePremiumCell>
                 <TablePremiumCell>
-                  <div className="space-y-1">
-                    <div className="font-medium text-sm">{ticket.customer_name}</div>
-                    {ticket.customer_phone && (
-                      <div className="text-sm text-muted-foreground">{ticket.customer_phone}</div>
-                    )}
-                  </div>
+                  <CustomerTooltip
+                    customerId={ticket.customer_id}
+                    customerName={ticket.customer_name}
+                    customerPhone={ticket.customer_phone}
+                    showStats={true}
+                    showProfileLink={true}
+                  >
+                    <div className="inline-flex items-center gap-1.5 px-2 py-1 -mx-2 -my-1 rounded-md cursor-pointer transition-all duration-200 group hover:bg-primary/10 hover:text-primary hover:ring-2 hover:ring-primary/20 hover:ring-offset-1 hover:ring-offset-background">
+                      <User className="h-3 w-3 text-muted-foreground group-hover:text-primary/70 transition-colors" />
+                      <span className="text-sm font-medium">
+                        {ticket.customer_name}
+                      </span>
+                    </div>
+                  </CustomerTooltip>
                 </TablePremiumCell>
                 <TablePremiumCell>
                   <div className="text-sm">
@@ -429,12 +436,20 @@ export const TicketsTableLive: React.FC<TicketsTableLiveProps> = ({
                 </TablePremiumCell>
                 <TablePremiumCell>
                   {ticket.assigned_user ? (
-                    <div className="flex items-center gap-1">
-                      <User className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        {ticket.assigned_user.full_name || ticket.assigned_user.email.split('@')[0]}
-                      </span>
-                    </div>
+                    <UserTooltip
+                      userId={ticket.assigned_to}
+                      userName={ticket.assigned_user.full_name}
+                      userEmail={ticket.assigned_user.email}
+                      showStats={true}
+                      showProfileLink={false}
+                    >
+                      <div className="inline-flex items-center gap-1.5 px-2 py-1 -mx-2 -my-1 rounded-md cursor-pointer transition-all duration-200 group hover:bg-primary/10 hover:text-primary hover:ring-2 hover:ring-primary/20 hover:ring-offset-1 hover:ring-offset-background">
+                        <Shield className="h-3 w-3 text-muted-foreground group-hover:text-primary/70 transition-colors" />
+                        <span className="text-sm font-medium">
+                          {ticket.assigned_user.full_name || ticket.assigned_user.email.split('@')[0]}
+                        </span>
+                      </div>
+                    </UserTooltip>
                   ) : (
                     <span className="text-sm text-muted-foreground">Unassigned</span>
                   )}

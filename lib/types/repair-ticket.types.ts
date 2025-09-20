@@ -31,6 +31,7 @@ export interface TimeEntryWithUser extends TimeEntryRow {
 
 export interface RepairTicketWithCustomer extends RepairTicketRow {
   customers?: Pick<CustomerRow, 'id' | 'name' | 'email' | 'phone'>;
+  assigned_user?: Pick<UserRow, 'id' | 'full_name' | 'email'>;
   device?: DeviceWithManufacturer;
 }
 

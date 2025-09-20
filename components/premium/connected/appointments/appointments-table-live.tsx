@@ -10,8 +10,10 @@ import { ButtonPremium } from '@/components/premium/ui/buttons/button-premium';
 import { SkeletonPremium } from '@/components/premium/ui/feedback/skeleton-premium';
 import { cn } from '@/lib/utils';
 import { format, isToday, isTomorrow, isPast, isFuture } from 'date-fns';
-import { Eye, FileText, MoreHorizontal, CheckCheck, User, X, Edit, UserCheck } from 'lucide-react';
+import { Eye, FileText, MoreHorizontal, CheckCheck, User, X, Edit, UserCheck, Shield } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { UserTooltip } from '@/components/ui/user-tooltip';
+import { CustomerTooltip } from '@/components/ui/customer-tooltip';
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -25,6 +27,7 @@ import { toast } from 'sonner';
 interface Appointment {
   id: string;
   appointment_number: string;
+  customer_id: string;
   customer_name: string;
   customer_email: string;
   customer_phone: string;
@@ -39,6 +42,11 @@ interface Appointment {
   created_at: string;
   converted_to_ticket_id: string | null;
   assigned_to?: string | null;
+  assigned_user?: {
+    id: string;
+    full_name: string | null;
+    email: string;
+  };
 }
 
 export interface AppointmentsTableLiveProps {
@@ -87,6 +95,11 @@ async function fetchAppointments(): Promise<Appointment[]> {
         manufacturers (
           name
         )
+      ),
+      assigned_user:users!appointments_assigned_to_fkey (
+        id,
+        full_name,
+        email
       )
     `)
     .order('scheduled_date', { ascending: true })
@@ -100,6 +113,7 @@ async function fetchAppointments(): Promise<Appointment[]> {
   return (data || []).map(apt => ({
     id: apt.id,
     appointment_number: apt.appointment_number,
+    customer_id: apt.customers?.id || '',
     customer_name: apt.customers?.name || 'Walk-in',
     customer_email: apt.customers?.email || '',
     customer_phone: apt.customers?.phone || '',
@@ -114,6 +128,7 @@ async function fetchAppointments(): Promise<Appointment[]> {
     created_at: apt.created_at,
     converted_to_ticket_id: apt.converted_to_ticket_id,
     assigned_to: apt.assigned_to,
+    assigned_user: apt.assigned_user || undefined,
   }));
 }
 
@@ -321,6 +336,7 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
           <TablePremiumHead>Customer</TablePremiumHead>
           <TablePremiumHead>Device</TablePremiumHead>
           <TablePremiumHead>Status</TablePremiumHead>
+          <TablePremiumHead>Assigned</TablePremiumHead>
           <TablePremiumHead className="w-10"></TablePremiumHead>
           <TablePremiumHead className="text-right">Actions</TablePremiumHead>
         </TablePremiumRow>
@@ -334,22 +350,19 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
                 <SkeletonPremium className="h-4 w-24" />
               </TablePremiumCell>
               <TablePremiumCell>
-                <div className="space-y-1">
-                  <SkeletonPremium className="h-4 w-20" />
-                  <SkeletonPremium className="h-3 w-16" />
-                </div>
+                <SkeletonPremium className="h-4 w-20" />
               </TablePremiumCell>
               <TablePremiumCell>
-                <div className="space-y-1">
-                  <SkeletonPremium className="h-4 w-32" />
-                  <SkeletonPremium className="h-3 w-24" />
-                </div>
+                <SkeletonPremium className="h-4 w-32" />
               </TablePremiumCell>
               <TablePremiumCell>
                 <SkeletonPremium className="h-4 w-28" />
               </TablePremiumCell>
               <TablePremiumCell>
                 <SkeletonPremium className="h-6 w-20 rounded-full" />
+              </TablePremiumCell>
+              <TablePremiumCell>
+                <SkeletonPremium className="h-4 w-24" />
               </TablePremiumCell>
               <TablePremiumCell className="w-10">
                 <SkeletonPremium className="h-8 w-8 rounded-full" />
@@ -364,7 +377,7 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
           ))
         ) : filteredAppointments.length === 0 ? (
           <TablePremiumRow>
-            <TablePremiumCell colSpan={7} className="text-center py-8 text-muted-foreground">
+            <TablePremiumCell colSpan={8} className="text-center py-8 text-muted-foreground">
               No appointments found
             </TablePremiumCell>
           </TablePremiumRow>
@@ -390,20 +403,24 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
                   {apt.appointment_number}
                 </TablePremiumCell>
                 <TablePremiumCell>
-                  <div className="space-y-1">
-                    <div className="font-medium text-sm">{dateStr}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {apt.scheduled_time} ({apt.duration_minutes} min)
-                    </div>
-                  </div>
+                  <div className="font-medium text-sm">{dateStr}</div>
                 </TablePremiumCell>
                 <TablePremiumCell>
-                  <div className="space-y-1">
-                    <div className="font-medium text-sm">{apt.customer_name}</div>
-                    {apt.customer_phone && (
-                      <div className="text-sm text-muted-foreground">{apt.customer_phone}</div>
-                    )}
-                  </div>
+                  <CustomerTooltip
+                    customerId={apt.customer_id}
+                    customerName={apt.customer_name}
+                    customerEmail={apt.customer_email}
+                    customerPhone={apt.customer_phone}
+                    showStats={true}
+                    showProfileLink={false}
+                  >
+                    <div className="inline-flex items-center gap-1.5 px-2 py-1 -mx-2 -my-1 rounded-md cursor-pointer transition-all duration-200 group hover:bg-primary/10 hover:text-primary hover:ring-2 hover:ring-primary/20 hover:ring-offset-1 hover:ring-offset-background">
+                      <User className="h-3 w-3 text-muted-foreground group-hover:text-primary/70 transition-colors" />
+                      <span className="text-sm font-medium">
+                        {apt.customer_name}
+                      </span>
+                    </div>
+                  </CustomerTooltip>
                 </TablePremiumCell>
                 <TablePremiumCell>
                   <div>
@@ -421,6 +438,26 @@ export const AppointmentsTableLive: React.FC<AppointmentsTableLiveProps> = ({
                     variant="soft"
                     size="xs"
                   />
+                </TablePremiumCell>
+                <TablePremiumCell>
+                  {apt.assigned_user ? (
+                    <UserTooltip
+                      userId={apt.assigned_to}
+                      userName={apt.assigned_user.full_name}
+                      userEmail={apt.assigned_user.email}
+                      showStats={true}
+                      showProfileLink={false}
+                    >
+                      <div className="inline-flex items-center gap-1.5 px-2 py-1 -mx-2 -my-1 rounded-md cursor-pointer transition-all duration-200 group hover:bg-primary/10 hover:text-primary hover:ring-2 hover:ring-primary/20 hover:ring-offset-1 hover:ring-offset-background">
+                        <Shield className="h-3 w-3 text-muted-foreground group-hover:text-primary/70 transition-colors" />
+                        <span className="text-sm font-medium">
+                          {apt.assigned_user.full_name || apt.assigned_user.email.split('@')[0]}
+                        </span>
+                      </div>
+                    </UserTooltip>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">Unassigned</span>
+                  )}
                 </TablePremiumCell>
                 <TablePremiumCell className="w-10">
                   {apt.status === 'arrived' && (

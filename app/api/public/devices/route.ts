@@ -83,7 +83,9 @@ export async function GET(request: NextRequest) {
         id: device.id,
         name: device.model_name,
         type: device.device_type,
-        fullName: `${manufacturerName} ${device.model_name}`
+        fullName: `${manufacturerName} ${device.model_name}`,
+        imageUrl: device.image_url || device.thumbnail_url,
+        thumbnailUrl: device.thumbnail_url || device.image_url
       });
       
       return acc;
@@ -106,7 +108,9 @@ export async function GET(request: NextRequest) {
             name: d.model_name,
             manufacturer: d.manufacturer?.name,
             type: d.device_type,
-            fullName: `${d.manufacturer?.name || ''} ${d.model_name}`.trim()
+            fullName: `${d.manufacturer?.name || ''} ${d.model_name}`.trim(),
+            imageUrl: d.image_url || d.thumbnail_url,
+            thumbnailUrl: d.thumbnail_url || d.image_url
           }))
         }
       },

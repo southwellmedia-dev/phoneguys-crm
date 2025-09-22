@@ -104,6 +104,7 @@ export function DevicesClient({
   });
   const [newDevicesToImport, setNewDevicesToImport] = useState<any[]>([]);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const [fetchingImageId, setFetchingImageId] = useState<string | null>(null);
   
   // Set up real-time subscriptions
   useRealtime(['admin']);
@@ -134,6 +135,69 @@ export function DevicesClient({
       return;
     }
     deleteDevice.mutate(deviceId);
+  };
+
+  const handleFetchImage = async (device: Device) => {
+    setFetchingImageId(device.id);
+    try {
+      const response = await fetch('/api/admin/devices/fetch-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceId: device.id,
+          manufacturer: device.manufacturer?.name || device.brand,
+          model: device.model_name
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success(`Image fetched from ${result.source}`);
+        // Refresh the device list to show the new image
+        setTimeout(() => {
+          refetch();
+        }, 500);
+      } else {
+        toast.error(result.error || 'Failed to fetch image');
+      }
+    } catch (error) {
+      console.error('Fetch image error:', error);
+      toast.error('Failed to fetch device image');
+    } finally {
+      setFetchingImageId(null);
+    }
+  };
+
+  const handleDeleteImage = async (device: Device) => {
+    if (!confirm('Are you sure you want to delete this device image? You can fetch a new one afterwards.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/devices/delete-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceId: device.id
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success(result.message || 'Image deleted successfully');
+        // Refresh the device list
+        setTimeout(() => {
+          refetch();
+        }, 500);
+      } else {
+        toast.error(result.error || 'Failed to delete image');
+      }
+    } catch (error) {
+      console.error('Delete image error:', error);
+      toast.error('Failed to delete device image');
+    }
   };
 
   const handleImportConfirmedDevices = async (downloadThumbnails: boolean = false) => {
@@ -567,12 +631,28 @@ export function DevicesClient({
                   <TableRow key={device.id}>
                     <TableCell>
                       <div className="flex items-center space-x-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={device.image_url || device.thumbnail_url || ''} alt={device.model_name} />
-                          <AvatarFallback>
-                            <Smartphone className="h-5 w-5 text-muted-foreground" />
-                          </AvatarFallback>
-                        </Avatar>
+                        <div className="relative group">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={device.image_url || device.thumbnail_url || ''} alt={device.model_name} />
+                            <AvatarFallback>
+                              <Smartphone className="h-5 w-5 text-muted-foreground" />
+                            </AvatarFallback>
+                          </Avatar>
+                          {!device.image_url && !device.thumbnail_url && (
+                            <button
+                              onClick={() => handleFetchImage(device)}
+                              disabled={fetchingImageId === device.id}
+                              className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 disabled:opacity-100 transition-opacity rounded-full flex items-center justify-center"
+                              title="Fetch image"
+                            >
+                              {fetchingImageId === device.id ? (
+                                <RefreshCw className="h-4 w-4 text-white animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4 text-white" />
+                              )}
+                            </button>
+                          )}
+                        </div>
                         <div>
                           <div className="font-medium">{device.model_name}</div>
                           <div className="text-sm text-muted-foreground">
@@ -628,6 +708,33 @@ export function DevicesClient({
                               </DropdownMenuItem>
                             }
                           />
+                          {!device.image_url && !device.thumbnail_url && (
+                            <DropdownMenuItem 
+                              onClick={() => handleFetchImage(device)}
+                              disabled={fetchingImageId === device.id}
+                            >
+                              {fetchingImageId === device.id ? (
+                                <>
+                                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                  Fetching...
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Fetch Image
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                          )}
+                          {(device.image_url || device.thumbnail_url) && (
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteImage(device)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Image
+                            </DropdownMenuItem>
+                          )}
                           <DeviceImageUploadDialog
                             device={device}
                             onSuccess={handleDeviceUpdate}
@@ -638,7 +745,7 @@ export function DevicesClient({
                             trigger={
                               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                 <ImageIcon className="h-4 w-4 mr-2" />
-                                Update Image
+                                Upload Custom Image
                               </DropdownMenuItem>
                             }
                           />
@@ -648,7 +755,7 @@ export function DevicesClient({
                             onClick={() => handleDelete(device.id)}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
+                            Delete Device
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -662,7 +769,7 @@ export function DevicesClient({
               {filteredDevices.map((device) => (
                 <Card key={device.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader className="pb-3">
-                    <div className="aspect-square relative mb-3 bg-muted rounded-lg overflow-hidden">
+                    <div className="aspect-square relative mb-3 bg-muted rounded-lg overflow-hidden group">
                       {(device.image_url || device.thumbnail_url) ? (
                         <img 
                           src={device.image_url || device.thumbnail_url} 
@@ -670,9 +777,29 @@ export function DevicesClient({
                           className="object-cover w-full h-full"
                         />
                       ) : (
-                        <div className="flex items-center justify-center h-full">
-                          <Smartphone className="h-12 w-12 text-muted-foreground" />
-                        </div>
+                        <>
+                          <div className="flex items-center justify-center h-full">
+                            <Smartphone className="h-12 w-12 text-muted-foreground" />
+                          </div>
+                          <button
+                            onClick={() => handleFetchImage(device)}
+                            disabled={fetchingImageId === device.id}
+                            className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 disabled:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2"
+                            title="Fetch image"
+                          >
+                            {fetchingImageId === device.id ? (
+                              <>
+                                <RefreshCw className="h-6 w-6 text-white animate-spin" />
+                                <span className="text-xs text-white">Fetching...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-6 w-6 text-white" />
+                                <span className="text-xs text-white">Fetch Image</span>
+                              </>
+                            )}
+                          </button>
+                        </>
                       )}
                     </div>
                     <CardTitle className="text-base">{device.model_name}</CardTitle>
@@ -730,6 +857,33 @@ export function DevicesClient({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {!device.image_url && !device.thumbnail_url && (
+                            <DropdownMenuItem 
+                              onClick={() => handleFetchImage(device)}
+                              disabled={fetchingImageId === device.id}
+                            >
+                              {fetchingImageId === device.id ? (
+                                <>
+                                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                  Fetching...
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Fetch Image
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                          )}
+                          {(device.image_url || device.thumbnail_url) && (
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteImage(device)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Image
+                            </DropdownMenuItem>
+                          )}
                           <DeviceImageUploadDialog
                             device={device}
                             onSuccess={handleDeviceUpdate}
@@ -740,7 +894,7 @@ export function DevicesClient({
                             trigger={
                               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                 <ImageIcon className="h-4 w-4 mr-2" />
-                                Update Image
+                                Upload Custom Image
                               </DropdownMenuItem>
                             }
                           />
@@ -750,7 +904,7 @@ export function DevicesClient({
                             onClick={() => handleDelete(device.id)}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
+                            Delete Device
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

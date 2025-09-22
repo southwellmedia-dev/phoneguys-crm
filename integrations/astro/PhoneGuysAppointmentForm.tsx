@@ -38,6 +38,8 @@ export default function PhoneGuysAppointmentForm({
 }: PhoneGuysFormProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
@@ -111,20 +113,82 @@ export default function PhoneGuysAppointmentForm({
     }
   };
 
-  const fetchAvailability = async (date: string) => {
+  const fetchAvailability = async (date: string, retryCount = 0) => {
+    const maxRetries = 3;
+    const retryDelay = 1000 * Math.pow(2, retryCount); // Exponential backoff
+    
+    // Set loading state on first attempt
+    if (retryCount === 0) {
+      setSlotsLoading(true);
+      setSlotsError(null);
+    }
+    
     try {
       const response = await fetch(`${apiBaseUrl}/availability?date=${date}`, {
         headers: {
           'x-api-key': apiKey,
           'Content-Type': 'application/json'
-        }
+        },
+        signal: AbortSignal.timeout(10000) // 10 second timeout
       });
+      
       const data = await response.json();
+      
       if (data.success) {
-        setAvailableSlots(data.data.slots || []);
+        // Check for warnings
+        if (data.warnings && data.warnings.length > 0) {
+          console.warn('Availability warnings:', data.warnings);
+        }
+        
+        // Handle the response based on the structure
+        if (data.data) {
+          if (data.data.slots) {
+            // Direct date availability response
+            setAvailableSlots(data.data.slots || []);
+          } else if (Array.isArray(data.data)) {
+            // Array of slots
+            setAvailableSlots(data.data);
+          } else if (data.data.days) {
+            // Week availability response - extract slots for the specific date
+            const dayData = data.data.days.find((d: any) => d.date === date);
+            setAvailableSlots(dayData?.slots || []);
+          }
+        } else {
+          setAvailableSlots([]);
+        }
+        
+        setSlotsLoading(false);
+        return true; // Success
+      } else {
+        // Handle error response
+        console.error('Availability error:', data.error, data.message);
+        
+        // Retry if it's a temporary failure
+        if (response.status === 503 && retryCount < maxRetries) {
+          console.log(`Retrying availability fetch (attempt ${retryCount + 1}/${maxRetries})...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return fetchAvailability(date, retryCount + 1);
+        }
+        
+        setSlotsError(data.message || 'Unable to load available time slots. Please try again or contact support.');
+        setAvailableSlots([]);
+        setSlotsLoading(false);
+        return false;
       }
     } catch (error) {
       console.error('Failed to fetch availability:', error);
+      
+      // Retry on network errors
+      if (retryCount < maxRetries) {
+        console.log(`Retrying after network error (attempt ${retryCount + 1}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return fetchAvailability(date, retryCount + 1);
+      }
+      
+      setSlotsError('Unable to connect to our scheduling system. Please check your connection and try again.');
+      setAvailableSlots([]);
+      setSlotsLoading(false);
+      return false;
     }
   };
 

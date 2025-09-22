@@ -39,9 +39,13 @@ export class AvailabilityService {
    */
   async getDateAvailability(date: string): Promise<DayAvailability> {
     // Ensure slots are generated for this date
-    await this.ensureSlotsGenerated(date);
+    const slotsGenerated = await this.ensureSlotsGenerated(date);
     
-    // Get comprehensive availability
+    if (!slotsGenerated) {
+      console.warn(`[AvailabilityService] Failed to ensure slots for ${date}`);
+    }
+    
+    // Get comprehensive availability (even if generation failed, there might be existing slots)
     return this.availabilityRepo.getDayAvailability(date);
   }
 
@@ -56,11 +60,12 @@ export class AvailabilityService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Generate slots for the entire week
+    // Generate slots for the entire week (but don't fail if generation fails)
+    const generationResults: Record<string, boolean> = {};
     for (let i = 0; i < 7; i++) {
       const currentDate = addDays(start, i);
       const dateStr = format(currentDate, 'yyyy-MM-dd');
-      await this.ensureSlotsGenerated(dateStr);
+      generationResults[dateStr] = await this.ensureSlotsGenerated(dateStr);
     }
 
     // Get all slots for the week
@@ -281,16 +286,45 @@ export class AvailabilityService {
   /**
    * Ensure slots are generated for a specific date
    */
-  private async ensureSlotsGenerated(date: string): Promise<void> {
-    // Check if slots already exist for this date
-    const existingSlots = await this.availabilityRepo.getAvailableSlots(date);
-    
-    // If no slots exist, generate them
-    if (existingSlots.length === 0) {
-      const dayAvailability = await this.availabilityRepo.getDayAvailability(date);
-      if (dayAvailability.isOpen) {
-        await this.availabilityRepo.generateSlotsForDate(date);
+  private async ensureSlotsGenerated(date: string): Promise<boolean> {
+    try {
+      // Check if slots already exist for this date
+      const existingSlots = await this.availabilityRepo.getAvailableSlots(date);
+      
+      // If slots already exist, we're good
+      if (existingSlots.length > 0) {
+        console.log(`[AvailabilityService] Slots already exist for ${date}: ${existingSlots.length} slots`);
+        return true;
       }
+      
+      // Check if the day should have slots
+      const dayAvailability = await this.availabilityRepo.getDayAvailability(date);
+      if (!dayAvailability.isOpen) {
+        console.log(`[AvailabilityService] ${date} is closed, no slots needed`);
+        return true; // This is expected, not an error
+      }
+      
+      // Try to generate slots
+      console.log(`[AvailabilityService] Attempting to generate slots for ${date}`);
+      const generated = await this.availabilityRepo.generateSlotsForDate(date);
+      
+      if (!generated) {
+        console.error(`[AvailabilityService] Failed to generate slots for ${date}`);
+        return false;
+      }
+      
+      // Verify slots were created
+      const newSlots = await this.availabilityRepo.getAvailableSlots(date);
+      if (newSlots.length === 0) {
+        console.error(`[AvailabilityService] Slot generation reported success but no slots found for ${date}`);
+        return false;
+      }
+      
+      console.log(`[AvailabilityService] Successfully generated ${newSlots.length} slots for ${date}`);
+      return true;
+    } catch (error) {
+      console.error(`[AvailabilityService] Error ensuring slots for ${date}:`, error);
+      return false;
     }
   }
 

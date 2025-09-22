@@ -222,16 +222,138 @@ export class AvailabilityRepository extends BaseRepository<AppointmentSlot> {
   /**
    * Generate appointment slots for a date
    */
-  async generateSlotsForDate(date: string, slotDuration: number = 30): Promise<void> {
+  async generateSlotsForDate(date: string, slotDuration: number = 30): Promise<boolean> {
     const client = await this.getClient();
-    const { error } = await client.rpc('generate_appointment_slots', {
-      p_date: date,
-      p_slot_duration: slotDuration
-    });
+    
+    try {
+      const { error } = await client.rpc('generate_appointment_slots', {
+        p_date: date,
+        p_slot_duration: slotDuration
+      });
 
-    if (error) {
-      console.error('Error generating slots:', error);
-      // Don't throw - just log the error since the function might not exist yet
+      if (error) {
+        console.error(`[AvailabilityRepo] Error generating slots for ${date}:`, {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        
+        // Check if it's a permission error or missing function
+        if (error.code === '42501' || error.message?.includes('permission denied')) {
+          console.error('[AvailabilityRepo] Permission denied to execute generate_appointment_slots');
+          return false;
+        }
+        
+        if (error.code === '42883' || error.message?.includes('function') && error.message?.includes('does not exist')) {
+          console.error('[AvailabilityRepo] Function generate_appointment_slots does not exist');
+          // Try fallback generation
+          return await this.generateSlotsFallback(date, slotDuration);
+        }
+        
+        return false;
+      }
+      
+      console.log(`[AvailabilityRepo] Successfully generated slots for ${date}`);
+      return true;
+    } catch (err) {
+      console.error(`[AvailabilityRepo] Unexpected error generating slots for ${date}:`, err);
+      // Try fallback generation
+      return await this.generateSlotsFallback(date, slotDuration);
+    }
+  }
+
+  /**
+   * Fallback slot generation when RPC function is not available
+   */
+  private async generateSlotsFallback(date: string, slotDuration: number = 30): Promise<boolean> {
+    console.log(`[AvailabilityRepo] Using fallback slot generation for ${date}`);
+    
+    try {
+      const client = await this.getClient();
+      const dateObj = new Date(date);
+      const dayOfWeek = dateObj.getDay();
+      
+      // Get business hours for this day
+      const businessHours = await this.getBusinessHours(dayOfWeek);
+      if (!businessHours || !businessHours.is_active) {
+        console.log(`[AvailabilityRepo] No business hours for ${date} (day ${dayOfWeek})`);
+        return false;
+      }
+      
+      // Check for special dates
+      const specialDate = await this.getSpecialDate(date);
+      if (specialDate?.type === 'closure') {
+        console.log(`[AvailabilityRepo] ${date} is marked as closure`);
+        return false;
+      }
+      
+      // Determine hours to use
+      let openTime = businessHours.open_time;
+      let closeTime = businessHours.close_time;
+      let breakStart = businessHours.break_start;
+      let breakEnd = businessHours.break_end;
+      
+      if (specialDate?.type === 'special_hours') {
+        openTime = specialDate.open_time || openTime;
+        closeTime = specialDate.close_time || closeTime;
+        breakStart = null;
+        breakEnd = null;
+      }
+      
+      // Delete existing slots for this date
+      await client.from('appointment_slots').delete().eq('date', date);
+      
+      // Generate time slots
+      const slots = [];
+      let currentTime = new Date(`2000-01-01T${openTime}`);
+      const endTime = new Date(`2000-01-01T${closeTime}`);
+      const breakStartTime = breakStart ? new Date(`2000-01-01T${breakStart}`) : null;
+      const breakEndTime = breakEnd ? new Date(`2000-01-01T${breakEnd}`) : null;
+      
+      while (currentTime < endTime) {
+        const slotEnd = new Date(currentTime.getTime() + slotDuration * 60000);
+        
+        // Skip if overlaps with break
+        if (breakStartTime && breakEndTime) {
+          if (!(slotEnd <= breakStartTime || currentTime >= breakEndTime)) {
+            currentTime = breakEndTime;
+            continue;
+          }
+        }
+        
+        // Don't create slots past closing time
+        if (slotEnd > endTime) break;
+        
+        slots.push({
+          date,
+          start_time: currentTime.toTimeString().substring(0, 5),
+          end_time: slotEnd.toTimeString().substring(0, 5),
+          duration_minutes: slotDuration,
+          is_available: true,
+          max_capacity: 1,
+          current_capacity: 0,
+          slot_type: 'regular'
+        });
+        
+        currentTime = slotEnd;
+      }
+      
+      // Insert all slots
+      if (slots.length > 0) {
+        const { error } = await client.from('appointment_slots').insert(slots);
+        if (error) {
+          console.error(`[AvailabilityRepo] Error inserting slots:`, error);
+          return false;
+        }
+        console.log(`[AvailabilityRepo] Created ${slots.length} slots for ${date} using fallback`);
+        return true;
+      }
+      
+      return false;
+    } catch (err) {
+      console.error(`[AvailabilityRepo] Fallback generation failed for ${date}:`, err);
+      return false;
     }
   }
 

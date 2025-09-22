@@ -508,6 +508,57 @@ export async function POST(request: NextRequest) {
       throw new Error('Failed to create appointment: No data returned');
     }
 
+    // Log activity for the appointment creation in user_activity_logs (the correct table)
+    try {
+      // Get device info for the activity log if available
+      let deviceInfo = null;
+      if (data.device.deviceId) {
+        const { data: device } = await publicClient
+          .from('devices')
+          .select('model_name, manufacturer:manufacturers(name)')
+          .eq('id', data.device.deviceId)
+          .single();
+        deviceInfo = device;
+      }
+
+      const activityData = {
+        user_id: 'system', // System-generated activity for public API
+        user_name: 'Website Form',
+        user_avatar: null,
+        activity_type: 'appointment_created',
+        entity_type: 'appointment',
+        entity_id: appointment.id,
+        details: {
+          appointment_number: appointment.appointment_number,
+          customer_name: customer.name,
+          customer_id: customer.id,
+          device_name: deviceInfo ? `${deviceInfo.manufacturer?.name || ''} ${deviceInfo.model_name}`.trim() : null,
+          appointment_date: `${appointment.scheduled_date} ${appointment.scheduled_time}`,
+          scheduled_date: appointment.scheduled_date,
+          scheduled_time: appointment.scheduled_time,
+          source: 'website',
+          status: appointment.status,
+          services: issueNames.length > 0 ? issueNames : ['Service selection pending review'],
+          created_via: 'public_api'
+        },
+        created_at: new Date().toISOString()
+      };
+
+      const { error: activityError } = await publicClient
+        .from('user_activity_logs')
+        .insert(activityData);
+
+      if (activityError) {
+        console.error('❌ Failed to log activity in user_activity_logs:', activityError);
+        // Don't fail the appointment creation if activity logging fails
+      } else {
+        console.log('✅ Activity logged in user_activity_logs for appointment:', appointment.appointment_number);
+      }
+    } catch (error) {
+      console.error('❌ Error logging activity:', error);
+      // Continue without failing - appointment creation is more important
+    }
+
     // Reserve the time slot (skip for now as it may have auth issues)
     // TODO: Fix availability service to work with public client
     // await availabilityService.reserveSlot(

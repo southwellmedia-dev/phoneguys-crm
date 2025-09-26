@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
     // Calculate totals
     const totalCreated = comparisonData.reduce((sum, day) => sum + day.created, 0);
     const totalCompleted = comparisonData.reduce((sum, day) => sum + day.completed, 0);
+    const totalAppointments = comparisonData.reduce((sum, day) => sum + (day.appointments || 0), 0);
 
     return NextResponse.json({
       trend: trendData,
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
       total: totalCreated,
       totalCreated,
       totalCompleted,
+      totalAppointments,
       startDate: comparisonData[0]?.date,
       endDate: comparisonData[comparisonData.length - 1]?.date
     });

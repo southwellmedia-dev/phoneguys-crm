@@ -605,13 +605,13 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
     return trendData;
   }
 
-  async getWeeklyComparison(): Promise<{ day: string; date: string; created: number; completed: number }[]> {
+  async getWeeklyComparison(): Promise<{ day: string; date: string; created: number; completed: number; appointments: number }[]> {
     const client = await this.getClient();
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
     sevenDaysAgo.setHours(0, 0, 0, 0);
 
-    // Fetch tickets created in last 7 days
+    // Fetch tickets created in last 7 days (keeping for backward compatibility)
     const { data: createdTickets, error: createdError } = await client
       .from(this.tableName)
       .select('created_at')
@@ -633,6 +633,18 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
 
     if (completedError) {
       throw new Error(`Failed to fetch completed tickets: ${completedError.message}`);
+    }
+
+    // Fetch appointments created in last 7 days
+    const { data: appointments, error: appointmentError } = await client
+      .from('appointments')
+      .select('created_at, scheduled_date')
+      .gte('created_at', sevenDaysAgo.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (appointmentError) {
+      console.error('Failed to fetch appointments:', appointmentError);
+      // Don't throw, just log - appointments are optional
     }
 
     // Group by day
@@ -660,11 +672,18 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
         return ticketDate >= date && ticketDate < nextDate;
       }).length;
       
+      // Count appointments for this day
+      const dayAppointments = (appointments || []).filter(appointment => {
+        const appointmentDate = new Date(appointment.created_at);
+        return appointmentDate >= date && appointmentDate < nextDate;
+      }).length;
+      
       comparisonData.push({
         day: i === 0 ? 'Today' : dayNames[date.getDay()],
         date: date.toISOString().split('T')[0],
         created: dayCreated,
-        completed: dayCompleted
+        completed: dayCompleted,
+        appointments: dayAppointments
       });
     }
 

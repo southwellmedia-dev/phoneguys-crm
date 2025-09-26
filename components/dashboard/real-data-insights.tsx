@@ -211,26 +211,29 @@ export function RealDataInsights({ className, metrics }: RealDataInsightsProps) 
           </div>
         </div>
 
-        {/* Combination Chart - New (bars) vs Completed (line) */}
+        {/* Combination Chart - Appointments (bars) vs Completed Tickets (line) */}
         <div className="space-y-2 pt-3 border-t">
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            7-Day New vs Completed Tickets
+            7-Day Appointments vs Completed Tickets
           </h4>
           <div className="h-32">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart 
-                data={weeklyComparison || weeklyTrend?.map(d => ({
+                data={weeklyComparison?.map(d => ({
                   ...d,
-                  created: d.tickets,
+                  appointments: d.appointments || 0
+                })) || weeklyTrend?.map(d => ({
+                  ...d,
+                  appointments: 0,
                   completed: 0
                 })) || [
-                  { day: 'Mon', created: 0, completed: 0 },
-                  { day: 'Tue', created: 0, completed: 0 },
-                  { day: 'Wed', created: 0, completed: 0 },
-                  { day: 'Thu', created: 0, completed: 0 },
-                  { day: 'Fri', created: 0, completed: 0 },
-                  { day: 'Sat', created: 0, completed: 0 },
-                  { day: 'Today', created: newTickets, completed: completedToday }
+                  { day: 'Mon', appointments: 0, completed: 0 },
+                  { day: 'Tue', appointments: 0, completed: 0 },
+                  { day: 'Wed', appointments: 0, completed: 0 },
+                  { day: 'Thu', appointments: 0, completed: 0 },
+                  { day: 'Fri', appointments: 0, completed: 0 },
+                  { day: 'Sat', appointments: 0, completed: 0 },
+                  { day: 'Today', appointments: 0, completed: completedToday }
                 ]}
                 margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
               >
@@ -258,10 +261,10 @@ export function RealDataInsights({ className, metrics }: RealDataInsightsProps) 
                   labelStyle={{ fontWeight: 600 }}
                 />
                 <Bar 
-                  dataKey="created" 
-                  fill="#06b6d4" 
+                  dataKey="appointments" 
+                  fill="#8b5cf6" 
                   radius={[4, 4, 0, 0]}
-                  name="New"
+                  name="Appointments"
                   opacity={0.8}
                 />
                 <Line 
@@ -278,8 +281,8 @@ export function RealDataInsights({ className, metrics }: RealDataInsightsProps) 
           </div>
           <div className="flex justify-center gap-4 text-xs">
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 bg-cyan-500 rounded-sm opacity-80" />
-              <span className="text-muted-foreground">New</span>
+              <div className="w-3 h-3 bg-violet-500 rounded-sm opacity-80" />
+              <span className="text-muted-foreground">Appointments</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-[2.5px] bg-green-500 rounded-full" />

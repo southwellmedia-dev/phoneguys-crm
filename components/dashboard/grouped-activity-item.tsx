@@ -1,12 +1,30 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Package } from 'lucide-react';
+import { 
+  ChevronDown, 
+  ChevronRight, 
+  Package, 
+  RefreshCw, 
+  UserCheck, 
+  StickyNote, 
+  Timer, 
+  MessageCircle, 
+  ArrowRight,
+  Clock
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/orders/status-badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { ActivityLogItem } from '@/app/api/activity/route';
+import { ACTIVITY_GROUP_ICONS } from '@/lib/constants/activity-colors';
 
 interface GroupedActivityItemProps {
   activities: ActivityLogItem[];
@@ -43,8 +61,10 @@ export function GroupedActivityItem({
   if (activityTypes.appointment_converted > 0) {
     summaryParts.push(`${activityTypes.appointment_converted} conversion${activityTypes.appointment_converted > 1 ? 's' : ''}`);
   }
-  if (activityTypes.ticket_status_changed > 0) {
-    summaryParts.push(`${activityTypes.ticket_status_changed} status change${activityTypes.ticket_status_changed > 1 ? 's' : ''}`);
+  // Combine ticket and appointment status changes
+  const totalStatusChanges = (activityTypes.ticket_status_changed || 0) + (activityTypes.appointment_status_changed || 0);
+  if (totalStatusChanges > 0) {
+    summaryParts.push(`${totalStatusChanges} status change${totalStatusChanges > 1 ? 's' : ''}`);
   }
   if (activityTypes.ticket_assigned > 0) {
     summaryParts.push(`${activityTypes.ticket_assigned} assignment${activityTypes.ticket_assigned > 1 ? 's' : ''}`);
@@ -69,6 +89,90 @@ export function GroupedActivityItem({
   // Get the most recent status for display
   const latestStatusChange = activities.find(a => a.activity_type === 'ticket_status_changed');
   const currentStatus = latestStatusChange?.details?.new_status || latestStatusChange?.details?.to_status;
+  
+  // Create activity type icons with counts using centralized color system
+  const activityIcons: Array<{ icon: React.ReactNode; tooltip: string; count: number; color: string }> = [];
+  
+  if (activityTypes.appointment_converted > 0) {
+    activityIcons.push({
+      icon: <ArrowRight className={cn("h-3 w-3", ACTIVITY_GROUP_ICONS.conversions.color)} />,
+      tooltip: `${activityTypes.appointment_converted} conversion${activityTypes.appointment_converted > 1 ? 's' : ''}`,
+      count: activityTypes.appointment_converted,
+      color: ACTIVITY_GROUP_ICONS.conversions.color
+    });
+  }
+  
+  // Include both ticket and appointment status changes
+  const statusChangeCount = (activityTypes.ticket_status_changed || 0) + (activityTypes.appointment_status_changed || 0);
+  if (statusChangeCount > 0) {
+    activityIcons.push({
+      icon: <RefreshCw className={cn("h-3 w-3", ACTIVITY_GROUP_ICONS.statusChanges.color)} />,
+      tooltip: `${statusChangeCount} status change${statusChangeCount > 1 ? 's' : ''}`,
+      count: statusChangeCount,
+      color: ACTIVITY_GROUP_ICONS.statusChanges.color
+    });
+  }
+  
+  if (activityTypes.ticket_assigned > 0) {
+    activityIcons.push({
+      icon: <UserCheck className={cn("h-3 w-3", ACTIVITY_GROUP_ICONS.assignments.color)} />,
+      tooltip: `${activityTypes.ticket_assigned} assignment${activityTypes.ticket_assigned > 1 ? 's' : ''}`,
+      count: activityTypes.ticket_assigned,
+      color: ACTIVITY_GROUP_ICONS.assignments.color
+    });
+  }
+  
+  if (activityTypes.note_created > 0) {
+    activityIcons.push({
+      icon: <StickyNote className={cn("h-3 w-3", ACTIVITY_GROUP_ICONS.notes.color)} />,
+      tooltip: `${activityTypes.note_created} note${activityTypes.note_created > 1 ? 's' : ''}`,
+      count: activityTypes.note_created,
+      color: ACTIVITY_GROUP_ICONS.notes.color
+    });
+  }
+  
+  if (activityTypes.timer_start > 0 || activityTypes.timer_stop > 0) {
+    const timerCount = (activityTypes.timer_start || 0) + (activityTypes.timer_stop || 0);
+    activityIcons.push({
+      icon: <Timer className={cn("h-3 w-3", ACTIVITY_GROUP_ICONS.timers.color)} />,
+      tooltip: `${timerCount} timer action${timerCount > 1 ? 's' : ''}`,
+      count: timerCount,
+      color: ACTIVITY_GROUP_ICONS.timers.color
+    });
+  }
+  
+  if (activityTypes.comment_created > 0 || activityTypes.comment_reply > 0) {
+    const commentCount = (activityTypes.comment_created || 0) + (activityTypes.comment_reply || 0);
+    activityIcons.push({
+      icon: <MessageCircle className={cn("h-3 w-3", ACTIVITY_GROUP_ICONS.comments.color)} />,
+      tooltip: `${commentCount} comment${commentCount > 1 ? 's' : ''}`,
+      count: commentCount,
+      color: ACTIVITY_GROUP_ICONS.comments.color
+    });
+  }
+  
+  // Add generic activity icon if there are other types
+  const knownTypes = [
+    'appointment_converted', 
+    'ticket_status_changed', 
+    'appointment_status_changed', // Added this
+    'ticket_assigned', 
+    'note_created', 
+    'timer_start', 
+    'timer_stop', 
+    'comment_created', 
+    'comment_reply'
+  ];
+  const hasOtherTypes = activities.some(a => !knownTypes.includes(a.activity_type));
+  if (hasOtherTypes) {
+    const otherCount = activities.filter(a => !knownTypes.includes(a.activity_type)).length;
+    activityIcons.push({
+      icon: <Clock className={cn("h-3 w-3", ACTIVITY_GROUP_ICONS.other.color)} />,
+      tooltip: `${otherCount} other activit${otherCount > 1 ? 'ies' : 'y'}`,
+      count: otherCount,
+      color: ACTIVITY_GROUP_ICONS.other.color
+    });
+  }
   
   return (
     <div className="border-b last:border-b-0">
@@ -104,52 +208,78 @@ export function GroupedActivityItem({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">
+              <div className="flex items-center gap-2">
                 {activities.length > 1 ? (
                   <>
-                    {entityNumber && (
-                      <span className="font-mono">#{entityNumber}</span>
+                    <p className="text-sm font-medium">
+                      {entityNumber && (
+                        <span className="font-mono">#{entityNumber}</span>
+                      )}
+                      {!entityNumber && entityType && (
+                        <span className="capitalize">{entityType}</span>
+                      )}
+                    </p>
+                    {/* Activity type icons */}
+                    {activityIcons.length > 0 && (
+                      <TooltipProvider delayDuration={300}>
+                        <div className="flex items-center gap-1">
+                          {activityIcons.map((item, index) => (
+                            <Tooltip key={index}>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-0.5">
+                                  <div className="p-1 rounded hover:bg-muted/50 transition-colors">
+                                    {item.icon}
+                                  </div>
+                                  {item.count > 1 && (
+                                    <span className={cn("text-xs font-medium", item.color)}>
+                                      {item.count}
+                                    </span>
+                                  )}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                {item.tooltip}
+                              </TooltipContent>
+                            </Tooltip>
+                          ))}
+                        </div>
+                      </TooltipProvider>
                     )}
-                    {!entityNumber && entityType && (
-                      <span className="capitalize">{entityType}</span>
-                    )}
-                    {' - '}
-                    <span className="text-muted-foreground">{activities.length} activities</span>
+                    {/* Total activities count as a subtle badge */}
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
+                      {activities.length} total
+                    </Badge>
                   </>
                 ) : (
-                  firstActivity.title
-                )}
-              </p>
-              
-              {/* Summary or single activity description */}
-              <div className="mt-1">
-                {activities.length > 1 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {summary}
+                  <p className="text-sm font-medium">
+                    {firstActivity.title}
                   </p>
-                ) : (
-                  <>
-                    {firstActivity.activity_type === 'ticket_status_changed' && firstActivity.details && (
-                      <div className="flex items-center gap-2 mb-1">
-                        {firstActivity.details.old_status && (
-                          <>
-                            <StatusBadge status={firstActivity.details.old_status} size="xs" />
-                            <span className="text-xs text-muted-foreground">→</span>
-                          </>
-                        )}
-                        {firstActivity.details.new_status && (
-                          <StatusBadge status={firstActivity.details.new_status} size="xs" />
-                        )}
-                      </div>
-                    )}
-                    {firstActivity.activity_type !== 'ticket_status_changed' && (
-                      <p className="text-sm text-muted-foreground">
-                        {firstActivity.description}
-                      </p>
-                    )}
-                  </>
                 )}
               </div>
+              
+              {/* Summary or single activity description */}
+              {activities.length === 1 && (
+                <div className="mt-1">
+                  {firstActivity.activity_type === 'ticket_status_changed' && firstActivity.details && (
+                    <div className="flex items-center gap-2 mb-1">
+                      {firstActivity.details.old_status && (
+                        <>
+                          <StatusBadge status={firstActivity.details.old_status} size="xs" />
+                          <span className="text-xs text-muted-foreground">→</span>
+                        </>
+                      )}
+                      {firstActivity.details.new_status && (
+                        <StatusBadge status={firstActivity.details.new_status} size="xs" />
+                      )}
+                    </div>
+                  )}
+                  {firstActivity.activity_type !== 'ticket_status_changed' && (
+                    <p className="text-sm text-muted-foreground">
+                      {firstActivity.description}
+                    </p>
+                  )}
+                </div>
+              )}
               
               {/* Time and user info */}
               <div className="flex items-center gap-2 mt-1">

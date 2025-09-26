@@ -193,7 +193,7 @@ export function DashboardClient({ metrics: initialMetrics }: DashboardClientProp
           {/* Real Activity Feed - 2/3 width on RIGHT */}
           <div className="lg:col-span-2">
             <RealActivityFeed 
-              limit={20}
+              limit={25}
               className="border-muted h-full"
               showFilters={true}
             />

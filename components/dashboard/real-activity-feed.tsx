@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import type { ActivityLogItem } from '@/app/api/activity/route';
 import { GroupedActivityItem } from './grouped-activity-item';
+import { ACTIVITY_COLOR_CLASSES } from '@/lib/constants/activity-colors';
 
 interface RealActivityFeedProps {
   limit?: number;
@@ -59,14 +60,21 @@ const iconMap: Record<string, React.ReactNode> = {
   'activity': <Activity className="h-4 w-4" />
 };
 
+// Use centralized color system
+const getColorClasses = (color: string) => {
+  const colorClass = ACTIVITY_COLOR_CLASSES[color as keyof typeof ACTIVITY_COLOR_CLASSES] || ACTIVITY_COLOR_CLASSES.gray;
+  return `${colorClass.background} ${colorClass.text}`;
+};
+
 const colorMap: Record<string, string> = {
-  'blue': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  'green': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  'yellow': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  'orange': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  'purple': 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  'red': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  'gray': 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
+  'blue': getColorClasses('blue'),
+  'green': getColorClasses('green'),
+  'yellow': getColorClasses('yellow'),
+  'orange': getColorClasses('orange'),
+  'purple': getColorClasses('purple'),
+  'red': getColorClasses('red'),
+  'gray': getColorClasses('gray'),
+  'cyan': getColorClasses('cyan')
 };
 
 export function RealActivityFeed({ 
@@ -282,7 +290,7 @@ export function RealActivityFeed({
       <CardContent className="p-0">
         <ScrollArea className={cn(
           "w-full",
-          compact ? "h-[300px]" : "h-[500px]"
+          compact ? "h-[300px]" : "h-[540px]"
         )}>
           {activities.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { getActivityColor } from '@/lib/constants/activity-colors';
 
 export interface ActivityLogItem {
   id: string;
@@ -30,7 +31,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
         title: `New ticket created`,
         description: 'New repair ticket',
         icon: 'package',
-        color: 'blue'
+        color: getActivityColor('ticket_created')
       };
       
     case 'ticket_status_changed':
@@ -52,7 +53,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
         title: `Ticket status changed`,
         description: `${oldStatus ? `${oldStatus} → ` : ''}${status}`,
         icon: 'refresh',
-        color: status === 'completed' ? 'green' : status === 'in_progress' ? 'yellow' : status === 'on_hold' ? 'orange' : 'blue'
+        color: getActivityColor('ticket_status_changed') // Consistent gray for all status changes
       };
       
     case 'ticket_status_update':
@@ -76,7 +77,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
         title: `Ticket completed`,
         description: 'Repair completed',
         icon: 'check-circle',
-        color: 'green'
+        color: getActivityColor('ticket_completed')
       };
       
     // Timer events
@@ -85,7 +86,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
         title: `Timer started`,
         description: 'Work started',
         icon: 'play',
-        color: 'blue'
+        color: getActivityColor('timer_start') // Now orange from centralized system
       };
       
     case 'timer_stop':
@@ -98,7 +99,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
         title: activity_type === 'timer_admin_stop' ? `Timer stopped by admin` : `Timer stopped`,
         description: `${formattedDuration} recorded`,
         icon: 'pause',
-        color: 'orange'
+        color: getActivityColor(activity_type) // Use centralized system
       };
       
     // Note events
@@ -202,9 +203,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
         title: `Appointment Status Updated`,
         description: `${details?.old_status ? `${details.old_status} → ` : ''}${details?.new_status || 'status changed'}`,
         icon: 'refresh',
-        color: details?.new_status === 'cancelled' || details?.new_status === 'no_show' ? 'red' : 
-               details?.new_status === 'confirmed' || details?.new_status === 'completed' ? 'green' :
-               details?.new_status === 'checked_in' || details?.new_status === 'in_progress' ? 'blue' : 'gray'
+        color: getActivityColor('appointment_status_changed') // Consistent gray for all status changes
       };
       
     case 'appointment_converted':
@@ -212,7 +211,7 @@ const getActivityDisplay = (activity: any): { title: string; description: string
         title: `Appointment converted to ticket`,
         description: `Converted${details?.customer_name ? ` for ${details.customer_name}` : ''}`,
         icon: 'arrow-right',
-        color: 'green'
+        color: getActivityColor('appointment_converted')
       };
     
     case 'appointment_cancelled':

@@ -138,12 +138,26 @@ export function RealActivityFeed({
       const current = activities[i];
       const previous = activities[i - 1];
       
-      // Check if this activity is for the same entity as the previous one
-      const sameEntity = current.entity_id === previous.entity_id && 
-                        current.entity_type === previous.entity_type &&
-                        current.entity_id !== null;
+      // Get the ticket/appointment numbers from both activities
+      const currentTicket = current.details?.ticket_number;
+      const previousTicket = previous.details?.ticket_number;
+      const currentAppt = current.details?.appointment_number;
+      const previousAppt = previous.details?.appointment_number;
       
-      if (sameEntity) {
+      // Check if this activity is for the same entity as the previous one
+      // This could be same entity_id OR same ticket_number OR same appointment_number
+      const sameDirectEntity = current.entity_id === previous.entity_id && 
+                              current.entity_type === previous.entity_type &&
+                              current.entity_id !== null;
+      
+      // Check if they reference the same ticket or appointment
+      const sameTicketReference = currentTicket && previousTicket && currentTicket === previousTicket;
+      const sameApptReference = currentAppt && previousAppt && currentAppt === previousAppt;
+      
+      // Group if either condition is true
+      const shouldGroup = sameDirectEntity || sameTicketReference || sameApptReference;
+      
+      if (shouldGroup) {
         // Add to current group
         currentGroup.push(current);
       } else {

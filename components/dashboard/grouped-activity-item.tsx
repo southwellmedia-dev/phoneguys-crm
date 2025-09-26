@@ -40,8 +40,14 @@ export function GroupedActivityItem({
   }, {} as Record<string, number>);
   
   const summaryParts: string[] = [];
+  if (activityTypes.appointment_converted > 0) {
+    summaryParts.push(`${activityTypes.appointment_converted} conversion${activityTypes.appointment_converted > 1 ? 's' : ''}`);
+  }
   if (activityTypes.ticket_status_changed > 0) {
     summaryParts.push(`${activityTypes.ticket_status_changed} status change${activityTypes.ticket_status_changed > 1 ? 's' : ''}`);
+  }
+  if (activityTypes.ticket_assigned > 0) {
+    summaryParts.push(`${activityTypes.ticket_assigned} assignment${activityTypes.ticket_assigned > 1 ? 's' : ''}`);
   }
   if (activityTypes.note_created > 0) {
     summaryParts.push(`${activityTypes.note_created} note${activityTypes.note_created > 1 ? 's' : ''}`);

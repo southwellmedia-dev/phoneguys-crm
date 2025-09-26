@@ -68,7 +68,7 @@ export function RealDataInsights({ className, metrics }: RealDataInsightsProps) 
   });
 
   // Fetch weekly trend data DIRECTLY FROM DATABASE - accurate ticket counts
-  const { data: trendResponse } = useQuery({
+  const { data: trendResponse, dataUpdatedAt } = useQuery({
     queryKey: ['weekly-trend-db'],
     queryFn: async () => {
       const response = await fetch('/api/dashboard/trend');
@@ -79,6 +79,21 @@ export function RealDataInsights({ className, metrics }: RealDataInsightsProps) 
     },
     staleTime: 30 * 1000, // 30 seconds - more frequent updates
     refetchInterval: 60 * 1000 // 1 minute
+  });
+  
+  // Fetch 7-day status distribution
+  const { data: weeklyStatusData } = useQuery({
+    queryKey: ['weekly-status-distribution'],
+    queryFn: async () => {
+      const response = await fetch('/api/dashboard/status-distribution');
+      if (!response.ok) {
+        // Fallback to local calculation if endpoint doesn't exist yet
+        return null;
+      }
+      return response.json();
+    },
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000
   });
   
   const weeklyTrend = trendResponse?.trend;
@@ -95,13 +110,15 @@ export function RealDataInsights({ className, metrics }: RealDataInsightsProps) 
     ? Math.floor(dashboardMetrics.in_progress_tickets.value * 45) // Estimate 45 min per active ticket
     : 0;
 
-  // Prepare data for charts using metrics from props
-  const statusData = [
-    { name: 'New', value: newTickets, color: '#06b6d4' },
-    { name: 'In Progress', value: inProgress, color: '#f59e0b' },
-    { name: 'Completed', value: completedToday, color: '#10b981' },
-    { name: 'On Hold', value: onHold, color: '#6b7280' }
-  ].filter(item => item.value > 0);
+  // Prepare data for charts - use weekly data if available, otherwise use today's metrics
+  const statusData = weeklyStatusData?.statuses ? 
+    weeklyStatusData.statuses.filter((item: any) => item.value > 0) :
+    [
+      { name: 'New', value: newTickets, color: '#06b6d4' },
+      { name: 'In Progress', value: inProgress, color: '#f59e0b' },
+      { name: 'Completed', value: completedToday, color: '#10b981' },
+      { name: 'On Hold', value: onHold, color: '#6b7280' }
+    ].filter(item => item.value > 0);
 
   // Priority data from dashboard metrics
   const priorityData = dashboardMetrics ? [
@@ -116,6 +133,16 @@ export function RealDataInsights({ className, metrics }: RealDataInsightsProps) 
   const completionRate = totalActive + completedToday > 0 
     ? Math.round(completedToday / (totalActive + completedToday) * 100)
     : 0;
+    
+  // Format last updated time
+  const formatLastUpdated = () => {
+    if (!dataUpdatedAt) return 'Live';
+    const now = Date.now();
+    const diff = now - dataUpdatedAt;
+    if (diff < 10000) return 'Just now';
+    if (diff < 60000) return `${Math.floor(diff / 1000)}s ago`;
+    return `${Math.floor(diff / 60000)}m ago`;
+  };
 
   return (
     <Card className={cn("h-full", className)}>
@@ -125,8 +152,9 @@ export function RealDataInsights({ className, metrics }: RealDataInsightsProps) 
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
             Live Insights
           </span>
-          <span className="text-xs text-muted-foreground bg-green-100 dark:bg-green-900/30 text-green-600 px-2 py-1 rounded">
-            Real Data
+          <span className="text-xs text-muted-foreground bg-green-100 dark:bg-green-900/30 text-green-600 px-2 py-1 rounded flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {formatLastUpdated()}
           </span>
         </CardTitle>
       </CardHeader>
@@ -147,7 +175,7 @@ export function RealDataInsights({ className, metrics }: RealDataInsightsProps) 
         {/* Status Distribution - REAL DATA */}
         <div className="space-y-2">
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Current Status Distribution
+            7-Day Status Distribution
           </h4>
           <div className="h-32 -mx-2">
             <ResponsiveContainer width="100%" height="100%">

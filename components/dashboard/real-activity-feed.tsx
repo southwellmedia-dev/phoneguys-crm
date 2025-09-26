@@ -33,6 +33,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import type { ActivityLogItem } from '@/app/api/activity/route';
+import { GroupedActivityItem } from './grouped-activity-item';
 
 interface RealActivityFeedProps {
   limit?: number;
@@ -125,6 +126,46 @@ export function RealActivityFeed({
 
   const activities = data?.data || [];
   const activityTypes = data?.activityTypes || [];
+
+  // Group consecutive activities for the same entity
+  const groupedActivities = React.useMemo(() => {
+    if (activities.length === 0) return [];
+    
+    const groups: { activities: ActivityLogItem[], isGroup: boolean }[] = [];
+    let currentGroup: ActivityLogItem[] = [activities[0]];
+    
+    for (let i = 1; i < activities.length; i++) {
+      const current = activities[i];
+      const previous = activities[i - 1];
+      
+      // Check if this activity is for the same entity as the previous one
+      const sameEntity = current.entity_id === previous.entity_id && 
+                        current.entity_type === previous.entity_type &&
+                        current.entity_id !== null;
+      
+      if (sameEntity) {
+        // Add to current group
+        currentGroup.push(current);
+      } else {
+        // Save the current group and start a new one
+        groups.push({
+          activities: currentGroup,
+          isGroup: currentGroup.length > 1
+        });
+        currentGroup = [current];
+      }
+    }
+    
+    // Don't forget the last group
+    if (currentGroup.length > 0) {
+      groups.push({
+        activities: currentGroup,
+        isGroup: currentGroup.length > 1
+      });
+    }
+    
+    return groups;
+  }, [activities]);
 
   const getEntityLink = (activity: ActivityLogItem): string | null => {
     if (!activity.entity_id) return null;
@@ -236,12 +277,27 @@ export function RealActivityFeed({
               <p className="text-sm mt-1">Activities will appear here as they happen</p>
             </div>
           ) : (
-            <div className="divide-y">
-              {activities.map((activity) => {
+            <div>
+              {groupedActivities.map((group, groupIndex) => {
+                // If it's a group, use the grouped component
+                if (group.isGroup) {
+                  return (
+                    <GroupedActivityItem
+                      key={`group-${groupIndex}`}
+                      activities={group.activities}
+                      iconMap={iconMap}
+                      colorMap={colorMap}
+                      getEntityLink={getEntityLink}
+                    />
+                  );
+                }
+                
+                // Otherwise render a single activity as before
+                const activity = group.activities[0];
                 const link = getEntityLink(activity);
                 const content = (
                   <div className={cn(
-                    "flex items-start gap-3 p-4 transition-colors",
+                    "flex items-start gap-3 p-4 transition-colors border-b last:border-b-0",
                     link && "hover:bg-muted/50 cursor-pointer",
                     // Highlight new appointment requests
                     activity.activity_type === 'appointment_created' && 
@@ -255,6 +311,9 @@ export function RealActivityFeed({
                     (activity.details?.from_appointment || activity.details?.appointment_number) && 
                     "bg-green-50/50 dark:bg-green-900/10 border-l-4 border-green-500"
                   )}>
+                    {/* Add spacing for alignment with grouped items */}
+                    <div className="w-5" />
+                    
                     <div className={cn(
                       "rounded-full p-2",
                       colorMap[activity.color || 'gray'],

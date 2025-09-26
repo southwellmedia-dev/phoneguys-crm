@@ -211,29 +211,31 @@ export function RealDataInsights({ className, metrics }: RealDataInsightsProps) 
           </div>
         </div>
 
-        {/* Combination Chart - Appointments (bars) vs Completed Tickets (line) */}
+        {/* Combination Chart - Appointments + New Tickets (bars) vs Completed (line) */}
         <div className="space-y-2 pt-3 border-t">
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            7-Day Appointments vs Completed Tickets
+            7-Day Pipeline: Appointments → Tickets → Completed
           </h4>
           <div className="h-32">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart 
                 data={weeklyComparison?.map(d => ({
                   ...d,
-                  appointments: d.appointments || 0
+                  appointments: d.appointments || 0,
+                  newTickets: d.newTickets || d.created || 0
                 })) || weeklyTrend?.map(d => ({
                   ...d,
                   appointments: 0,
+                  newTickets: d.tickets || 0,
                   completed: 0
                 })) || [
-                  { day: 'Mon', appointments: 0, completed: 0 },
-                  { day: 'Tue', appointments: 0, completed: 0 },
-                  { day: 'Wed', appointments: 0, completed: 0 },
-                  { day: 'Thu', appointments: 0, completed: 0 },
-                  { day: 'Fri', appointments: 0, completed: 0 },
-                  { day: 'Sat', appointments: 0, completed: 0 },
-                  { day: 'Today', appointments: 0, completed: completedToday }
+                  { day: 'Mon', appointments: 0, newTickets: 0, completed: 0 },
+                  { day: 'Tue', appointments: 0, newTickets: 0, completed: 0 },
+                  { day: 'Wed', appointments: 0, newTickets: 0, completed: 0 },
+                  { day: 'Thu', appointments: 0, newTickets: 0, completed: 0 },
+                  { day: 'Fri', appointments: 0, newTickets: 0, completed: 0 },
+                  { day: 'Sat', appointments: 0, newTickets: 0, completed: 0 },
+                  { day: 'Today', appointments: 0, newTickets: newTickets, completed: completedToday }
                 ]}
                 margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
               >
@@ -265,27 +267,38 @@ export function RealDataInsights({ className, metrics }: RealDataInsightsProps) 
                   fill="#8b5cf6" 
                   radius={[4, 4, 0, 0]}
                   name="Appointments"
-                  opacity={0.8}
+                  opacity={0.7}
+                />
+                <Bar 
+                  dataKey="newTickets" 
+                  fill="#06b6d4" 
+                  radius={[4, 4, 0, 0]}
+                  name="New Tickets"
+                  opacity={0.7}
                 />
                 <Line 
                   type="monotone" 
                   dataKey="completed" 
                   stroke="#10b981" 
                   strokeWidth={2.5}
-                  dot={{ fill: '#10b981', r: 4 }}
+                  dot={{ fill: '#10b981', r: 3 }}
                   activeDot={{ r: 5 }}
                   name="Completed"
                 />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex justify-center gap-4 text-xs">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 bg-violet-500 rounded-sm opacity-80" />
+          <div className="flex justify-center gap-3 text-xs">
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 bg-violet-500 rounded-sm opacity-70" />
               <span className="text-muted-foreground">Appointments</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-[2.5px] bg-green-500 rounded-full" />
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 bg-cyan-500 rounded-sm opacity-70" />
+              <span className="text-muted-foreground">New Tickets</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-[2px] bg-green-500 rounded-full" />
               <span className="text-muted-foreground">Completed</span>
             </div>
           </div>

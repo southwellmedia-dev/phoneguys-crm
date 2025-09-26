@@ -605,7 +605,7 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
     return trendData;
   }
 
-  async getWeeklyComparison(): Promise<{ day: string; date: string; created: number; completed: number; appointments: number }[]> {
+  async getWeeklyComparison(): Promise<{ day: string; date: string; created: number; completed: number; appointments: number; newTickets: number }[]> {
     const client = await this.getClient();
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
@@ -681,7 +681,8 @@ export class RepairTicketRepository extends BaseRepository<RepairTicket> {
       comparisonData.push({
         day: i === 0 ? 'Today' : dayNames[date.getDay()],
         date: date.toISOString().split('T')[0],
-        created: dayCreated,
+        created: dayCreated, // Keep for backward compatibility
+        newTickets: dayCreated, // More explicit name
         completed: dayCompleted,
         appointments: dayAppointments
       });

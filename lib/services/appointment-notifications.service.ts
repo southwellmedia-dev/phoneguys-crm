@@ -10,8 +10,8 @@ interface AppointmentNotificationData {
   customer: any;
   device?: any;
   issues?: string[];
-  consentEmail?: boolean;
-  consentSMS?: boolean;
+  consentEmail?: boolean; // Must be explicitly true to send emails
+  consentSMS?: boolean;    // Must be explicitly true to send SMS
 }
 
 export class AppointmentNotificationService {
@@ -68,8 +68,8 @@ export class AppointmentNotificationService {
     // Get store settings for email templates
     const storeSettings = await this.storeSettingsService.getSettings();
 
-    // 1. Send customer email notification
-    if (data.consentEmail !== false && data.customer.email) {
+    // 1. Send customer email notification - ONLY if explicitly consented
+    if (data.consentEmail === true && data.customer.email) {
       try {
         console.log('📧 Sending appointment confirmation email to:', data.customer.email);
         
@@ -122,8 +122,8 @@ export class AppointmentNotificationService {
       }
     }
 
-    // 2. Send customer SMS notification
-    if (data.consentSMS !== false && data.customer.phone) {
+    // 2. Send customer SMS notification - ONLY if explicitly consented
+    if (data.consentSMS === true && data.customer.phone) {
       try {
         // TEMPORARY: Override phone number with Twilio Virtual Phone for testing
         const testPhoneNumber = '+18777804236'; // Twilio Virtual Phone
@@ -374,8 +374,8 @@ export class AppointmentNotificationService {
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
-    // 1. Send customer SMS notification
-    if (data.customer.phone && data.consentSMS !== false) {
+    // 1. Send customer SMS notification - ONLY if explicitly consented
+    if (data.customer.phone && data.consentSMS === true) {
       try {
         console.log('📱 Sending appointment confirmed SMS to:', data.customer.phone);
         
@@ -415,8 +415,8 @@ export class AppointmentNotificationService {
       }
     }
 
-    // 2. Send customer email notification
-    if (data.customer.email && data.consentEmail !== false) {
+    // 2. Send customer email notification - ONLY if explicitly consented
+    if (data.customer.email && data.consentEmail === true) {
       try {
         console.log('📧 Sending appointment confirmed email to:', data.customer.email);
         
@@ -493,8 +493,8 @@ export class AppointmentNotificationService {
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
-    // 1. Send customer SMS notification
-    if (data.customer.phone && data.consentSMS !== false) {
+    // 1. Send customer SMS notification - ONLY if explicitly consented
+    if (data.customer.phone && data.consentSMS === true) {
       try {
         console.log('📱 Sending ticket creation SMS to:', data.customer.phone);
         
@@ -524,8 +524,8 @@ export class AppointmentNotificationService {
       }
     }
 
-    // 2. Send customer email notification
-    if (data.customer.email && data.consentEmail !== false) {
+    // 2. Send customer email notification - ONLY if explicitly consented
+    if (data.customer.email && data.consentEmail === true) {
       try {
         console.log('📧 Sending ticket creation email to:', data.customer.email);
         

@@ -45,10 +45,10 @@ const publicAppointmentSchema = z.object({
   appointmentTime: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/), // Accept HH:MM or HH:MM:SS
   duration: z.number().int().positive().default(30),
   
-  // Consent
+  // Consent - IMPORTANT: No defaults, must be explicitly provided
   consent: z.object({
-    email: z.boolean().default(true),
-    sms: z.boolean().default(true),
+    email: z.boolean(),
+    sms: z.boolean(),
     consent_given_at: z.string().datetime().optional()
   }).optional(),
   
@@ -206,35 +206,49 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // Store consent preferences if provided
-    if (data.consent && customer) {
-      try {
-        // Use upsert to handle duplicates gracefully
-        const { error: prefError } = await publicClient
-          .from('notification_preferences')
-          .upsert({
-            customer_id: customer.id,
-            email_enabled: data.consent.email ?? true,
-            sms_enabled: data.consent.sms ?? true,
-            email_address: customer.email,
-            phone_number: customer.phone,
-            consent_given_at: data.consent.consent_given_at || new Date().toISOString(),
-            consent_ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'customer_id',
-            ignoreDuplicates: false
-          });
-        
-        if (prefError) {
-          console.error('Failed to store consent preferences:', prefError);
-        } else {
-          console.log('✅ Consent preferences stored/updated for customer:', customer.id);
-        }
-      } catch (error) {
-        console.error('Error handling consent preferences:', error);
-        // Don't fail the appointment if consent storage fails
+    // Store consent preferences - IMPORTANT: Default to false if not explicitly provided
+    // This ensures we only send notifications when customer has explicitly opted in
+    try {
+      const emailConsent = data.consent?.email === true; // Only true if explicitly set to true
+      const smsConsent = data.consent?.sms === true; // Only true if explicitly set to true
+      
+      console.log('📋 Consent status:', {
+        emailProvided: data.consent?.email,
+        smsProvided: data.consent?.sms,
+        emailConsent,
+        smsConsent
+      });
+      
+      // Always store consent preferences, even if both are false
+      // This records that we asked and they declined
+      const { error: prefError } = await publicClient
+        .from('notification_preferences')
+        .upsert({
+          customer_id: customer.id,
+          email_enabled: emailConsent,
+          sms_enabled: smsConsent,
+          email_address: customer.email,
+          phone_number: customer.phone,
+          consent_given_at: data.consent?.consent_given_at || new Date().toISOString(),
+          consent_ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'customer_id',
+          ignoreDuplicates: false
+        });
+      
+      if (prefError) {
+        console.error('Failed to store consent preferences:', prefError);
+      } else {
+        console.log('✅ Consent preferences stored for customer:', {
+          customerId: customer.id,
+          email: emailConsent,
+          sms: smsConsent
+        });
       }
+    } catch (error) {
+      console.error('Error handling consent preferences:', error);
+      // Don't fail the appointment if consent storage fails
     }
 
     // Convert service categories or IDs to service names
@@ -648,8 +662,8 @@ export async function POST(request: NextRequest) {
         },
         device: deviceInfo,
         issues: formattedIssues,
-        consentEmail: data.consent?.email !== false, // Default true if not explicitly false
-        consentSMS: data.consent?.sms !== false // Default true if not explicitly false
+        consentEmail: data.consent?.email === true, // Only true if explicitly set to true
+        consentSMS: data.consent?.sms === true // Only true if explicitly set to true
       });
       
       console.log('📧📱 Notification results:', {

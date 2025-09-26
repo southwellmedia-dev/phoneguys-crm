@@ -46,15 +46,25 @@ export class TicketNotificationService {
       errors: [] as string[]
     };
 
-    // Get customer notification preferences
-    const { data: preferences } = await this.supabase
+    // Get customer notification preferences - IMPORTANT: Default to NO consent if not found
+    const { data: preferences, error: prefError } = await this.supabase
       .from('notification_preferences')
       .select('*')
       .eq('customer_id', data.customer.id)
       .single();
 
-    const consentEmail = preferences?.email_enabled !== false;
-    const consentSMS = preferences?.sms_enabled !== false;
+    // Only send notifications if customer has explicitly opted in
+    // If no preferences found or error, default to NO notifications
+    const consentEmail = preferences?.email_enabled === true;
+    const consentSMS = preferences?.sms_enabled === true;
+    
+    console.log(`📋 Customer consent for ticket ${data.ticket?.ticket_number}:`, {
+      customerId: data.customer.id,
+      preferencesFound: !!preferences,
+      error: prefError?.message,
+      emailConsent: consentEmail,
+      smsConsent: consentSMS
+    });
 
     // Only send notifications for significant status changes
     const notifiableStatuses = ['in_progress', 'completed', 'on_hold', 'cancelled'];
@@ -256,15 +266,25 @@ export class TicketNotificationService {
       errors: [] as string[]
     };
 
-    // Get customer notification preferences
-    const { data: preferences } = await this.supabase
+    // Get customer notification preferences - IMPORTANT: Default to NO consent if not found
+    const { data: preferences, error: prefError } = await this.supabase
       .from('notification_preferences')
       .select('*')
       .eq('customer_id', data.customer.id)
       .single();
 
-    const consentEmail = preferences?.email_enabled !== false;
-    const consentSMS = preferences?.sms_enabled !== false;
+    // Only send notifications if customer has explicitly opted in
+    // If no preferences found or error, default to NO notifications
+    const consentEmail = preferences?.email_enabled === true;
+    const consentSMS = preferences?.sms_enabled === true;
+    
+    console.log(`📋 Customer consent for ticket ${data.ticket?.ticket_number}:`, {
+      customerId: data.customer.id,
+      preferencesFound: !!preferences,
+      error: prefError?.message,
+      emailConsent: consentEmail,
+      smsConsent: consentSMS
+    });
 
     // 1. Send customer email about ticket creation
     if (consentEmail && data.customer.email) {

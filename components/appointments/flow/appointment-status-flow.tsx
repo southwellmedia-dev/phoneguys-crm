@@ -7,6 +7,7 @@ import type { AppointmentStatus } from './appointment-status-badge';
 interface AppointmentStatusFlowProps {
   currentStatus: AppointmentStatus;
   className?: string;
+  isConverted?: boolean;
 }
 
 interface FlowStep {
@@ -22,7 +23,8 @@ interface FlowStep {
  */
 export function AppointmentStatusFlow({ 
   currentStatus, 
-  className 
+  className,
+  isConverted = false
 }: AppointmentStatusFlowProps) {
   // Define the main flow steps (excluding cancelled/no_show as they're edge cases)
   const flowSteps: FlowStep[] = [
@@ -65,7 +67,10 @@ export function AppointmentStatusFlow({
         {/* Progress line */}
         <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200">
           <div 
-            className="h-full bg-cyan-500 transition-all duration-500"
+            className={cn(
+              "h-full transition-all duration-500",
+              isConverted ? "bg-green-500" : "bg-cyan-500"
+            )}
             style={{
               width: isEdgeCase ? '0%' : `${(currentStepIndex / (flowSteps.length - 1)) * 100}%`
             }}
@@ -89,10 +94,14 @@ export function AppointmentStatusFlow({
                 <div 
                   className={cn(
                     "relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-300",
-                    isCompleted 
+                    // Special green color for converted step when appointment is converted
+                    step.key === 'converted' && isConverted
+                      ? "border-green-500 bg-green-500 text-white"
+                      : isCompleted 
                       ? "border-cyan-500 bg-cyan-500 text-white" 
                       : "border-gray-300 bg-white text-gray-400",
-                    isCurrent && "ring-4 ring-cyan-100 scale-110"
+                    isCurrent && "ring-4 ring-cyan-100 scale-110",
+                    step.key === 'converted' && isConverted && "ring-4 ring-green-100"
                   )}
                 >
                   <Icon className="h-5 w-5" />

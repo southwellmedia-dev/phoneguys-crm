@@ -553,11 +553,37 @@ export function AppointmentDetailPremium({
     <PageContainer
       title={`Appointment ${appointment.appointment_number}`}
       description={`${formattedDate} at ${formattedTime}`}
-      actions={enhancedHeaderActions}
+      actions={currentStatus === 'converted' ? enhancedHeaderActions.map(action => ({ ...action, disabled: true })) : enhancedHeaderActions}
       badge={<StatusBadge type="appointment" status={currentStatus} variant="soft" />}
     >
       
       <div className="space-y-6">
+        {/* Converted to Ticket Banner - MOVED TO TOP */}
+        {currentStatus === 'converted' && appointment.converted_to_ticket_id && (
+          <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                  <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-green-900 dark:text-green-100">Successfully Converted to Ticket</p>
+                  <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">This appointment has been processed as a repair ticket</p>
+                </div>
+              </div>
+              <ButtonPremium
+                onClick={() => router.push(`/orders/${appointment.converted_to_ticket_id}`)}
+                variant="default"
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+              >
+                <FileText className="h-4 w-4 mr-1.5" />
+                View Ticket
+              </ButtonPremium>
+            </div>
+          </div>
+        )}
+
         {/* Appointment Status Flow - Clean minimal design */}
         <Card className="border border-gray-200 dark:border-gray-700">
           <CardContent className="pt-6 pb-4">
@@ -575,7 +601,8 @@ export function AppointmentDetailPremium({
               </div>
             )}
             <AppointmentStatusFlow 
-              currentStatus={currentStatus as any} 
+              currentStatus={currentStatus as any}
+              isConverted={currentStatus === 'converted'}
             />
             {isAdmin && currentStatus === 'arrived' && (
               <div className="mt-4 pt-3 border-t flex justify-center">
@@ -594,7 +621,10 @@ export function AppointmentDetailPremium({
         </Card>
 
         {/* Key Metrics Row - Matching appointments list style */}
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <div className={cn(
+          "grid gap-4 grid-cols-2 lg:grid-cols-4",
+          currentStatus === 'converted' && "opacity-60 select-none"
+        )}>
           {/* Appointment Date & Time */}
           <div className="relative overflow-hidden group hover:-translate-y-0.5 transition-transform">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -711,31 +741,6 @@ export function AppointmentDetailPremium({
           </div>
         </div>
 
-        {/* Status Notification Banner */}
-        {currentStatus === 'converted' && appointment.converted_to_ticket_id && (
-          <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                  <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-green-900 dark:text-green-100">Successfully Converted to Ticket</p>
-                  <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">This appointment has been processed as a repair ticket</p>
-                </div>
-              </div>
-              <ButtonPremium
-                onClick={() => router.push(`/orders/${appointment.converted_to_ticket_id}`)}
-                variant="default"
-                size="sm"
-                className="bg-green-600 hover:bg-green-700 text-white border-green-600"
-              >
-                <FileText className="h-4 w-4 mr-1.5" />
-                View Ticket
-              </ButtonPremium>
-            </div>
-          </div>
-        )}
         
         {currentStatus === 'cancelled' && (
           <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
@@ -768,7 +773,10 @@ export function AppointmentDetailPremium({
         {/* Main Content Grid */}
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left Column - Primary Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className={cn(
+            "lg:col-span-2 space-y-6",
+            currentStatus === 'converted' && "[&>div:not(:has(.opacity-50))]:opacity-60 select-none" // Apply opacity to cards except already-dimmed comments
+          )}>
             {/* Device Information - Most Important */}
             {isEditing ? (
               <DeviceSelector
@@ -943,18 +951,53 @@ export function AppointmentDetailPremium({
             )}
 
             {/* Comments Section - Unified System */}
-            <CommentThread
-              entityType="appointment"
-              entityId={appointmentId}
-              currentUserId={currentUserId}
-              allowCustomerComments={true}
-              className="border border-gray-200 dark:border-gray-700"
-              maxHeight="600px"
-            />
+            {currentStatus === 'converted' ? (
+              <Card className="opacity-50 relative">
+                <CardHeader>
+                  <CardTitle className="text-lg">Comments & Discussion</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="p-3 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
+                      <AlertCircle className="h-6 w-6 text-gray-500" />
+                    </div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                      Comments Disabled
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 max-w-xs">
+                      This appointment has been converted to a ticket. Please use the ticket page for comments and discussion.
+                    </p>
+                    {appointment.converted_to_ticket_id && (
+                      <ButtonPremium
+                        onClick={() => router.push(`/orders/${appointment.converted_to_ticket_id}`)}
+                        variant="ghost"
+                        size="sm"
+                        className="mt-4"
+                      >
+                        <FileText className="h-4 w-4 mr-1.5" />
+                        Go to Ticket
+                      </ButtonPremium>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <CommentThread
+                entityType="appointment"
+                entityId={appointmentId}
+                currentUserId={currentUserId}
+                allowCustomerComments={true}
+                className="border border-gray-200 dark:border-gray-700"
+                maxHeight="600px"
+              />
+            )}
           </div>
 
           {/* Right Column - Secondary Content */}
-          <div className="lg:col-span-1 space-y-4">
+          <div className={cn(
+            "lg:col-span-1 space-y-4",
+            currentStatus === 'converted' && "opacity-60 select-none"
+          )}>
             {/* Assignee Card */}
             <AssigneeCard
               assignee={appointment.assigned_to ? {

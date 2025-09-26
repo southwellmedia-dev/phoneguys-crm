@@ -536,7 +536,7 @@ export async function POST(request: NextRequest) {
       }
 
       const activityData = {
-        user_id: 'system', // System-generated activity for public API
+        user_id: '11111111-1111-1111-1111-111111111111', // System user UUID for public API activities
         user_name: 'Website Form',
         user_avatar: null,
         activity_type: 'appointment_created',
